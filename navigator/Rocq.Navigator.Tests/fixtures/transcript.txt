@@ -1,0 +1,121 @@
+Welcome to Rocq 9.1.0
+The command has indeed failed with message:
+The reference __nav_0 was not found in the current environment.
+Other.other_def
+     : nat -> nat
+The command has indeed failed with message:
+The reference __nav_1 was not found in the current environment.
+Other.other_lemma
+     : Other.other_def 1 = 1
+The command has indeed failed with message:
+The reference __nav_2 was not found in the current environment.
+Fetching opaque proofs from disk for Fixture.Other
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_3 was not found in the current environment.
+sum_refl
+     : ∀ a b : nat, a + b = a + b
+The command has indeed failed with message:
+The reference __nav_4 was not found in the current environment.
+Fetching opaque proofs from disk for Fixture.Guide
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_5 was not found in the current environment.
+sum_zero
+     : 0 + 0 = 0
+The command has indeed failed with message:
+The reference __nav_6 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_7 was not found in the current environment.
+plain_doc
+     : Other.other_def 2 = 2
+The command has indeed failed with message:
+The reference __nav_8 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_9 was not found in the current environment.
+open_goal
+     : ∀ n : nat, n = n + 0
+The command has indeed failed with message:
+The reference __nav_10 was not found in the current environment.
+Axioms:
+open_goal : ∀ n : nat, n = n + 0
+The command has indeed failed with message:
+The reference __nav_11 was not found in the current environment.
+zero_absorbs_falsified
+     : ~ (∀ n : nat, n = 0)
+The command has indeed failed with message:
+The reference __nav_12 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_13 was not found in the current environment.
+checked_law
+     : 1 = 1
+The command has indeed failed with message:
+The reference __nav_14 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_15 was not found in the current environment.
+fixture_axiom
+     : 2 = 2
+The command has indeed failed with message:
+The reference __nav_16 was not found in the current environment.
+rests_on_axiom
+     : 2 = 2 /\ 1 = 1
+The command has indeed failed with message:
+The reference __nav_17 was not found in the current environment.
+Axioms:
+fixture_axiom : 2 = 2
+The command has indeed failed with message:
+The reference __nav_18 was not found in the current environment.
+sum_refl'
+     : ∀ a : nat, a = a
+The command has indeed failed with message:
+The reference __nav_19 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_20 was not found in the current environment.
+αβ_law
+     : ∀ (P : Prop) (a : nat), (∅ -> P) -> a = a
+The command has indeed failed with message:
+The reference __nav_21 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_22 was not found in the current environment.
+The command has indeed failed with message:
+The reference __nav_23 was not found in the current environment.
+first_use
+     : nat -> nat
+The command has indeed failed with message:
+The reference __nav_24 was not found in the current environment.
+The command has indeed failed with message:
+The reference __nav_25 was not found in the current environment.
+second_use
+     : nat -> nat
+The command has indeed failed with message:
+The reference __nav_26 was not found in the current environment.
+Nest.inner
+     : nat
+The command has indeed failed with message:
+The reference __nav_27 was not found in the current environment.
+Nest.Deep.deep_law
+     : Nest.inner = 3
+The command has indeed failed with message:
+The reference __nav_28 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_29 was not found in the current environment.
+Stable
+     : Prop -> Prop
+The command has indeed failed with message:
+The reference __nav_30 was not found in the current environment.
+@stable_step
+     : ∀ P : Prop, Stable P -> P -> P
+The command has indeed failed with message:
+The reference __nav_31 was not found in the current environment.
+stable_twice
+     : ∀ P : Prop, Stable P -> P -> P
+The command has indeed failed with message:
+The reference __nav_32 was not found in the current environment.
+Closed under the global context

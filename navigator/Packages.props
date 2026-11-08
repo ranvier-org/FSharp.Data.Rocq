@@ -21,8 +21,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- Nacara.Core 2.0.0-beta.6 asks for 10.1.300, above the SDK's implicit version. -->
-        <PackageReference Update="FSharp.Core" Version="10.1.401" />
+        <!-- Nacara.Core 2.0.0-beta.6 asks for 10.1.300, above the SDK's implicit version. 10.1.403 matches FSharp.Data.Rocq. -->
+        <PackageReference Update="FSharp.Core" Version="10.1.403" />
     </ItemGroup>
 
 </Project>

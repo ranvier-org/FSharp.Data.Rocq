@@ -1,0 +1,10 @@
+DIGEST 3b40f9c4187920d8d7f09705a1bcd471
+FFixture.Other
+def 61:69 <> other_def
+R76:78 Corelib.Init.Datatypes <> nat ind
+binder 72:72 <> n:1
+R83:85 Corelib.Init.Datatypes <> nat ind
+R90:90 Fixture.Other <> n:1 var
+prf 102:112 <> other_lemma
+R146:148 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R135:143 Fixture.Other <> other_def def

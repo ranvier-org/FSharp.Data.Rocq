@@ -8,6 +8,8 @@
 
     <ItemGroup>
         <Compile Include="Spike.fs" />
+        <Compile Include="Config.fs" />
+        <Compile Include="Facts.fs" />
     </ItemGroup>
 
     <ItemGroup>
@@ -19,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Rocq.Navigator.Shared\Rocq.Navigator.Shared.fsproj" />
+        <ProjectReference Include="..\..\src\FSharp.Data.Rocq\FSharp.Data.Rocq.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

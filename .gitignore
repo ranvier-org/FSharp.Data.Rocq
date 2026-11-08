@@ -19,3 +19,10 @@ navigator/Rocq.Navigator.Site/output/
 navigator/Rocq.Navigator.Site/.nacara/
 # SageFs session state.
 .SageFs/
+
+# Navigator fixtures: compiled by fixtures/generate.sh, with the .glob files committed.
+!navigator/Rocq.Navigator.Tests/fixtures/**/*.glob
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vo
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vok
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vos
+navigator/Rocq.Navigator.Tests/fixtures/**/.*.aux
