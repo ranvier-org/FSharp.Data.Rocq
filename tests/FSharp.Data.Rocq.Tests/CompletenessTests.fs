@@ -153,8 +153,15 @@ let private symbolTextMatches (f: Loaded) =
     for i in 0 .. binderNames.Length - 1 do
         let written = sliceBytes f.Bytes (binderStarts[i], binderEnds[i])
 
-        // A pattern binder has a generated name, and its span covers the pattern.
-        if not (written.StartsWith '(' || written.StartsWith '\'') then
+        // A pattern binder and an anonymous class binder (`{!C x}) have generated names, and their spans cover what is
+        // written.
+        if
+            not (
+                written.StartsWith '('
+                || written.StartsWith '\''
+                || written.StartsWith '!'
+            )
+        then
             Expect.equal written binderNames[i] $"{f.Path}: bytes at the binder's span"
 
 let private declarationKeywords =
