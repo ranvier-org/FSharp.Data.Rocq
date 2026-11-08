@@ -96,6 +96,20 @@ dotnet tool restore
 dotnet fantomas --check src tests samples
 ```
 
+## Publish
+
+[`publish.yml`](.github/workflows/publish.yml) checks formatting, tests and packs on every push and pull request. A `v*` tag
+also publishes to nuget.org through trusted publishing, so the repository holds no API key. The tag must equal `v` plus
+`Version` in the library's project file:
+
+```bash
+git tag v0.1.0-preview.1
+```
+
+```bash
+git push origin v0.1.0-preview.1
+```
+
 ## Design decisions
 
 **Built rather than adopted.** No existing tool provides this data; see [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
