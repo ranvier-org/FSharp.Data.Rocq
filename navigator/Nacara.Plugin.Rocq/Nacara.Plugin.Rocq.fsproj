@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
+
+    <Import Project="..\Packages.props" />
+
+    <ItemGroup>
+        <Compile Include="Spike.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource
+            Include="assets\navigator.js"
+            LogicalName="Nacara.Plugin.Rocq.assets.navigator.js"
+            Condition="Exists('assets\navigator.js')" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Rocq.Navigator.Shared\Rocq.Navigator.Shared.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nacara.Core" Version="$(NacaraCoreVersion)" />
+        <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    </PropertyGroup>
+
+    <Import Project="..\Packages.props" />
+
+    <ItemGroup>
+        <Compile Include="Site.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Nacara.Plugin.Rocq\Nacara.Plugin.Rocq.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nacara.Plugin.Markdown" Version="$(NacaraMarkdownVersion)" />
+        <PackageReference Include="Nacara.Plugin.LinkValidator" Version="$(NacaraLinkValidatorVersion)" />
+    </ItemGroup>
+
+</Project>

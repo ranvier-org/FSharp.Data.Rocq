@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <Import Project="..\Packages.props" />
+
+    <ItemGroup>
+        <Compile Include="Main.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Rocq.Navigator.Shared\Rocq.Navigator.Shared.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Ranvier.View.Dom" Version="$(RanvierViewVersion)" />
+        <PackageReference Include="Fable.Ranvier.Dom" Version="$(FableRanvierDomVersion)" />
+    </ItemGroup>
+
+</Project>
