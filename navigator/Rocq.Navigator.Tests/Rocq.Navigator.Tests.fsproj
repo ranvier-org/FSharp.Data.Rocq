@@ -15,6 +15,7 @@
         <Compile Include="FixtureFiles.fs" />
         <Compile Include="FactsTests.fs" />
         <Compile Include="SourceTests.fs" />
+        <Compile Include="DocsTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 
