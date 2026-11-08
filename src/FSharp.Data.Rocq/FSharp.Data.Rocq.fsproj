@@ -6,6 +6,22 @@
         <OtherFlags>$(OtherFlags) --warnon:3390</OtherFlags>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <IsPackable>true</IsPackable>
+        <PackageId>FSharp.Data.Rocq</PackageId>
+        <Version>0.1.0-preview.1</Version>
+        <Authors>Shayan Habibi</Authors>
+        <Description>Typed access to a compiled Rocq project: sentences, declarations, proofs, comments, resolved references and cross-file dependencies, read from .v and .glob files without running Rocq. Can also write the project as JSON.</Description>
+        <PackageTags>rocq;coq;fsharp;glob;proof-assistant;parser</PackageTags>
+        <PackageProjectUrl>https://github.com/ranvier-org/FSharp.Data.Rocq</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/ranvier-org/FSharp.Data.Rocq</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
     <ItemGroup>
         <Compile Include="Source.fs" />
         <Compile Include="Lexer.fs" />

@@ -6,6 +6,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open System.IO
 open System.Text.Json
+open FSharp.Data.Rocq.Structure
 open FSharp.Data.Rocq.Project
 open FSharp.Data.Rocq.Shard
 
@@ -153,7 +154,13 @@ let private writeXref (outDir: string) (project: RocqProject) =
              |> Seq.map (fun e -> nodeId project e.Target))
 
         writeInts w "from" (x.Edges |> Seq.map (fun e -> ownerId e.Owner))
-        writeInts w "where" (x.Edges |> Seq.map _.Where)
+
+        writeInts
+            w
+            "where"
+            (x.Edges
+             |> Seq.map (fun e -> useLocationCode e.Where))
+
         writeInts w "count" (x.Edges |> Seq.map _.Count)
         w.WriteEndObject ()
         writeInts w "toOffsets" x.ToOffsets
@@ -222,7 +229,13 @@ let private writeIndex (options: Options) (project: RocqProject) =
         writeStrings w "id" (decls |> Seq.map _.Declaration.Id)
         writeStrings w "name" (decls |> Seq.map _.Declaration.Name)
         writeStrings w "keyword" (decls |> Seq.map _.Declaration.Keyword)
-        writeStrings w "category" (decls |> Seq.map _.Declaration.Category)
+
+        writeStrings
+            w
+            "category"
+            (decls
+             |> Seq.map (fun d -> categoryName d.Declaration.Category))
+
         writeInts w "file" (decls |> Seq.map _.File)
         writeInts w "local" (decls |> Seq.map _.Local)
         writeInts w "start" (decls |> Seq.map _.Declaration.Extent.Start)
@@ -238,7 +251,7 @@ let private writeIndex (options: Options) (project: RocqProject) =
                  if proofs.Count = 0 then
                      null
                  else
-                     proofs[proofs.Count - 1].Ending))
+                     proofEndingName proofs[proofs.Count - 1].Ending))
 
         writeInts w "docCount" (decls |> Seq.map _.Declaration.Docs.Count)
         w.WriteEndObject ()

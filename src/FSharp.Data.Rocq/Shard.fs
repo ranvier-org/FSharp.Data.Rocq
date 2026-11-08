@@ -130,12 +130,12 @@ let private writeDeclaration (w: Utf8JsonWriter) (d: Declaration) =
     w.WriteStartObject ()
     w.WriteString ("id", d.Id)
     writeStringOrNull w "name" d.Name
-    w.WriteString ("nameSource", d.NameSource)
+    w.WriteString ("nameSource", nameSourceName d.NameSource)
     writeSpanOpt w "nameSpan" d.NameSpan
     w.WriteString ("keyword", d.Keyword)
     writeSpan w "keywordSpan" d.KeywordSpan
     writeStrings w "modifiers" d.Modifiers
-    w.WriteString ("category", d.Category)
+    w.WriteString ("category", categoryName d.Category)
     w.WriteNumber ("scope", d.Scope)
     w.WriteNumber ("sentence", d.Sentence)
     writeSpan w "sentenceSpan" d.SentenceSpan
@@ -148,7 +148,7 @@ let private writeDeclaration (w: Utf8JsonWriter) (d: Declaration) =
 
     for p in d.Proofs do
         w.WriteStartObject ()
-        w.WriteString ("ending", p.Ending)
+        w.WriteString ("ending", proofEndingName p.Ending)
         writeSpan w "span" p.Span
         writeSpan w "bodySpan" p.BodySpan
         w.WriteNumber ("opener", p.Opener)
@@ -178,7 +178,7 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
 
         let categoryColumn =
             m.Sentences
-            |> Array.map (fun s -> intern categories categoryIndex s.Category)
+            |> Array.map (fun s -> intern categories categoryIndex (categoryName s.Category))
 
         let keywordColumn =
             m.Sentences
@@ -210,7 +210,7 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
 
         for c in m.Comments do
             w.WriteStartObject ()
-            w.WriteString ("format", c.Format)
+            w.WriteString ("format", commentFormatName c.Format)
             writeSpan w "span" c.Span
             writeSpan w "bodySpan" c.BodySpan
             w.WriteString ("text", text m.Bytes c.Span)
@@ -231,7 +231,7 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
             w.WriteNumber ("level", x.Level)
             w.WriteString ("text", x.Text)
             writeSpan w "span" x.Span
-            w.WriteString ("format", x.Format)
+            w.WriteString ("format", commentFormatName x.Format)
             w.WriteNumber ("comment", x.Comment)
             w.WriteEndObject ()
 
@@ -241,7 +241,7 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
 
         for s in m.Scopes do
             w.WriteStartObject ()
-            w.WriteString ("kind", s.Kind)
+            w.WriteString ("kind", scopeKindName s.Kind)
             writeStringOrNull w "name" s.Name
             w.WriteNumber ("parent", s.Parent)
             w.WriteNumber ("sentence", s.Sentence)
@@ -316,7 +316,13 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         w.WriteStartObject "uses"
         writeInts w "owner" (m.Uses |> Seq.map _.Owner)
         writeInts w "target" targetColumn
-        writeInts w "where" (m.Uses |> Seq.map _.Where)
+
+        writeInts
+            w
+            "where"
+            (m.Uses
+             |> Seq.map (fun u -> useLocationCode u.Where))
+
         writeInts w "count" (m.Uses |> Seq.map _.Count)
         w.WriteStartObject "targets"
         writeStrings w "module" (targets |> Seq.map _.Module)
@@ -368,7 +374,7 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
 
         for d in m.Diagnostics do
             w.WriteStartObject ()
-            w.WriteString ("severity", d.Severity)
+            w.WriteString ("severity", severityName d.Severity)
             w.WriteString ("code", d.Code)
             w.WriteString ("message", d.Message)
             w.WriteNumber ("offset", d.Offset)

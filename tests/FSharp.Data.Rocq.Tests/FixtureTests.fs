@@ -20,7 +20,7 @@ let private fixture =
                  }
 
          Expect.equal report.ExitCode 0 "extraction"
-         load fixtureProject out)
+         loadOutput fixtureProject out)
 
 let private file (suffix: string) =
     let _, _, files = fixture.Value

@@ -69,6 +69,8 @@ type ProjectDeclaration =
 
 type ProjectSymbol =
     {
+        /// Index into `RocqProject.Symbols`.
+        Index: int
         /// Index into `RocqProject.Files`.
         File: int
         /// Index into the file's `Model.Symbols`.
@@ -109,8 +111,7 @@ type Edge =
     {
         Target: Node
         Owner: Owner
-        /// 0 statement, 1 body, 2 proof, 3 top-level directive.
-        Where: int
+        Where: UseLocation
         Count: int
     }
 
@@ -341,6 +342,7 @@ let private build (files: RocqFile[]) : RocqProject =
 
             symbols.Add
                 {
+                    Index = symbols.Count
                     File = fi
                     Local = local
                     Declaration = if s.Decl >= 0 then Some (declOffset[fi] + s.Decl) else None
@@ -353,7 +355,7 @@ let private build (files: RocqFile[]) : RocqProject =
     // Nodes number symbols first, then externals. A target outside the symbol table becomes an external node.
     let externals = Dictionary<string, int>()
     let externalNodes = List<ExternalNode>()
-    let edges = List<struct (int * int * int * int)>() // to, from, where, count
+    let edges = List<struct (int * int * UseLocation * int)>() // to, from, where, count
     let unresolved = List<string * string * string>()
 
     for fi in 0 .. files.Length - 1 do
@@ -633,14 +635,6 @@ let symbolsNamed (project: RocqProject) (name: string) : ProjectSymbol[] =
             =
             name)
 
-/// Index of a symbol's node, for `usesOf`.
-let symbolNode (project: RocqProject) (symbol: ProjectSymbol) : Node =
-    let first =
-        project.Symbols
-        |> Array.findIndex (fun s -> s.File = symbol.File && s.Local = symbol.Local)
-
-    SymbolNode first
-
 /// The edges targeting a node.
 let usesOf (project: RocqProject) (node: Node) : Edge[] =
     let x = project.CrossReferences
@@ -664,3 +658,8 @@ let usesBy (project: RocqProject) (owner: Owner) : Edge[] =
     [|
         for i in x.FromOffsets[slot] .. x.FromOffsets[slot + 1] - 1 -> x.Edges[x.ByFrom[i]]
     |]
+
+/// The edges targeting every symbol matching `name`, as `symbolsNamed` defines a match.
+let whoUses (project: RocqProject) (name: string) : Edge[] =
+    symbolsNamed project name
+    |> Array.collect (fun s -> usesOf project (SymbolNode s.Index))

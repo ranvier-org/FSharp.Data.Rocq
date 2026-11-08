@@ -60,7 +60,7 @@ let tests =
                         }
 
                 Expect.equal report.ExitCode 0 "ran"
-                let _, _, files = load project out
+                let _, _, files = loadOutput project out
 
                 let b =
                     files
@@ -98,7 +98,7 @@ let tests =
                 let report = run (options project out)
                 Expect.equal report.ExitCode 0 "recorded"
                 Expect.equal report.UnknownKinds (Map [ "zzz", 1 ]) "reported"
-                let index, _, files = load project out
+                let index, _, files = loadOutput project out
                 Expect.equal (index.GetProperty("unknownKinds").GetProperty("zzz").GetInt32()) 1 "in the index"
 
                 let b =
@@ -126,7 +126,7 @@ let tests =
                 let report = run (options project out)
                 Expect.equal report.ExitCode 3 "fails loudly"
                 Expect.equal report.UnparsedLines 1 "counted"
-                let _, _, files = load project out
+                let _, _, files = loadOutput project out
 
                 let b =
                     files
@@ -142,7 +142,7 @@ let tests =
                 File.AppendAllText (g, "def 999990:999995 <> offscreen\n")
                 let out = tempDir ()
                 Expect.equal (run (options project out)).ExitCode 0 "ran"
-                let _, _, files = load project out
+                let _, _, files = loadOutput project out
 
                 let b =
                     files

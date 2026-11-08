@@ -354,7 +354,7 @@ let projectTests (label: string) (project: string) (oracleFor: (string -> string
                      }
 
              Expect.equal report.ExitCode 0 $"extraction: {report.Refused}"
-             load project out)
+             loadOutput project out)
 
     let root = Path.GetDirectoryName (Path.GetFullPath project)
 

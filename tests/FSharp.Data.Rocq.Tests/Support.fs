@@ -80,7 +80,7 @@ type Loaded =
         Tokens: JsonElement
     }
 
-let load (project: string) (out: string) =
+let loadOutput (project: string) (out: string) =
     let root = Path.GetDirectoryName (Path.GetFullPath project)
 
     let doc (p: string) =

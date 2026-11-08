@@ -8,6 +8,145 @@ open FSharp.Data.Rocq.Source
 open FSharp.Data.Rocq.Lexer
 open FSharp.Data.Rocq.Glob
 
+/// The syntactic role of a sentence.
+[<RequireQualifiedAccess>]
+type Category =
+    | Theorem
+    | Goal
+    | Definition
+    | Inductive
+    | Assumption
+    | Notation
+    | Ltac
+    | Scheme
+    /// A declaration whose keyword is outside the other categories, recognised by its `.glob` symbols.
+    | Other
+    | Section
+    | Module
+    | End
+    | Import
+    | ProofStart
+    | ProofEnd
+    | Obligation
+    | Tactic
+    | Bullet
+    | Focus
+    | Directive
+    /// A sentence lacking a terminator, at the end of a file that does not compile.
+    | Unterminated
+
+/// How a proof closes.
+[<RequireQualifiedAccess>]
+type ProofEnding =
+    | Qed
+    | Defined
+    | Admitted
+    | Abort
+    | Save
+    /// `Proof <term>.`, which closes in one sentence.
+    | ProofTerm
+    /// The file ends inside the proof.
+    | Unterminated
+
+[<RequireQualifiedAccess>]
+type CommentFormat =
+    /// `(* ... *)`
+    | Plain
+    /// `(** ... *)`
+    | Doc
+    /// `(**md ... *)`
+    | Markdown
+
+/// The origin of a declaration's name.
+[<RequireQualifiedAccess>]
+type NameSource =
+    | Glob
+    | Source
+    | Anonymous
+
+[<RequireQualifiedAccess>]
+type ScopeKind =
+    | Section
+    | Module
+    | ModuleType
+
+/// The part of a declaration containing a mention. The order of the cases is the sort order of `Use` and `Edge`.
+[<RequireQualifiedAccess>]
+type UseLocation =
+    | Statement
+    | Body
+    | Proof
+    | TopLevelDirective
+
+[<RequireQualifiedAccess>]
+type Severity =
+    | Warning
+    | Error
+
+let categoryName (category: Category) =
+    match category with
+    | Category.Theorem -> "theorem"
+    | Category.Goal -> "goal"
+    | Category.Definition -> "definition"
+    | Category.Inductive -> "inductive"
+    | Category.Assumption -> "assumption"
+    | Category.Notation -> "notation"
+    | Category.Ltac -> "ltac"
+    | Category.Scheme -> "scheme"
+    | Category.Other -> "other"
+    | Category.Section -> "section"
+    | Category.Module -> "module"
+    | Category.End -> "end"
+    | Category.Import -> "import"
+    | Category.ProofStart -> "proofStart"
+    | Category.ProofEnd -> "proofEnd"
+    | Category.Obligation -> "obligation"
+    | Category.Tactic -> "tactic"
+    | Category.Bullet -> "bullet"
+    | Category.Focus -> "focus"
+    | Category.Directive -> "directive"
+    | Category.Unterminated -> "unterminated"
+
+let proofEndingName (ending: ProofEnding) =
+    match ending with
+    | ProofEnding.Qed -> "Qed"
+    | ProofEnding.Defined -> "Defined"
+    | ProofEnding.Admitted -> "Admitted"
+    | ProofEnding.Abort -> "Abort"
+    | ProofEnding.Save -> "Save"
+    | ProofEnding.ProofTerm -> "ProofTerm"
+    | ProofEnding.Unterminated -> "Unterminated"
+
+let commentFormatName (format: CommentFormat) =
+    match format with
+    | CommentFormat.Plain -> "plain"
+    | CommentFormat.Doc -> "doc"
+    | CommentFormat.Markdown -> "md"
+
+let nameSourceName (source: NameSource) =
+    match source with
+    | NameSource.Glob -> "glob"
+    | NameSource.Source -> "source"
+    | NameSource.Anonymous -> "none"
+
+let scopeKindName (kind: ScopeKind) =
+    match kind with
+    | ScopeKind.Section -> "Section"
+    | ScopeKind.Module -> "Module"
+    | ScopeKind.ModuleType -> "Module Type"
+
+let useLocationCode (location: UseLocation) =
+    match location with
+    | UseLocation.Statement -> 0
+    | UseLocation.Body -> 1
+    | UseLocation.Proof -> 2
+    | UseLocation.TopLevelDirective -> 3
+
+let severityName (severity: Severity) =
+    match severity with
+    | Severity.Warning -> "warning"
+    | Severity.Error -> "error"
+
 type Sentence =
     {
         Index: int
@@ -16,7 +155,7 @@ type Sentence =
         FirstToken: int
         /// Index after the sentence's last token.
         EndToken: int
-        mutable Category: string
+        mutable Category: Category
         Keyword: string
         KeywordSpan: Span voption
         Modifiers: string[]
@@ -30,7 +169,7 @@ type Heading =
         Level: int
         Text: string
         Span: Span
-        Format: string
+        Format: CommentFormat
         Comment: int
     }
 
@@ -38,8 +177,7 @@ type Comment =
     {
         Index: int
         Span: Span
-        /// `doc` for `(** `, `md` for `(**md`, `plain` otherwise.
-        Format: string
+        Format: CommentFormat
         BodySpan: Span
         /// The sentence containing the comment, or -1 at top level.
         Sentence: int
@@ -61,8 +199,7 @@ type Proof =
         LastSentence: int
         Span: Span
         BodySpan: Span
-        /// `Qed`, `Defined`, `Admitted`, `Abort`, `Save`, `ProofTerm`, or `Unterminated`.
-        Ending: string
+        Ending: ProofEnding
         TacticSentences: int
     }
 
@@ -83,13 +220,12 @@ type Declaration =
         Index: int
         mutable Id: string
         Name: string
-        /// `glob` when `.glob` names the declaration, `source` when the sentence's text does, `none` when anonymous.
-        NameSource: string
+        NameSource: NameSource
         NameSpan: Span voption
         Keyword: string
         KeywordSpan: Span
         Modifiers: string[]
-        Category: string
+        Category: Category
         Sentence: int
         SentenceSpan: Span
         mutable Extent: Span
@@ -106,8 +242,7 @@ type Declaration =
 type Scope =
     {
         Index: int
-        /// `Section`, `Module` or `Module Type`.
-        Kind: string
+        Kind: ScopeKind
         Name: string
         Parent: int
         Sentence: int
@@ -180,14 +315,13 @@ type Use =
     {
         Owner: int
         Target: int
-        /// 0 statement, 1 body, 2 proof, 3 top-level directive.
-        Where: int
+        Where: UseLocation
         Count: int
     }
 
 type Diagnostic =
     {
-        Severity: string
+        Severity: Severity
         Code: string
         Message: string
         Offset: int
@@ -309,8 +443,8 @@ let private categoryOfKeyword (keyword: string) =
     | "Remark"
     | "Corollary"
     | "Proposition"
-    | "Property" -> "theorem"
-    | "Goal" -> "goal"
+    | "Property" -> Category.Theorem
+    | "Goal" -> Category.Goal
     | "Definition"
     | "Example"
     | "Fixpoint"
@@ -319,13 +453,13 @@ let private categoryOfKeyword (keyword: string) =
     | "Let Fixpoint"
     | "Let CoFixpoint"
     | "Instance"
-    | "Function" -> "definition"
+    | "Function" -> Category.Definition
     | "Inductive"
     | "CoInductive"
     | "Variant"
     | "Record"
     | "Structure"
-    | "Class" -> "inductive"
+    | "Class" -> Category.Inductive
     | "Axiom"
     | "Axioms"
     | "Parameter"
@@ -340,48 +474,48 @@ let private categoryOfKeyword (keyword: string) =
     | "Symbol"
     | "Symbols"
     | "Primitive"
-    | "Declare Instance" -> "assumption"
+    | "Declare Instance" -> Category.Assumption
     | "Notation"
     | "Infix"
     | "Reserved Notation"
     | "Reserved Infix"
-    | "Tactic Notation" -> "notation"
+    | "Tactic Notation" -> Category.Notation
     | "Ltac"
-    | "Ltac2" -> "ltac"
+    | "Ltac2" -> Category.Ltac
     | "Scheme"
     | "Combined Scheme"
-    | "Functional Scheme" -> "scheme"
-    | "Section" -> "section"
+    | "Functional Scheme" -> Category.Scheme
+    | "Section" -> Category.Section
     | "Module"
     | "Module Type"
-    | "Declare Module" -> "module"
-    | "End" -> "end"
+    | "Declare Module" -> Category.Module
+    | "End" -> Category.End
     | "From"
     | "Require"
     | "Import"
-    | "Export" -> "import"
-    | "Proof" -> "proofStart"
+    | "Export" -> Category.Import
+    | "Proof" -> Category.ProofStart
     | "Qed"
     | "Defined"
     | "Admitted"
     | "Abort"
     | "Abort All"
-    | "Save" -> "proofEnd"
+    | "Save" -> Category.ProofEnd
     | "Next Obligation"
     | "Final Obligation"
-    | "Obligation" -> "obligation"
-    | _ -> "directive"
+    | "Obligation" -> Category.Obligation
+    | _ -> Category.Directive
 
-let private isDeclarationCategory (category: string) =
+let private isDeclarationCategory (category: Category) =
     match category with
-    | "theorem"
-    | "goal"
-    | "definition"
-    | "inductive"
-    | "assumption"
-    | "notation"
-    | "ltac"
-    | "scheme" -> true
+    | Category.Theorem
+    | Category.Goal
+    | Category.Definition
+    | Category.Inductive
+    | Category.Assumption
+    | Category.Notation
+    | Category.Ltac
+    | Category.Scheme -> true
     | _ -> false
 
 /// The newlines in a whitespace token.
@@ -559,20 +693,20 @@ let private commentFormat (src: byte[]) (t: Token) =
             || at 5 = 13uy
             || at 5 = 9uy)
     then
-        "md", span (t.Start + 5) (t.End - 2)
+        CommentFormat.Markdown, span (t.Start + 5) (t.End - 2)
     elif
         len >= 6
         && at 2 = 42uy
         && at 3 <> 42uy
         && at 3 <> 41uy
     then
-        "doc", span (t.Start + 3) (t.End - 2)
+        CommentFormat.Doc, span (t.Start + 3) (t.End - 2)
     else
-        "plain", span (t.Start + 2) (max (t.Start + 2) (t.End - 2))
+        CommentFormat.Plain, span (t.Start + 2) (max (t.Start + 2) (t.End - 2))
 
 /// Reads headings from a comment body, line by line.
 /// Markdown: 1 to 6 `#` and a space, outside fences. Coqdoc: 1 to 4 `*` and a space, outside `<<` `>>` blocks.
-let private headingsOf (src: byte[]) (commentIndex: int) (format: string) (body: Span) =
+let private headingsOf (src: byte[]) (commentIndex: int) (format: CommentFormat) (body: Span) =
     let result = ResizeArray<Heading>()
     let mutable lineStart = body.Start
     let mutable verbatim = false
@@ -588,22 +722,22 @@ let private headingsOf (src: byte[]) (commentIndex: int) (format: string) (body:
         while p < lineEnd && (src[p] = 32uy || src[p] = 9uy) do
             p <- p + 1
 
-        let marker = if format = "md" then 35uy else 42uy
-        let maxLevel = if format = "md" then 6 else 4
+        let marker = if format = CommentFormat.Markdown then 35uy else 42uy
+        let maxLevel = if format = CommentFormat.Markdown then 6 else 4
         let line = Encoding.UTF8.GetString(src, p, lineEnd - p).TrimEnd()
 
         if
-            format = "md"
+            format = CommentFormat.Markdown
             && line.StartsWith ("```", StringComparison.Ordinal)
         then
             verbatim <- not verbatim
         elif
-            format = "doc"
+            format = CommentFormat.Doc
             && line.StartsWith ("<<", StringComparison.Ordinal)
         then
             verbatim <- true
         elif
-            format = "doc"
+            format = CommentFormat.Doc
             && line.StartsWith (">>", StringComparison.Ordinal)
         then
             verbatim <- false
@@ -704,7 +838,11 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             && isCharBoundary src s.End
 
         if not ok then
-            diag "error" "glob-span-invalid" $"line {line + 1}: span {s.Start}:{s.End} is outside the file or inside a character" (max s.Start 0)
+            diag
+                Severity.Error
+                "glob-span-invalid"
+                $"line {line + 1}: span {s.Start}:{s.End} is outside the file or inside a character"
+                (max s.Start 0)
 
         ok
 
@@ -733,7 +871,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     let rawTokens, lexIssues = lex src
 
     for issue in lexIssues do
-        diag "error" "lex" issue.Message issue.Offset
+        diag Severity.Error "lex" issue.Message issue.Offset
 
     let tokens = refine rawTokens boundaries
 
@@ -762,7 +900,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             last <- last - 1
 
         sentenceBuild.Add (struct (open', last, false))
-        diag "error" "sentence-unterminated" "the file ends inside a sentence" tokens[open'].Start
+        diag Severity.Error "sentence-unterminated" "the file ends inside a sentence" tokens[open'].Start
 
     let sentenceCount = sentenceBuild.Count
     let starts = Array.zeroCreate<int> sentenceCount
@@ -811,7 +949,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 Span = span tokens[first].Start tokens[stop - 1].End
                 FirstToken = first
                 EndToken = stop
-                Category = "directive"
+                Category = Category.Directive
                 Keyword = header.Keyword
                 KeywordSpan = header.KeywordSpan
                 Modifiers = header.Modifiers
@@ -861,7 +999,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
         let s = symbols[i]
 
         if s.Sentence < 0 then
-            diag "warning" "symbol-outside-sentence" $"{s.Kind} {s.Name} lies outside every sentence" s.Span.Start
+            diag Severity.Warning "symbol-outside-sentence" $"{s.Kind} {s.Name} lies outside every sentence" s.Span.Start
         else
             match symbolsBySentence.TryGetValue s.Sentence with
             | true, l -> l.Add i
@@ -916,7 +1054,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     let headings =
         commentData
         |> Array.collect (fun c ->
-            if c.Format = "plain" then
+            if c.Format = CommentFormat.Plain then
                 [||]
             else
                 (headingsOf src c.Index c.Format c.BodySpan).ToArray())
@@ -931,9 +1069,9 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     let proofStack = Stack<struct (int * int * int ref * int ref)>()
     let mutable lastProgramDecl = -1
 
-    let closeProof (k: int) (ending: string) =
+    let closeProof (k: int) (ending: ProofEnding) =
         if proofStack.Count = 0 then
-            diag "warning" "proof-end-without-proof" $"{ending} with no open proof" sentences[k].Span.Start
+            diag Severity.Warning "proof-end-without-proof" $"{proofEndingName ending} with no open proof" sentences[k].Span.Start
         else
             let struct (owner, first, opener, tactics) = proofStack.Pop ()
             let startSentence = sentences[first]
@@ -1029,7 +1167,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
         let keywordCategory =
             if isNull s.Keyword then
-                "directive"
+                Category.Directive
             else
                 categoryOfKeyword s.Keyword
 
@@ -1039,19 +1177,24 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             firstKind = TokenKind.Bullet
             || firstKind = TokenKind.Focus
         then
-            s.Category <- (if firstKind = TokenKind.Bullet then "bullet" else "focus")
+            s.Category <-
+                (if firstKind = TokenKind.Bullet then
+                     Category.Bullet
+                 else
+                     Category.Focus)
+
             s.Decl <- currentOwner ()
         elif
             sg.Length > 0
             && tokens[sg[sg.Length - 1]].Kind = TokenKind.Focus
         then
-            s.Category <- "focus"
+            s.Category <- Category.Focus
             s.Decl <- currentOwner ()
         elif failing then
-            s.Category <- "directive"
+            s.Category <- Category.Directive
             s.Decl <- currentOwner ()
         elif not s.Terminated then
-            s.Category <- "unterminated"
+            s.Category <- Category.Unterminated
         else
             let hasSymbols =
                 match symbolsBySentence.TryGetValue k with
@@ -1064,14 +1207,14 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 isDeclarationCategory keywordCategory
                 || (not inProof
                     && hasSymbols
-                    && keywordCategory = "directive")
+                    && keywordCategory = Category.Directive)
 
             if isDecl then
                 let category =
                     if isDeclarationCategory keywordCategory then
                         keywordCategory
                     else
-                        "other"
+                        Category.Other
 
                 s.Category <- category
 
@@ -1097,12 +1240,15 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 let name, nameSource, nameSpan =
                     match primary with
                     // A `Goal`'s `.glob` span covers its whole statement, and its name is generated.
-                    | Some i when category = "goal" -> symbols[i].Name, "glob", ValueNone
-                    | Some i -> symbols[i].Name, "glob", ValueSome symbols[i].Span
-                    | None when category = "ltac" && afterKeyword < sg.Length ->
+                    | Some i when category = Category.Goal -> symbols[i].Name, NameSource.Glob, ValueNone
+                    | Some i -> symbols[i].Name, NameSource.Glob, ValueSome symbols[i].Span
+                    | None when
+                        category = Category.Ltac
+                        && afterKeyword < sg.Length
+                        ->
                         let t = tokens[sg[afterKeyword]]
-                        tokenText src t, "source", ValueSome (span t.Start t.End)
-                    | None -> null, "none", ValueNone
+                        tokenText src t, NameSource.Source, ValueSome (span t.Start t.End)
+                    | None -> null, NameSource.Anonymous, ValueNone
 
                 // Position after the name: past a whole string for a notation, whose span is the opening quote.
                 let mutable afterName = afterKeyword
@@ -1122,7 +1268,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     afterName <- afterName + 1
 
                 // An assumption's names sit among its binders, so its statement starts at the keyword's end.
-                if category = "assumption" then
+                if category = Category.Assumption then
                     afterName <- afterKeyword
 
                 let coloneq = findTopLevel src tokens sg afterName ":="
@@ -1177,24 +1323,24 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 if Array.contains "Program" s.Modifiers then
                     lastProgramDecl <- index
 
-                if category = "notation" then
+                if category = Category.Notation then
                     notationSentences.Add k
 
                 let opensProof =
-                    category = "theorem"
-                    || category = "goal"
-                    || category = "definition" && coloneq < 0
+                    category = Category.Theorem
+                    || category = Category.Goal
+                    || category = Category.Definition && coloneq < 0
 
                 if opensProof then
                     proofStack.Push (struct (index, k + 1, ref -1, ref 0))
             else
                 match keywordCategory with
-                | "proofStart" when s.Keyword = "Proof" ->
-                    s.Category <- "proofStart"
+                | Category.ProofStart when s.Keyword = "Proof" ->
+                    s.Category <- Category.ProofStart
                     s.Decl <- currentOwner ()
 
                     if proofStack.Count = 0 then
-                        diag "warning" "proof-without-declaration" "Proof with no open goal" s.Span.Start
+                        diag Severity.Warning "proof-without-declaration" "Proof with no open goal" s.Span.Start
                     else
                         let struct (_, _, opener, _) = proofStack.Peek ()
                         opener.Value <- k
@@ -1206,34 +1352,38 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                             && follow <> "using"
                             && follow <> "with"
                         then
-                            closeProof k "ProofTerm"
-                | "proofEnd" ->
-                    s.Category <- "proofEnd"
+                            closeProof k ProofEnding.ProofTerm
+                | Category.ProofEnd ->
+                    s.Category <- Category.ProofEnd
                     s.Decl <- currentOwner ()
 
                     match s.Keyword with
                     | "Abort All" ->
                         while proofStack.Count > 0 do
-                            closeProof k "Abort"
-                    | word -> closeProof k word
-                | "obligation" ->
-                    s.Category <- "obligation"
+                            closeProof k ProofEnding.Abort
+                    | "Qed" -> closeProof k ProofEnding.Qed
+                    | "Defined" -> closeProof k ProofEnding.Defined
+                    | "Admitted" -> closeProof k ProofEnding.Admitted
+                    | "Abort" -> closeProof k ProofEnding.Abort
+                    | _ -> closeProof k ProofEnding.Save
+                | Category.Obligation ->
+                    s.Category <- Category.Obligation
                     s.Decl <- lastProgramDecl
                     proofStack.Push (struct (lastProgramDecl, k, ref k, ref 0))
                 | _ when inProof ->
                     s.Category <-
-                        (if keywordCategory = "directive" then
-                             "tactic"
+                        (if keywordCategory = Category.Directive then
+                             Category.Tactic
                          else
                              keywordCategory)
 
                     s.Decl <- currentOwner ()
 
-                    if s.Category = "tactic" then
+                    if s.Category = Category.Tactic then
                         let struct (_, _, _, tactics) = proofStack.Peek ()
                         tactics.Value <- tactics.Value + 1
-                | "section" ->
-                    s.Category <- "section"
+                | Category.Section ->
+                    s.Category <- Category.Section
 
                     let name =
                         if header.Next < sg.Length then
@@ -1246,7 +1396,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     let scope =
                         {
                             Index = index
-                            Kind = "Section"
+                            Kind = ScopeKind.Section
                             Name = name
                             Parent = currentScope ()
                             Sentence = k
@@ -1258,8 +1408,8 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     scopes.Add scope
                     attachDocs k scope.Docs -1
                     scopeStack.Push index
-                | "module" ->
-                    s.Category <- "module"
+                | Category.Module ->
+                    s.Category <- Category.Module
                     let declared = s.Keyword = "Declare Module"
                     let mutable p = header.Next
 
@@ -1276,9 +1426,9 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                             Index = index
                             Kind =
                                 (if s.Keyword = "Module Type" then
-                                     "Module Type"
+                                     ScopeKind.ModuleType
                                  else
-                                     "Module")
+                                     ScopeKind.Module)
                             Name = name
                             Parent = currentScope ()
                             Sentence = k
@@ -1292,8 +1442,8 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
                     if not (isAlias || declared) then
                         scopeStack.Push index
-                | "end" ->
-                    s.Category <- "end"
+                | Category.End ->
+                    s.Category <- Category.End
 
                     let name =
                         if header.Next < sg.Length then
@@ -1302,18 +1452,18 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                             null
 
                     if scopeStack.Count = 0 then
-                        diag "warning" "end-without-scope" $"End {name} closes no scope" s.Span.Start
+                        diag Severity.Warning "end-without-scope" $"End {name} closes no scope" s.Span.Start
                     else
                         let index = scopeStack.Pop ()
                         let scope = scopes[index]
 
                         if scope.Name <> name then
-                            diag "warning" "end-name-mismatch" $"End {name} closes {scope.Name}" s.Span.Start
+                            diag Severity.Warning "end-name-mismatch" $"End {name} closes {scope.Name}" s.Span.Start
 
                         scope.EndSentence <- k
                         scope.Span <- span scope.Span.Start s.Span.End
-                | "import" ->
-                    s.Category <- "import"
+                | Category.Import ->
+                    s.Category <- Category.Import
                     let words = sg |> Array.map (fun i -> tokens[i])
                     let mutable p = header.Next - 1
                     let mutable from = null
@@ -1374,12 +1524,12 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                             Mode = mode
                             Modules = modules
                         }
-                | _ -> s.Category <- "directive"
+                | _ -> s.Category <- Category.Directive
 
     // Proofs open at the end of the file.
     while proofStack.Count > 0 do
         let struct (owner, first, opener, tactics) = proofStack.Pop ()
-        diag "warning" "proof-unterminated" "the file ends inside a proof" src.Length
+        diag Severity.Warning "proof-unterminated" "the file ends inside a proof" src.Length
 
         if owner >= 0 && first < sentenceCount then
             let d = declarations[owner]
@@ -1392,7 +1542,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     LastSentence = sentenceCount - 1
                     Span = span sentences[first].Span.Start e
                     BodySpan = span sentences[first].Span.Start e
-                    Ending = "Unterminated"
+                    Ending = ProofEnding.Unterminated
                     TacticSentences = tactics.Value
                 }
 
@@ -1400,14 +1550,17 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
     for scope in scopes do
         if scope.EndSentence = -1 then
-            diag "warning" "scope-unterminated" $"{scope.Kind} {scope.Name} has no End" sentences[scope.Sentence].Span.Start
+            diag Severity.Warning "scope-unterminated" $"{scopeKindName scope.Kind} {scope.Name} has no End" sentences[scope.Sentence].Span.Start
 
     // Stable identifiers.
     let usedIds = HashSet<string>()
 
     for d in declarations do
         let baseId =
-            if d.Symbols.Count > 0 && d.NameSource = "glob" then
+            if
+                d.Symbols.Count > 0
+                && d.NameSource = NameSource.Glob
+            then
                 let primary =
                     d.Symbols
                     |> Seq.map (fun i -> symbols[i])
@@ -1416,7 +1569,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 match primary with
                 | Some s -> moduleName + "#" + s.Qualified
                 | None -> moduleName + "#" + d.Name
-            elif d.NameSource = "source" then
+            elif d.NameSource = NameSource.Source then
                 moduleName + "#" + d.Name
             else
                 moduleName + "#@" + string d.Sentence
@@ -1520,7 +1673,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
         |> Array.sortBy (fun r -> struct (r.Span.Start, r.Span.End, r.Line))
 
     // Aggregated uses. Binder references stay local to their file's refs layer.
-    let useCounts = Dictionary<struct (int * int * int), int>()
+    let useCounts = Dictionary<struct (int * int * UseLocation), int>()
 
     for r in refs do
         let t = targets[r.Target]
@@ -1529,22 +1682,22 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             let k = sentenceOf r.Span.Start
 
             if k < 0 then
-                diag "warning" "ref-outside-sentence" $"reference to {t.Name} lies outside every sentence" r.Span.Start
+                diag Severity.Warning "ref-outside-sentence" $"reference to {t.Name} lies outside every sentence" r.Span.Start
             else
                 let owner = sentences[k].Decl
 
                 let where =
                     if owner < 0 then
-                        3
+                        UseLocation.TopLevelDirective
                     else
                         let d = declarations[owner]
 
                         if d.Sentence <> k then
-                            2
+                            UseLocation.Proof
                         else
                             match d.Body with
-                            | ValueSome b when r.Span.Start >= b.Start -> 1
-                            | _ -> 0
+                            | ValueSome b when r.Span.Start >= b.Start -> UseLocation.Body
+                            | _ -> UseLocation.Statement
 
                 let key = struct (owner, r.Target, where)
 
@@ -1677,7 +1830,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     | ValueSome ks ->
                         t.Start >= s.Span.Start
                         && t.End <= ks.End
-                        && s.Category <> "tactic"
+                        && s.Category <> Category.Tactic
                     | ValueNone -> false
 
                 if
