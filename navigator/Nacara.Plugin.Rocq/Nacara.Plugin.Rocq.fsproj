@@ -10,6 +10,7 @@
         <Compile Include="Spike.fs" />
         <Compile Include="Config.fs" />
         <Compile Include="Facts.fs" />
+        <Compile Include="Source.fs" />
     </ItemGroup>
 
     <ItemGroup>
