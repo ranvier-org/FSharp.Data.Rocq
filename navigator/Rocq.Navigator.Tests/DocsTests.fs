@@ -97,6 +97,36 @@ let tests =
                 Expect.stringContains html "href=\"https://example.org\"" "external"
                 Expect.stringContains html "href=\"Other.html#x\"" "unknown"
 
+            testCase "a javascript link renders as plain text"
+            <| fun () ->
+                for source, text in
+                    [
+                        "[click](javascript:alert(1))", "click"
+                        "[click](JaVaScRiPt:alert(1))", "click"
+                        "[click](java&#9;script:alert(1))", "click"
+                        "[click](data:text/html,x)", "click"
+                        "[click][r]\n\n[r]: javascript:alert(1)", "click"
+                        "<javascript:alert(1)>", "javascript:alert(1)"
+                        "![pic](javascript:alert(1))", "pic"
+                    ] do
+                    let html = Docs.render plain resolver CommentFormat.Markdown source
+                    Expect.isFalse (html.Contains "href") $"{source} has no link: {html}"
+                    Expect.isFalse (html.Contains "src") $"{source} has no image: {html}"
+                    Expect.stringContains html text $"{source} keeps its text"
+
+            testCase "http, https, mailto, relative and anchor links stay links"
+            <| fun () ->
+                for url in
+                    [
+                        "http://example.org/a"
+                        "https://example.org/a"
+                        "mailto:a@example.org"
+                        "page.html?a=b:c"
+                        "#section"
+                    ] do
+                    let html = Docs.render plain noResolve CommentFormat.Markdown $"[x]({url})"
+                    Expect.stringContains html $"""<a href="{url}">x</a>""" url
+
             testCase "an extension the site registered is applied"
             <| fun () ->
                 let strike = EmphasisExtraExtension EmphasisExtraOptions.Strikethrough

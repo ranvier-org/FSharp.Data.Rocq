@@ -37,6 +37,26 @@ module Docs =
     let private referenceHtml (text: string) (key: string) (href: string) =
         $"""<a class="ref" data-ref="%s{encode key}" href="%s{encode href}"><code>%s{encode text}</code></a>"""
 
+    let private scheme = Regex @"^([a-zA-Z][a-zA-Z0-9+.\-]*):"
+
+    /// Browsers drop control characters and spaces from a URL before reading its scheme.
+    let private isSafeUrl (url: string) =
+        let compact =
+            url
+            |> String.filter (fun c -> c > ' ' && c <> '\u007f')
+
+        let m = scheme.Match compact
+
+        not m.Success
+        || List.contains (m.Groups[1].Value.ToLowerInvariant()) [ "http"; "https"; "mailto" ]
+
+    let private unwrap (link: LinkInline) =
+        for child in link |> Seq.toArray do
+            child.Remove ()
+            link.InsertBefore child
+
+        link.Remove ()
+
     let private rewrite (resolve: Resolve) (document: MarkdownDocument) =
         // The tree is edited during the walk, so the nodes are collected first.
         for node in document.Descendants<Inline>() |> Seq.toArray do
@@ -47,10 +67,12 @@ module Docs =
                     code.ReplaceBy (HtmlInline (referenceHtml code.Content key href))
                     |> ignore
                 | None -> ()
+            | :? LinkInline as link when not (isNull link.Url) && not (isSafeUrl link.Url) -> unwrap link
             | :? LinkInline as link when not link.IsImage && not (isNull link.Url) ->
                 match resolve.Link link.Url with
                 | Some url -> link.Url <- url
                 | None -> ()
+            | :? AutolinkInline as link when not link.IsEmail && not (isSafeUrl link.Url) -> link.ReplaceBy (LiteralInline link.Url) |> ignore
             | _ -> ()
 
     let private renderMarkdown (pipeline: MarkdownPipeline) (resolve: Resolve) (body: string) =

@@ -1,4 +1,4 @@
-DIGEST db306d9c3f978ea3d4b002f908e8c9a2
+DIGEST bc0895303e2a40377565701f22a2a907
 FFixture.Guide
 R28:32 Fixture.Other <> <> lib
 binder 288:288 <> x:1
@@ -6,103 +6,103 @@ binder 302:302 <> y:2
 not 260:260 <> :::'∀'_x_'..'_x_','_x
 R390:394 Corelib.Init.Logic <> False ind
 not 380:380 <> :::'∅'
-prf 497:504 <> sum_refl
-R513:515 Corelib.Init.Datatypes <> nat ind
-binder 507:507 <> a:3
-binder 509:509 <> b:4
-R525:527 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R521:523 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
-R520:520 Fixture.Guide <> a:3 var
-R524:524 Fixture.Guide <> b:4 var
-R529:531 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
-R528:528 Fixture.Guide <> a:3 var
-R532:532 Fixture.Guide <> b:4 var
-prf 641:648 <> sum_zero
-R657:659 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R653:655 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
-prf 729:737 <> plain_doc
-R752:754 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R741:749 Fixture.Other <> other_def def
-prf 857:865 <> open_goal
-R872:874 Corelib.Init.Datatypes <> nat ind
-binder 868:868 <> n:5
-R880:882 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R879:879 Fixture.Guide <> n:5 var
-R884:886 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
-R883:883 Fixture.Guide <> n:5 var
-prf 909:930 <> zero_absorbs_falsified
-R934:936 Corelib.Init.Logic <> ::type_scope:'~'_x not
-R958:958 Corelib.Init.Logic <> ::type_scope:'~'_x not
-R948:950 Corelib.Init.Datatypes <> nat ind
-binder 944:944 <> n:6
-R954:956 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R953:953 Fixture.Guide <> n:6 var
-prf 1041:1051 <> checked_law
-R1056:1058 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-ax 1094:1106 <> fixture_axiom
-R1111:1113 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-prf 1126:1139 <> rests_on_axiom
-R1148:1151 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
-R1144:1146 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1153:1155 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1179:1191 Fixture.Guide <> fixture_axiom prfax
-R1179:1191 Fixture.Guide <> fixture_axiom prfax
-prf 1219:1227 <> sum_refl'
-R1234:1236 Corelib.Init.Datatypes <> nat ind
-binder 1230:1230 <> a:9
-R1242:1244 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1241:1241 Fixture.Guide <> a:9 var
-R1245:1245 Fixture.Guide <> a:9 var
-prf 1280:1287 <> αβ_law
-R1291:1295 Fixture.Guide <> :::'∀'_x_'..'_x_','_x not
-R1314:1316 Fixture.Guide <> :::'∀'_x_'..'_x_','_x not
-binder 1296:1296 <> P:10
-R1311:1313 Corelib.Init.Datatypes <> nat ind
-binder 1307:1307 <> a:11
-R1317:1317 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
-R1326:1330 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
-R1321:1324 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
-R1318:1320 Fixture.Guide <> :::'∅' not
-R1325:1325 Fixture.Guide <> P:10 var
-R1332:1334 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1331:1331 Fixture.Guide <> a:11 var
-R1335:1335 Fixture.Guide <> a:11 var
-sec 1402:1406 <> First
-var 1420:1425 First shared
-R1429:1431 Corelib.Init.Datatypes <> nat ind
-def 1447:1455 <> first_use
-R1460:1465 Fixture.Guide <> First.shared var
-R1472:1476 Fixture.Guide First <> sec
-sec 1488:1493 <> Second
-var 1507:1512 Second shared
-R1516:1518 Corelib.Init.Datatypes <> nat ind
-def 1534:1543 <> second_use
-R1548:1553 Fixture.Guide <> Second.shared var
-R1560:1565 Fixture.Guide Second <> sec
-mod 1576:1579 <> Nest
-def 1627:1631 Nest inner
-R1636:1644 Fixture.Other <> other_def def
-mod 1659:1662 <> Nest.Deep
-prf 1675:1682 Nest.Deep deep_law
-R1691:1693 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1686:1690 Fixture.Guide Nest inner def
-R1732:1735 Fixture.Guide Nest.Deep <> mod
-R1742:1745 Fixture.Guide Nest <> mod
-ind 1755:1760 <> Stable
-constr 1776:1786 <> stable_step
-rec 1755:1760 <> Stable
-proj 1776:1786 <> stable_step
-binder 1763:1763 <> P:16
-R1791:1794 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
-R1790:1790 Fixture.Guide <> P:16 var
-R1795:1795 Fixture.Guide <> P:16 var
-prf 1854:1865 <> stable_twice
-binder 1868:1868 <> P:19
-R1881:1886 Fixture.Guide <> Stable class
-R1888:1888 Fixture.Guide <> P:19 var
-binder 1880:1888 <> Stable0:20
-R1894:1897 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
-R1893:1893 Fixture.Guide <> P:19 var
-R1898:1898 Fixture.Guide <> P:19 var
-R1924:1934 Fixture.Guide <> stable_step def
-R1924:1934 Fixture.Guide <> stable_step def
+prf 498:505 <> sum_refl
+R514:516 Corelib.Init.Datatypes <> nat ind
+binder 508:508 <> a:3
+binder 510:510 <> b:4
+R526:528 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R522:524 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R521:521 Fixture.Guide <> a:3 var
+R525:525 Fixture.Guide <> b:4 var
+R530:532 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R529:529 Fixture.Guide <> a:3 var
+R533:533 Fixture.Guide <> b:4 var
+prf 643:650 <> sum_zero
+R659:661 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R655:657 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+prf 753:761 <> plain_doc
+R776:778 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R765:773 Fixture.Other <> other_def def
+prf 909:917 <> open_goal
+R924:926 Corelib.Init.Datatypes <> nat ind
+binder 920:920 <> n:5
+R932:934 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R931:931 Fixture.Guide <> n:5 var
+R936:938 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R935:935 Fixture.Guide <> n:5 var
+prf 1020:1041 <> zero_absorbs_falsified
+R1045:1047 Corelib.Init.Logic <> ::type_scope:'~'_x not
+R1069:1069 Corelib.Init.Logic <> ::type_scope:'~'_x not
+R1059:1061 Corelib.Init.Datatypes <> nat ind
+binder 1055:1055 <> n:6
+R1065:1067 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1064:1064 Fixture.Guide <> n:6 var
+prf 1175:1185 <> checked_law
+R1190:1192 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+ax 1228:1240 <> fixture_axiom
+R1245:1247 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 1294:1307 <> rests_on_axiom
+R1316:1319 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R1312:1314 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1321:1323 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1347:1359 Fixture.Guide <> fixture_axiom prfax
+R1347:1359 Fixture.Guide <> fixture_axiom prfax
+prf 1387:1395 <> sum_refl'
+R1402:1404 Corelib.Init.Datatypes <> nat ind
+binder 1398:1398 <> a:9
+R1410:1412 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1409:1409 Fixture.Guide <> a:9 var
+R1413:1413 Fixture.Guide <> a:9 var
+prf 1448:1455 <> αβ_law
+R1459:1463 Fixture.Guide <> :::'∀'_x_'..'_x_','_x not
+R1482:1484 Fixture.Guide <> :::'∀'_x_'..'_x_','_x not
+binder 1464:1464 <> P:10
+R1479:1481 Corelib.Init.Datatypes <> nat ind
+binder 1475:1475 <> a:11
+R1485:1485 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1494:1498 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1489:1492 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1486:1488 Fixture.Guide <> :::'∅' not
+R1493:1493 Fixture.Guide <> P:10 var
+R1500:1502 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1499:1499 Fixture.Guide <> a:11 var
+R1503:1503 Fixture.Guide <> a:11 var
+sec 1570:1574 <> First
+var 1588:1593 First shared
+R1597:1599 Corelib.Init.Datatypes <> nat ind
+def 1615:1623 <> first_use
+R1628:1633 Fixture.Guide <> First.shared var
+R1640:1644 Fixture.Guide First <> sec
+sec 1656:1661 <> Second
+var 1675:1680 Second shared
+R1684:1686 Corelib.Init.Datatypes <> nat ind
+def 1702:1711 <> second_use
+R1716:1721 Fixture.Guide <> Second.shared var
+R1728:1733 Fixture.Guide Second <> sec
+mod 1744:1747 <> Nest
+def 1795:1799 Nest inner
+R1804:1812 Fixture.Other <> other_def def
+mod 1827:1830 <> Nest.Deep
+prf 1843:1850 Nest.Deep deep_law
+R1859:1861 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1854:1858 Fixture.Guide Nest inner def
+R1900:1903 Fixture.Guide Nest.Deep <> mod
+R1910:1913 Fixture.Guide Nest <> mod
+ind 1923:1928 <> Stable
+constr 1944:1954 <> stable_step
+rec 1923:1928 <> Stable
+proj 1944:1954 <> stable_step
+binder 1931:1931 <> P:16
+R1959:1962 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1958:1958 Fixture.Guide <> P:16 var
+R1963:1963 Fixture.Guide <> P:16 var
+prf 2022:2033 <> stable_twice
+binder 2036:2036 <> P:19
+R2049:2054 Fixture.Guide <> Stable class
+R2056:2056 Fixture.Guide <> P:19 var
+binder 2048:2056 <> Stable0:20
+R2062:2065 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R2061:2061 Fixture.Guide <> P:19 var
+R2066:2066 Fixture.Guide <> P:19 var
+R2092:2102 Fixture.Guide <> stable_step def
+R2092:2102 Fixture.Guide <> stable_step def

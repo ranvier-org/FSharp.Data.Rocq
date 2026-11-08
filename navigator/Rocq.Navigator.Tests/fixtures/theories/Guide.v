@@ -14,37 +14,63 @@ Notation "∅" := (False).
 
 (**md ## Theorems *)
 
-(**md **Reflexivity of sums.** A theorem with a bold first line. *)
+(**md
+**Reflexivity of sums.**
+
+A theorem with a bold first line.
+*)
 Theorem sum_refl (a b : nat) : a + b = a + b.
 Proof. reflexivity. Qed.
 
-(**md **Sum is zero on zero.** A corollary with a bold first line. *)
+(**md
+**Sum is zero on zero.**
+
+A corollary with a bold first line.
+*)
 Corollary sum_zero : 0 + 0 = 0.
 Proof. reflexivity. Qed.
 
-(**md A doc with no bold line. *)
+(**md
+**A lemma title.**
+
+A lemma is never an entry.
+*)
 Lemma plain_doc : other_def 2 = 2.
 Proof.
   (* a comment inside the proof *)
   reflexivity.
 Qed.
 
-(**md An open statement. *)
+(**md
+**An open statement.**
+
+The proof is admitted.
+*)
 Theorem open_goal (n : nat) : n = n + 0.
 Admitted.
 
+(**md
+**Zero absorbs everything.**
+
+The claim is false.
+*)
 Theorem zero_absorbs_falsified : ~ (forall n : nat, n = 0).
 Proof.
   intro H.
   discriminate (H 1).
 Qed.
 
-(* @checked 1000 cases *)
+(**md
+**A checked law.**
+
+@checked 1000 cases
+*)
 Theorem checked_law : 1 = 1.
 Proof. reflexivity. Qed.
 
 Axiom fixture_axiom : 2 = 2.
 
+(**md A doc with no bold line. *)
 Theorem rests_on_axiom : 2 = 2 /\ 1 = 1.
 Proof. split. exact fixture_axiom. reflexivity. Qed.
 
