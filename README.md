@@ -1,17 +1,55 @@
 # FSharp.Data.Rocq
 
-Reads a compiled Rocq project's `.v` and `.glob` files and writes structured JSON for renderers and other tools. It keeps
-every fact those files give, and consumers choose what to read. See [docs/SCHEMA.md](docs/SCHEMA.md).
+Typed access to a compiled Rocq project from F#: sentences, declarations, proofs, comments, resolved references and
+cross-file dependencies. It reads `.v` and `.glob` files, and it needs the compiled output of Rocq but not Rocq itself.
+It can also write the same data as JSON, for browsers and other languages.
 
 ## Use
 
 Compile the project first, so each `.v` has a `.glob`. Then:
 
-```bash
-dotnet run -c Release --project src/FSharp.Data.Rocq -- extract --project path/to/_CoqProject --out out
+```fsharp
+open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Structure
+
+match load "proofs/_CoqProject" with
+| Ok project ->
+    for d in project.Declarations do
+        if d.Declaration.Category = Category.Theorem then
+            printfn "%s: %d proofs" d.Declaration.Name d.Declaration.Proofs.Count
+
+    for edge in whoUses project "some_lemma" do
+        match edge.Owner with
+        | DeclarationOwner i -> printfn "used by %s" project.Declarations[i].Declaration.Name
+        | FileOwner i -> printfn "used at the top level of %s" project.Files[i].Path
+| Error failures ->
+    for failure in failures do
+        eprintfn "%s" (describeFailure failure)
 ```
 
-The extractor needs the .NET 10 SDK, and no Rocq. A run re-extracts only files whose `.v` or `.glob` changed.
+`load` refuses a project when a `.glob` is stale or missing, and returns every reason. `loadWith { AllowStale = true }`
+keeps lexical data for a stale file instead.
+
+| Value | Holds |
+|---|---|
+| `RocqProject.Files` | Each file's digests, parsed `.glob` and `Model` |
+| `RocqFile.Model` | Tokens, sentences, comments, headings, declarations, scopes, imports, notations, symbols, binders, references and diagnostics |
+| `RocqProject.Declarations`, `Symbols` | Those tables numbered across the project |
+| `RocqProject.CrossReferences` | Mentions between declarations and symbols; read with `usesOf`, `usesBy` or `whoUses` |
+| `RocqProject.FileGraph` | Dependencies between files |
+
+Spans are half-open byte offsets into `Model.Bytes`. In the current model, `-1` means "none" on index fields and `null`
+means absent on string fields.
+
+## Write JSON
+
+For consumers outside .NET, `Extract.run` writes the project as JSON, and the command line calls it:
+
+```bash
+dotnet run -c Release --project src/FSharp.Data.Rocq.Cli -- extract --project path/to/_CoqProject --out out
+```
+
+[docs/SCHEMA.md](docs/SCHEMA.md) documents every field. A run rewrites only the layers of files whose `.v` or `.glob` changed.
 
 | Option | Effect |
 |---|---|
@@ -19,11 +57,11 @@ The extractor needs the .NET 10 SDK, and no Rocq. A run re-extracts only files w
 | `--rocq-version <text>` | Records the Rocq version |
 | `--allow-stale` | Keeps lexical data for a file with a stale `.glob`, instead of refusing |
 | `--strict` | Exits 3 on an unknown `.glob` kind, as well as on an unparsed line |
-| `--force` | Re-extracts every file |
+| `--force` | Rewrites every file's layers |
 
 Exit codes: 0 success, 1 usage, 2 refused (stale or missing `.glob`), 3 `.glob` lines not understood.
 
-A sample consumer shares no code with the extractor:
+A sample JSON consumer shares no code with the library:
 
 ```bash
 dotnet run -c Release --project samples/FSharp.Data.Rocq.Sample -- who-uses out some_lemma
@@ -60,12 +98,17 @@ dotnet fantomas --check src tests samples
 
 ## Design decisions
 
-**Built rather than adopted.** No existing tool emits this data; see [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
+**Built rather than adopted.** No existing tool provides this data; see [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
 
-**F#, no packages.** It builds on the .NET SDK alone and fits F# consumers. The tests add Expecto. The scanner is
-hand-written over bytes, following `parsing/cLexer.ml`. Comment and string nesting and the between-commands bullet rule are
-context-sensitive, and exact byte offsets are the product, so a combinator library would add a layer without removing
-those rules.
+**The typed model is the source, and JSON is written from it.** A .NET consumer calls the library directly and never
+touches JSON. The JSON writers read the same `RocqProject`, and a test checks that the two agree.
+
+**F#, no packages.** It builds on the .NET SDK alone. The tests add Expecto. The scanner is hand-written over bytes,
+following `parsing/cLexer.ml`. Comment and string nesting and the between-commands bullet rule are context-sensitive, and
+exact byte offsets are the product, so a combinator library would add a layer without removing those rules.
+
+**Unions for closed sets, strings for open ones.** Categories, proof endings and similar fields are unions. `.glob` symbol
+kinds stay strings, because a new Rocq can add kinds, and unknown ones are recorded instead of rejected.
 
 **Columnar JSON.** Measured on the largest file's references (4,675 entries), reading them into arrays:
 
@@ -76,37 +119,43 @@ those rules.
 | Binary prototype (varints, target table) | 51,376 | 21,448 | 0.2 ms |
 
 Binary would be about 2.6 times smaller and 7 times faster to read, a saving of under 2 ms per file. It would also cost
-every consumer a decoder. Browsers parse JSON natively, in about 0.2 ms for this file under Node. Binary can be added
-later as a derived layer if the numbers change.
+every non-.NET consumer a decoder. Browsers parse JSON natively, in about 0.2 ms for this file under Node.
 
-**Three layers per file, plus an index and a graph.** The tokens layer is more than half the output, and most queries never
-open it.
+**Three JSON layers per file, plus an index and a graph.** The tokens layer is more than half the output, and most queries
+never open it.
 
-**Global tables always rebuild from the outline shards.** Fresh and reused files take the same code path, so an incremental
-run writes the same bytes as a full one. A test checks this.
-
-**Incremental key:** MD5 of the `.v`, MD5 of the `.glob`, schema version and generator version. The `.glob` is part of the
-key because a change upstream alters it while the `.v` stays the same.
+**Every run analyses every file.** The per-file key (MD5 of the `.v`, MD5 of the `.glob`, schema version and generator
+version) only decides which layers to rewrite. The global tables always come from fresh models, so an incremental run
+writes the same bytes as a full one. A test checks this. The `.glob` is part of the key because a change upstream alters it
+while the `.v` stays the same.
 
 ## Performance
 
-Windows 11, .NET 10, 15 files, 295,719 bytes of `.v` and 1,603,561 bytes of `.glob`. Process wall time, the median of 11
-runs:
+Windows 11, .NET 10, 15 files, 295,719 bytes of `.v` and 1,603,561 bytes of `.glob`.
+
+Library, in a process under the `tr-TR` culture, the median of 31 calls:
+
+| Operation | Time |
+|---|---|
+| `load`, first call | 114 ms |
+| `load`, warm | 89 ms |
+
+Command line, process wall time, the median of 11 runs:
 
 | Run | Time |
 |---|---|
-| Full extraction | 310 ms |
-| Nothing changed | 215 ms |
-| One small file changed | 246 ms |
-| One large file changed (60 KB) | 301 ms |
+| Full extraction | 312 ms |
+| Nothing changed | 250 ms |
+| One small file changed | 249 ms |
+| One large file changed (60 KB) | 268 ms |
 
-Startup and the rebuild of the global tables dominate, so incremental runs save little at this size.
+Startup and analysing every file dominate, so incremental runs save little at this size.
 
-Output: 4,350,921 bytes in 47 files (1,294,099 gzip).
+JSON output: 4,350,928 bytes in 47 files.
 
 | Part | Bytes |
 |---|---|
-| `index.json` | 129,998 |
+| `index.json` | 130,005 |
 | `xref.json` | 178,772 |
 | All outline layers | 940,195 |
 | All refs layers | 815,055 |
@@ -114,7 +163,7 @@ Output: 4,350,921 bytes in 47 files (1,294,099 gzip).
 
 The largest file's layers: 220,112 outline, 135,212 refs, 458,110 tokens. Its `.v` is 60,034 bytes and its `.glob` 303,218.
 
-Read times, the median of 31 calls in a warm process:
+JSON read times, the median of 31 calls in a warm process:
 
 | Operation | .NET (`JsonDocument`) | Node (`JSON.parse`) |
 |---|---|---|
@@ -125,8 +174,6 @@ Read times, the median of 31 calls in a warm process:
 | Parse the largest tokens | 5.6 ms | 1.1 ms |
 | Who-uses on loaded data (140 mentions) | 0.01 ms | 0.01 ms |
 | Who-uses from nothing (load index and xref, answer) | 3.1 ms | |
-
-A whole `who-uses` process, JIT included, took 73 ms in one run.
 
 ## Optional type layer: evaluated, not built
 
@@ -140,9 +187,9 @@ files:
 | ...or `Print Assumptions` on all 234 theorems | 17.9 s | 13 KB |
 | ...or `Print` on all 234 theorems, `Set Printing All` | 13.5 s | 897 MB |
 
-So a type layer costs about 1 ms per symbol after loading, and it could read this project's `index.json` as its work list.
-Three things need deciding first. Output depends on what is imported: with `Require` alone, names print qualified and
-user notations stay off, while `Import` changes the text. Printed types are unstructured text and hold no spans. And it
-needs Rocq and `.vo` files, so it must stay a separate step. The base data does not depend on it.
+So a type layer costs about 1 ms per symbol after loading. Three things need deciding first. Output depends on what is
+imported: with `Require` alone, names print qualified and user notations stay off, while `Import` changes the text. Printed
+types are unstructured text and hold no spans. And it needs Rocq and `.vo` files, so it must stay a separate step. The base
+data does not depend on it.
 
 Raw proof terms are unusable as a layer at that size. `Print Assumptions` is a cheap, valuable extra.

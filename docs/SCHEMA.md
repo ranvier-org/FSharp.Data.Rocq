@@ -222,7 +222,7 @@ name. A `Goal`'s covers its statement.
 
 ### Other fields
 
-- `uses`: `owner`, `target`, `where`, `count`, and `targets` (`module`, `path`, `name`, `kind`), the input to `xref.json`.
+- `uses`: `owner`, `target`, `where`, `count`, and `targets` (`module`, `path`, `name`, `kind`).
 - `requires`, `referencedModules` (`module`, `count`): the input to `fileGraph`.
 - `globLines`: `total`, `refs`, `symbols`, `binders`, `unknownKinds[]` (`line`, `kind`), `unparsed[]` (`line`, `text`).
 - `diagnostics[]`: `severity`, `code`, `message`, `offset`. A compiled file yields none.
