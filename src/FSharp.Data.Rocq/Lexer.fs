@@ -1,9 +1,9 @@
 /// A byte scanner for Rocq vernacular, following `parsing/cLexer.ml` from Rocq 9.1.0. It has no keyword table, so a
 /// notation symbol ending in `.` and followed by a blank reads as a sentence end.
-module RocqData.Lexer
+module FSharp.Data.Rocq.Lexer
 
 open System.Text
-open RocqData.Source
+open FSharp.Data.Rocq.Source
 
 type TokenKind =
     | Whitespace = 0

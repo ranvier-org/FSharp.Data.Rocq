@@ -1,10 +1,10 @@
-module RocqData.Tests.Support
+module FSharp.Data.Rocq.Tests.Support
 
 open System
 open System.IO
 open System.Text
 open System.Text.Json
-open RocqData.Project
+open FSharp.Data.Rocq.Project
 
 /// The compiled fixture project, committed with its `.glob` files.
 let fixtureProject = Path.Combine (__SOURCE_DIRECTORY__, "fixtures", "_CoqProject")
@@ -17,18 +17,18 @@ let private envPath (name: string) =
     | "" -> None
     | v -> Some v
 
-/// A compiled real project named by `ROCQDATA_CORPUS`, the path of its `_CoqProject`.
-let corpusProject = envPath "ROCQDATA_CORPUS"
+/// A compiled real project named by `FSHARP_DATA_ROCQ_CORPUS`, the path of its `_CoqProject`.
+let corpusProject = envPath "FSHARP_DATA_ROCQ_CORPUS"
 
 /// `rocq compile -time-file` outputs for the corpus, one `<path with / as _>.time` per file.
-let corpusOracle = envPath "ROCQDATA_ORACLE"
+let corpusOracle = envPath "FSHARP_DATA_ROCQ_ORACLE"
 
 /// `rocq dep -f _CoqProject` output for the corpus.
-let corpusDep = envPath "ROCQDATA_DEP"
+let corpusDep = envPath "FSHARP_DATA_ROCQ_DEP"
 
 let tempDir () =
     let dir =
-        Path.Combine (Path.GetTempPath (), "rocq-data-tests", Guid.NewGuid().ToString "N")
+        Path.Combine (Path.GetTempPath (), "FSharp.Data.Rocq.Tests", Guid.NewGuid().ToString "N")
 
     Directory.CreateDirectory dir |> ignore
     dir

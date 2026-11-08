@@ -1,10 +1,10 @@
 /// A sample consumer. It reads the output with `System.Text.Json` alone and shares no code with the extractor.
 ///
-///   rocq-data-sample who-uses <out> <name>    who mentions a symbol, grouped by where
-///   rocq-data-sample show <out> <name>        a declaration's keyword, docs, statement and proof, sliced from the source
-///   rocq-data-sample measure <out>            load and query times
-///   rocq-data-sample formats <out>            size and read time of candidate formats
-module RocqData.Sample.Program
+///   FSharp.Data.Rocq.Sample who-uses <out> <name>    who mentions a symbol, grouped by where
+///   FSharp.Data.Rocq.Sample show <out> <name>        a declaration's keyword, docs, statement and proof, sliced from the source
+///   FSharp.Data.Rocq.Sample measure <out>            load and query times
+///   FSharp.Data.Rocq.Sample formats <out>            size and read time of candidate formats
+module FSharp.Data.Rocq.Sample.Program
 
 open System
 open System.Collections.Generic

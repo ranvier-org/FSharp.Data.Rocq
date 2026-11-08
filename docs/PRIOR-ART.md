@@ -1,7 +1,7 @@
 # Prior art
 
 Surveyed on 2026-11-09 from repositories, opam, NuGet and the papers named below. Tools marked "run" were run on Rocq 9.1.0
-against a 15-file corpus (296 KB of `.v`), in WSL on one machine. The survey happened after rocq-data was first built, and
+against a 15-file corpus (296 KB of `.v`), in WSL on one machine. The survey happened after FSharp.Data.Rocq was first built, and
 the decision below was open to replacing it.
 
 ## Decision: build the base, and use two existing tools as optional layers
@@ -11,7 +11,7 @@ together: comments as written, resolved references, declaration and proof struct
 
 | Tool | Role |
 |---|---|
-| rocq-data | The base layer, read from `.v` and `.glob` without executing anything |
+| FSharp.Data.Rocq | The base layer, read from `.v` and `.glob` without executing anything |
 | `rocq-lsp` (`fcc`) | Optional layer for goals and parsed ASTs. It has byte offsets, so it can join to sentences |
 | `coq-dpdgraph` | Optional layer for kernel-level dependencies, which `.glob` edges lack |
 
@@ -42,9 +42,9 @@ GitHub code search; coq2html, rocqnavi and coqdoc each carry an internal one.
 **Jasmin:** a GitHub code search of its repository for `coqdoc` found nothing, and it offers no reusable documentation tool
 in that search. This check was shallow.
 
-## Against the fields rocq-data needs
+## Against the fields FSharp.Data.Rocq needs
 
-| Field | rocq-data | `fcc` astdump | dpdgraph | Alectryon JSON |
+| Field | FSharp.Data.Rocq | `fcc` astdump | dpdgraph | Alectryon JSON |
 |---|---|---|---|---|
 | Sentence boundaries | Yes | Yes | No | Text only, no offsets |
 | Keyword as written | Yes | Parsed as a variant, such as `Lemma` | Kind only | In the text |
@@ -63,12 +63,12 @@ in that search. This check was shallow.
 ## Speed, for scale
 
 A sequential `rocq compile` of the corpus took 21.8 s in WSL, and a project compiles anyway to produce its `.vo` and
-`.glob`. Reading those results with rocq-data added about 0.3 s, measured on Windows. `fcc` executes the proofs again, 28.4 s
+`.glob`. Reading those results with FSharp.Data.Rocq added about 0.3 s, measured on Windows. `fcc` executes the proofs again, 28.4 s
 in all, unless it replaces the compile. Timings from the two systems are not directly comparable.
 
 ## Why not wrap `rocq-lsp`
 
-It is the strongest candidate, and its sentence count on the largest file matched Rocq's `-time-file` and rocq-data (1,138).
+It is the strongest candidate, and its sentence count on the largest file matched Rocq's `-time-file` and FSharp.Data.Rocq (1,138).
 Wrapping it would still leave comments and resolved references to get from the `.v` and `.glob`, so the scanner and the
 `.glob` reader would both remain. It would add a Rocq requirement to generation, and about 90 times the run time, in
 exchange for exact statement structure and goals. Those are worth having as a layer, joined on byte offsets, and the

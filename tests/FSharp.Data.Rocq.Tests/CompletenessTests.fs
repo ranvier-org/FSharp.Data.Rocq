@@ -1,5 +1,5 @@
-/// Guarantees that hold for any compiled project. They run on the fixture, and on `ROCQDATA_CORPUS` when set.
-module RocqData.Tests.CompletenessTests
+/// Guarantees that hold for any compiled project. They run on the fixture, and on `FSHARP_DATA_ROCQ_CORPUS` when set.
+module FSharp.Data.Rocq.Tests.CompletenessTests
 
 open System
 open System.Collections.Generic
@@ -8,9 +8,9 @@ open System.Text
 open System.Text.Json
 open System.Text.RegularExpressions
 open Expecto
-open RocqData.Project
-open RocqData.Source
-open RocqData.Tests.Support
+open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Source
+open FSharp.Data.Rocq.Tests.Support
 
 let private isBlank (b: byte) =
     b = 32uy || b = 9uy || b = 10uy || b = 13uy

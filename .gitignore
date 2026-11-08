@@ -4,8 +4,8 @@ out/
 .idea/
 *.user
 # Compiled by fixtures/generate.sh and committed, since tests run without Rocq.
-!tests/RocqData.Tests/fixtures/**/*.glob
-tests/RocqData.Tests/fixtures/**/*.vo
-tests/RocqData.Tests/fixtures/**/*.vok
-tests/RocqData.Tests/fixtures/**/*.vos
-tests/RocqData.Tests/fixtures/**/.*.aux
+!tests/FSharp.Data.Rocq.Tests/fixtures/**/*.glob
+tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vo
+tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vok
+tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vos
+tests/FSharp.Data.Rocq.Tests/fixtures/**/.*.aux

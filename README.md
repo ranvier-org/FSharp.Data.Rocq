@@ -1,4 +1,4 @@
-# rocq-data
+# FSharp.Data.Rocq
 
 Reads a compiled Rocq project's `.v` and `.glob` files and writes structured JSON for renderers and other tools. It keeps
 every fact those files give, and consumers choose what to read. See [docs/SCHEMA.md](docs/SCHEMA.md).
@@ -8,7 +8,7 @@ every fact those files give, and consumers choose what to read. See [docs/SCHEMA
 Compile the project first, so each `.v` has a `.glob`. Then:
 
 ```bash
-dotnet run -c Release --project src/RocqData -- extract --project path/to/_CoqProject --out out
+dotnet run -c Release --project src/FSharp.Data.Rocq -- extract --project path/to/_CoqProject --out out
 ```
 
 The extractor needs the .NET 10 SDK, and no Rocq. A run re-extracts only files whose `.v` or `.glob` changed.
@@ -26,7 +26,7 @@ Exit codes: 0 success, 1 usage, 2 refused (stale or missing `.glob`), 3 `.glob` 
 A sample consumer shares no code with the extractor:
 
 ```bash
-dotnet run -c Release --project samples/RocqData.Sample -- who-uses out some_lemma
+dotnet run -c Release --project samples/FSharp.Data.Rocq.Sample -- who-uses out some_lemma
 ```
 
 `show`, `measure` and `formats` are its other commands. `samples/measure.mjs` is the same idea in plain JavaScript.
@@ -34,17 +34,17 @@ dotnet run -c Release --project samples/RocqData.Sample -- who-uses out some_lem
 ## Test
 
 ```bash
-dotnet run -c Release --project tests/RocqData.Tests
+dotnet run -c Release --project tests/FSharp.Data.Rocq.Tests
 ```
 
-This runs against the committed fixture (`tests/RocqData.Tests/fixtures`), compiled with Rocq 9.1.0, and needs no Rocq.
+This runs against the committed fixture (`tests/FSharp.Data.Rocq.Tests/fixtures`), compiled with Rocq 9.1.0, and needs no Rocq.
 `fixtures/generate.sh` recompiles it. To add a real project:
 
 | Variable | Value |
 |---|---|
-| `ROCQDATA_CORPUS` | Path of its `_CoqProject`, compiled |
-| `ROCQDATA_ORACLE` | Directory of `rocq compile -time-file` outputs, one `<path with / as _>.time` per file |
-| `ROCQDATA_DEP` | Output of `rocq dep -f _CoqProject` |
+| `FSHARP_DATA_ROCQ_CORPUS` | Path of its `_CoqProject`, compiled |
+| `FSHARP_DATA_ROCQ_ORACLE` | Directory of `rocq compile -time-file` outputs, one `<path with / as _>.time` per file |
+| `FSHARP_DATA_ROCQ_DEP` | Output of `rocq dep -f _CoqProject` |
 
 ## Design decisions
 

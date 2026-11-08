@@ -23,7 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\RocqData\RocqData.fsproj" />
+        <ProjectReference Include="..\..\src\FSharp.Data.Rocq\FSharp.Data.Rocq.fsproj" />
     </ItemGroup>
 
 </Project>

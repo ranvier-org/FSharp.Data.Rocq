@@ -1,12 +1,12 @@
 /// Expected structure of the committed fixture project.
-module RocqData.Tests.FixtureTests
+module FSharp.Data.Rocq.Tests.FixtureTests
 
 open System.IO
 open System.Text
 open System.Text.Json
 open Expecto
-open RocqData.Project
-open RocqData.Tests.Support
+open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Tests.Support
 
 let private fixture =
     lazy

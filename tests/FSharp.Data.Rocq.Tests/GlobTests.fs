@@ -1,8 +1,8 @@
-module RocqData.Tests.GlobTests
+module FSharp.Data.Rocq.Tests.GlobTests
 
 open System.Text
 open Expecto
-open RocqData.Glob
+open FSharp.Data.Rocq.Glob
 
 let private parseText (s: string) =
     parse (Encoding.UTF8.GetBytes s)

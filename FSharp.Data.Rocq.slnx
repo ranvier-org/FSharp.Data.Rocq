@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FSharp.Data.Rocq/FSharp.Data.Rocq.fsproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/FSharp.Data.Rocq.Sample/FSharp.Data.Rocq.Sample.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FSharp.Data.Rocq.Tests/FSharp.Data.Rocq.Tests.fsproj" />
+  </Folder>
+</Solution>

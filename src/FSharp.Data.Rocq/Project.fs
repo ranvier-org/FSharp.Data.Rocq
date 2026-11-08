@@ -1,5 +1,5 @@
 /// Project discovery, digest checks, incremental extraction, and the cross-file index and graph.
-module RocqData.Project
+module FSharp.Data.Rocq.Project
 
 open System
 open System.Collections.Generic
@@ -7,10 +7,10 @@ open System.Diagnostics
 open System.IO
 open System.Text
 open System.Text.Json
-open RocqData.Source
-open RocqData.Glob
-open RocqData.Structure
-open RocqData.Shard
+open FSharp.Data.Rocq.Source
+open FSharp.Data.Rocq.Glob
+open FSharp.Data.Rocq.Structure
+open FSharp.Data.Rocq.Shard
 
 type Options =
     {
@@ -532,7 +532,7 @@ let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
     writeJsonFile (Path.Combine (options.OutDir, "index.json")) (fun w ->
         writeSchema w "index"
         w.WriteStartObject "generator"
-        w.WriteString ("name", "rocq-data")
+        w.WriteString ("name", "FSharp.Data.Rocq")
         w.WriteString ("version", GeneratorVersion)
         w.WriteEndObject ()
 

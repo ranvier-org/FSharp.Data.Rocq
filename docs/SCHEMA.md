@@ -1,4 +1,4 @@
-# rocq-data schema, version 1.0
+# FSharp.Data.Rocq schema, version 1.0
 
 For someone building a renderer or another consumer. The output is plain JSON, and reading it needs no Rocq.
 
@@ -28,7 +28,7 @@ page needs all three layers of its file. "Who uses this" needs `index.json` and 
 
 ## Guarantees
 
-Tests check each of these on the fixture and, when `ROCQDATA_CORPUS` is set, on a real project.
+Tests check each of these on the fixture and, when `FSHARP_DATA_ROCQ_CORPUS` is set, on a real project.
 
 1. **Tokens partition the file.** Joining them gives the source back byte for byte.
 2. **Every span falls on a token boundary and a character boundary**, so `start`/`u16` converts any span to UTF-16.

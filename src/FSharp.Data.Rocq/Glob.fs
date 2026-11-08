@@ -1,10 +1,10 @@
 /// Reader for Rocq 9.1.0 `.glob` files. Format reference: `interp/dumpglob.ml` and its `.mli`.
-module RocqData.Glob
+module FSharp.Data.Rocq.Glob
 
 open System
 open System.IO
 open System.Text
-open RocqData.Source
+open FSharp.Data.Rocq.Source
 
 /// A definition line: `<kind> <start>:<end> <path> <name>`.
 type GlobDef =

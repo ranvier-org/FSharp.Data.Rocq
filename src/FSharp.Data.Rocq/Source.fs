@@ -1,5 +1,5 @@
 /// Byte-level helpers shared by the lexer and the glob reader. Every offset is a UTF-8 byte offset.
-module RocqData.Source
+module FSharp.Data.Rocq.Source
 
 open System
 open System.Security.Cryptography

@@ -1,4 +1,4 @@
-module RocqData.Tests.Main
+module FSharp.Data.Rocq.Tests.Main
 
 open Expecto
 

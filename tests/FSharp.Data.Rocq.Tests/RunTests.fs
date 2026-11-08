@@ -1,13 +1,13 @@
 /// Digest checks, unknown lines and incremental extraction, on copies of the fixture.
-module RocqData.Tests.RunTests
+module FSharp.Data.Rocq.Tests.RunTests
 
 open System.IO
 open System.Text
 open System.Text.Json
 open Expecto
-open RocqData.Project
-open RocqData.Source
-open RocqData.Tests.Support
+open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Source
+open FSharp.Data.Rocq.Tests.Support
 
 let private projectDir (project: string) =
     Path.GetDirectoryName project

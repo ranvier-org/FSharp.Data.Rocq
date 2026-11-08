@@ -1,5 +1,5 @@
 /// Writes the three per-file layers. `docs/SCHEMA.md` is the reference for every field.
-module RocqData.Shard
+module FSharp.Data.Rocq.Shard
 
 open System
 open System.Buffers
@@ -8,10 +8,10 @@ open System.IO
 open System.Text
 open System.Text.Encodings.Web
 open System.Text.Json
-open RocqData.Source
-open RocqData.Lexer
-open RocqData.Glob
-open RocqData.Structure
+open FSharp.Data.Rocq.Source
+open FSharp.Data.Rocq.Lexer
+open FSharp.Data.Rocq.Glob
+open FSharp.Data.Rocq.Structure
 
 /// Incremented on a change that breaks readers.
 [<Literal>]

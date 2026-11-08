@@ -1,12 +1,12 @@
 /// Groups tokens into sentences and comments, and derives declarations, proofs, scopes and notations.
-module RocqData.Structure
+module FSharp.Data.Rocq.Structure
 
 open System
 open System.Collections.Generic
 open System.Text
-open RocqData.Source
-open RocqData.Lexer
-open RocqData.Glob
+open FSharp.Data.Rocq.Source
+open FSharp.Data.Rocq.Lexer
+open FSharp.Data.Rocq.Glob
 
 type Sentence =
     {

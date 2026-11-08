@@ -1,8 +1,8 @@
-module RocqData.Tests.LexerTests
+module FSharp.Data.Rocq.Tests.LexerTests
 
 open System.Text
 open Expecto
-open RocqData.Lexer
+open FSharp.Data.Rocq.Lexer
 
 let private lexText (s: string) =
     let bytes = Encoding.UTF8.GetBytes s
