@@ -31,7 +31,7 @@ Saved look and mode live in `localStorage`, which is browser storage. Anything b
 
 **Architecture:** `Nacara.Plugin.Rocq` has the shape of `Nacara.Plugin.FSharpApi`: a producer generates one `.rocqpage` document per module from `RocqProject`, its own transform keeps them away from Markdown, and its layout renders the whole document with `Server.renderDocument`. The article is server-only markup placed with `t.Unsafe.html`. Four small islands (switch, section marker, card layer, search) hydrate from a Fable bundle embedded in the plugin, and a client failure leaves a readable page. A small demo site in this repository builds a directory.
 
-**Tech Stack:** F# on .NET 10, Nacara 2 (`Nacara.Core` 2.0.0-beta.6, `Nacara.Plugin.LinkValidator`), Fable 5.13 with esbuild, `Ranvier.View`, `Ranvier.View.Dom`, `Ranvier.Wire`, `Ranvier.Css` with `.Bindings`, `.View` and `.Build`, optionally `Ranvier.View.Anime`, Markdig, Expecto, Playwright.
+**Tech Stack:** F# on .NET 10, Nacara 2 (`Nacara.Core` 2.0.0-beta.6, `Nacara.Plugin.LinkValidator`), Fable 5.27 with esbuild, `Ranvier.View`, `Ranvier.View.Dom`, `Ranvier.Wire`, `Ranvier.Css` with `.Bindings`, `.View` and `.Build`, optionally `Ranvier.View.Anime`, Markdig, Expecto, Playwright.
 
 **Spec:** [`docs/superpowers/specs/2026-11-09-rocq-navigator-design.md`](../specs/2026-11-09-rocq-navigator-design.md). Read it, with its mockups, before starting any task.
 
