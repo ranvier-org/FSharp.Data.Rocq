@@ -17,6 +17,7 @@
         <Compile Include="SourceTests.fs" />
         <Compile Include="DocsTests.fs" />
         <Compile Include="ArticleTests.fs" />
+        <Compile Include="GuaranteesTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 

@@ -15,4 +15,5 @@ let main args =
                 SourceTests.tests
                 DocsTests.tests
                 ArticleTests.tests
+                GuaranteesTests.tests
             ])
