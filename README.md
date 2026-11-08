@@ -46,6 +46,18 @@ This runs against the committed fixture (`tests/FSharp.Data.Rocq.Tests/fixtures`
 | `FSHARP_DATA_ROCQ_ORACLE` | Directory of `rocq compile -time-file` outputs, one `<path with / as _>.time` per file |
 | `FSHARP_DATA_ROCQ_DEP` | Output of `rocq dep -f _CoqProject` |
 
+## Format
+
+Fantomas is pinned in `.config/dotnet-tools.json`, and its output differs between versions. Use the pinned one:
+
+```bash
+dotnet tool restore
+```
+
+```bash
+dotnet fantomas --check src tests samples
+```
+
 ## Design decisions
 
 **Built rather than adopted.** No existing tool emits this data; see [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
