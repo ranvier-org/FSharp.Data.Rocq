@@ -12,6 +12,8 @@
         <Compile Include="Facts.fs" />
         <Compile Include="Source.fs" />
         <Compile Include="Docs.fs" />
+        <Compile Include="Anchors.fs" />
+        <Compile Include="Article.fs" />
     </ItemGroup>
 
     <ItemGroup>
