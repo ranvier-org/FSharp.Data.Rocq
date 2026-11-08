@@ -8,7 +8,7 @@ open System.Text
 open System.Text.Json
 open System.Text.RegularExpressions
 open Expecto
-open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Extract
 open FSharp.Data.Rocq.Source
 open FSharp.Data.Rocq.Tests.Support
 

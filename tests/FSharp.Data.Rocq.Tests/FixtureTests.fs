@@ -5,7 +5,7 @@ open System.IO
 open System.Text
 open System.Text.Json
 open Expecto
-open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Extract
 open FSharp.Data.Rocq.Tests.Support
 
 let private fixture =

@@ -4,7 +4,7 @@ open System
 open System.IO
 open System.Text
 open System.Text.Json
-open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Extract
 
 /// The compiled fixture project, committed with its `.glob` files.
 let fixtureProject = Path.Combine (__SOURCE_DIRECTORY__, "fixtures", "_CoqProject")

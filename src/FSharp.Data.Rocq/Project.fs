@@ -1,32 +1,12 @@
-/// Project discovery, digest checks, incremental extraction, and the cross-file index and graph.
+/// Loads a compiled Rocq project into typed per-file models and project-wide symbol and reference tables.
 module FSharp.Data.Rocq.Project
 
 open System
 open System.Collections.Generic
-open System.Diagnostics
 open System.IO
-open System.Text
-open System.Text.Json
 open FSharp.Data.Rocq.Source
 open FSharp.Data.Rocq.Glob
 open FSharp.Data.Rocq.Structure
-open FSharp.Data.Rocq.Shard
-
-type Options =
-    {
-        /// Path of the `_CoqProject` file.
-        Project: string
-        OutDir: string
-        /// Output of `rocq dep -f _CoqProject`, when captured.
-        RocqDep: string option
-        RocqVersion: string option
-        /// Keeps lexical data for a file whose `.glob` is stale, instead of refusing.
-        AllowStale: bool
-        /// Fails on an unknown `.glob` kind as well as on an unparsed line.
-        Strict: bool
-        /// Re-extracts every file.
-        Force: bool
-    }
 
 type ProjectFile =
     {
@@ -37,21 +17,180 @@ type ProjectFile =
         Module: string
     }
 
-type RunReport =
+/// How a `.glob` relates to its source. Only `Current` files carry `.glob` facts.
+type GlobStatus =
+    /// The digest recorded in the `.glob` matches the source.
+    | Current
+    /// The digest recorded in the `.glob` differs from the source.
+    | Stale
+    /// The `.glob` records `DIGEST NO`.
+    | NoDigest
+
+type LoadOptions =
     {
-        Extracted: string[]
-        Reused: string[]
-        Refused: string[]
-        UnknownKinds: Map<string, int>
-        UnparsedLines: int
-        ExtractMs: int64
-        GlobalMs: int64
-        TotalMs: int64
-        ExitCode: int
+        /// Keeps lexical data for a file whose `.glob` is stale, instead of refusing.
+        AllowStale: bool
     }
 
+/// A reason a project cannot be loaded.
+type LoadFailure =
+    | ProjectFileMissing of project: string
+    | SourceMissing of file: string
+    | SourceNotUtf8 of file: string
+    | GlobMissing of file: string
+    | GlobStaleForSource of file: string * recorded: string * actual: string
+    | GlobHasNoDigest of file: string
+    | ModuleMismatch of file: string * glob: string * expected: string
+
+/// One source file with its digests and model.
+type RocqFile =
+    {
+        Path: string
+        FullPath: string
+        Module: string
+        /// MD5 of the source, in lowercase hexadecimal.
+        Digest: string
+        /// MD5 of the `.glob`, in lowercase hexadecimal.
+        GlobDigest: string
+        GlobStatus: GlobStatus
+        /// The parsed `.glob` of a `Current` file.
+        Glob: GlobFile option
+        Model: FileModel
+    }
+
+type ProjectDeclaration =
+    {
+        /// Index into `RocqProject.Files`.
+        File: int
+        /// Index into the file's `Model.Declarations`.
+        Local: int
+        Declaration: Declaration
+    }
+
+type ProjectSymbol =
+    {
+        /// Index into `RocqProject.Files`.
+        File: int
+        /// Index into the file's `Model.Symbols`.
+        Local: int
+        /// Index into `RocqProject.Declarations`.
+        Declaration: int option
+        Symbol: Symbol
+    }
+
+/// A reference target outside `RocqProject.Symbols`, such as a name from the standard library.
+type ExternalNode =
+    {
+        Module: string
+        /// The name relative to `Module`.
+        Qualified: string
+        Kind: string
+    }
+
+/// The target of a reference.
+[<Struct>]
+type Node =
+    /// An index into `RocqProject.Symbols`.
+    | SymbolNode of symbol: int
+    /// An index into `CrossReferences.Externals`.
+    | ExternalSymbolNode of externalSymbol: int
+
+/// The source of a reference.
+[<Struct>]
+type Owner =
+    /// An index into `RocqProject.Declarations`.
+    | DeclarationOwner of declaration: int
+    /// An index into `RocqProject.Files`, for a directive outside every declaration.
+    | FileOwner of file: int
+
+/// Aggregated mentions of a target by an owner at one location.
+[<Struct>]
+type Edge =
+    {
+        Target: Node
+        Owner: Owner
+        /// 0 statement, 1 body, 2 proof, 3 top-level directive.
+        Where: int
+        Count: int
+    }
+
+/// The reference graph. `Edges` is sorted by target, with lookup tables in both directions.
+type CrossReferences =
+    {
+        /// Sorted by module, name and kind.
+        Externals: ExternalNode[]
+        Edges: Edge[]
+        /// `Edges[ToOffsets[n] .. ToOffsets[n + 1] - 1]` target node `n`. Symbols number first, then externals.
+        ToOffsets: int[]
+        /// Indexes into `Edges`, grouped by owner.
+        ByFrom: int[]
+        /// `ByFrom[FromOffsets[n] .. FromOffsets[n + 1] - 1]` belong to owner `n`. Declarations number first, then files.
+        FromOffsets: int[]
+    }
+
+type FileReference =
+    {
+        /// Index into `RocqProject.Files`.
+        From: int
+        /// Index into `RocqProject.Files`.
+        To: int
+        Count: int
+    }
+
+type ExternalFileReference =
+    {
+        /// Index into `RocqProject.Files`.
+        From: int
+        Module: string
+        Count: int
+    }
+
+/// Dependencies between files, as recorded in `.glob` files. Every array is sorted.
+type FileGraph =
+    {
+        /// Required files, as pairs of indexes into `RocqProject.Files`.
+        Requires: (int * int)[]
+        /// Required modules outside the project, as an index into `RocqProject.Files` and a module.
+        ExternalRequires: (int * string)[]
+        References: FileReference[]
+        ExternalReferences: ExternalFileReference[]
+    }
+
+/// A reference into a project file whose target has no matching symbol.
+type UnresolvedTarget =
+    {
+        File: string
+        Target: string
+        Kind: string
+    }
+
+type RocqProject =
+    {
+        Files: RocqFile[]
+        Declarations: ProjectDeclaration[]
+        Symbols: ProjectSymbol[]
+        CrossReferences: CrossReferences
+        FileGraph: FileGraph
+        /// Lines per `.glob` kind outside `Glob.knownKinds`.
+        UnknownKinds: Map<string, int>
+        /// Sorted by file, target and kind.
+        Unresolved: UnresolvedTarget[]
+    }
+
+/// A sentence describing the failure and how to fix it.
+let describeFailure (failure: LoadFailure) =
+    match failure with
+    | ProjectFileMissing project -> $"{project}: project file is missing"
+    | SourceMissing file -> $"{file}: source file is missing"
+    | SourceNotUtf8 file -> $"{file}: source is not valid UTF-8"
+    | GlobMissing file -> $"{file}: no .glob file; compile the project first"
+    | GlobStaleForSource (file, recorded, actual) ->
+        $"{file}: stale .glob: it records digest {recorded}, and the source has {actual}. Recompile, or pass --allow-stale for lexical data only"
+    | GlobHasNoDigest file -> $"{file}: .glob has no digest (DIGEST NO), so it cannot be matched to the source"
+    | ModuleMismatch (file, glob, expected) -> $"{file}: .glob names module {glob}, but _CoqProject maps it to {expected}"
+
 /// Reads `-Q`, `-R` and `.v` entries from a `_CoqProject` file.
-let readProject (projectFile: string) =
+let readProject (projectFile: string) : ProjectFile[] =
     let dir = Path.GetDirectoryName (Path.GetFullPath projectFile)
 
     let words =
@@ -70,7 +209,7 @@ let readProject (projectFile: string) =
         | "-I"
         | "-arg" -> i <- i + 2
         | w ->
-            if w.EndsWith ".v" then
+            if w.EndsWith (".v", StringComparison.Ordinal) then
                 files.Add (w.Replace ('\\', '/'))
 
             i <- i + 1
@@ -83,7 +222,7 @@ let readProject (projectFile: string) =
         |> Seq.tryPick (fun (physical, logical) ->
             if physical = "" then
                 Some (logical + "." + stem.Replace ('/', '.'))
-            elif stem.StartsWith (physical + "/") then
+            elif stem.StartsWith (physical + "/", StringComparison.Ordinal) then
                 Some (
                     logical
                     + "."
@@ -96,163 +235,66 @@ let readProject (projectFile: string) =
     files
     |> Seq.map (fun f ->
         {
-            Path = f
+            ProjectFile.Path = f
             FullPath = Path.Combine (dir, f)
             Module = moduleOf f
         })
     |> Seq.toArray
 
-let private shardName (moduleName: string) (layer: string) =
-    $"files/{moduleName}.{layer}.json"
+/// The targets of a file's `Uses`, numbered by first use, and each use's index into them. A target naming a symbol
+/// under definition carries that symbol's path and name, so it resolves across files.
+let useTargets (m: FileModel) : Target[] * int[] =
+    let targets = List<Target>()
+    let remap = Dictionary<int, int>()
 
-/// Reads the in-project edges from `rocq dep` output: `a.vo a.glob ...: a.v b.vo ...`.
-let private readRocqDep (path: string) (files: ProjectFile[]) =
-    let byPath = Dictionary<string, int>()
+    let column =
+        m.Uses
+        |> Array.map (fun u ->
+            match remap.TryGetValue u.Target with
+            | true, i -> i
+            | _ ->
+                let i = targets.Count
+                let t = m.Targets[u.Target]
 
-    files
-    |> Array.iteri (fun i f -> byPath[f.Path.Substring (0, f.Path.Length - 2)] <- i)
-
-    [|
-        for line in File.ReadAllLines path do
-            let colon = line.IndexOf ':'
-
-            if colon > 0 then
-                let left =
-                    line.Substring(0, colon).Split(' ', StringSplitOptions.RemoveEmptyEntries)
-
-                if left.Length > 0 && left[0].EndsWith ".vo" then
-                    match byPath.TryGetValue (left[0].Substring(0, left[0].Length - 3)) with
-                    | true, from ->
-                        for word in line.Substring(colon + 1).Split(' ', StringSplitOptions.RemoveEmptyEntries) do
-                            if word.EndsWith ".vo" then
-                                match byPath.TryGetValue (word.Substring (0, word.Length - 3)) with
-                                | true, target -> yield struct (from, target)
-                                | _ -> ()
-                    | _ -> ()
-    |]
-    |> Array.distinct
-    |> Array.sort
-
-/// One file as `index.json` lists it. Read back from an earlier run to decide what can be reused.
-type private PreviousEntry =
-    {
-        Digest: string
-        GlobDigest: string
-        GlobStatus: string
-    }
-
-let private readPreviousIndex (indexPath: string) =
-    let result = Dictionary<string, PreviousEntry>()
-
-    if File.Exists indexPath then
-        try
-            use doc = JsonDocument.Parse (File.ReadAllBytes indexPath)
-            let root = doc.RootElement
-            let schema = root.GetProperty "schema"
-            let generator = root.GetProperty "generator"
-
-            if
-                schema.GetProperty("major").GetInt32() = SchemaMajor
-                && schema.GetProperty("minor").GetInt32() = SchemaMinor
-                && generator.GetProperty("version").GetString() = GeneratorVersion
-            then
-                for f in root.GetProperty("files").EnumerateArray() do
-                    let g = f.GetProperty "globDigest"
-
-                    result[f.GetProperty("path").GetString()] <-
-                        {
-                            Digest = f.GetProperty("digest").GetString()
-                            GlobDigest =
-                                if g.ValueKind = JsonValueKind.Null then
-                                    null
-                                else
-                                    g.GetString ()
-                            GlobStatus = f.GetProperty("globStatus").GetString()
+                targets.Add (
+                    if t.Symbol >= 0 then
+                        { t with
+                            Path = m.Symbols[t.Symbol].Path
+                            Name = m.Symbols[t.Symbol].Name
                         }
-        with
-        | :? JsonException
-        | :? KeyNotFoundException -> result.Clear ()
+                    else
+                        t
+                )
 
-    result
+                remap[u.Target] <- i
+                i)
 
-type private Prepared =
-    {
-        File: ProjectFile
-        Source: byte[]
-        Digest: string
-        GlobBytes: byte[]
-        GlobDigest: string
-        Glob: GlobFile option
-        Status: string
-    }
+    targets.ToArray (), column
 
-let private prepare (options: Options) (f: ProjectFile) : Result<Prepared, string> =
-    if not (File.Exists f.FullPath) then
-        Result.Error $"{f.Path}: source file is missing"
-    else
-        let source = File.ReadAllBytes f.FullPath
-        let digest = md5Hex source
-        let globPath = Path.ChangeExtension (f.FullPath, ".glob")
+/// The libraries a file requires, sorted.
+let requiredModules (m: FileModel) : string[] =
+    m.Refs
+    |> Seq.map (fun r -> m.Targets[r.Target])
+    |> Seq.filter (fun t -> t.Kind = "lib")
+    |> Seq.map _.Module
+    |> Seq.distinct
+    |> Seq.sort
+    |> Seq.toArray
 
-        if not (isValidUtf8 source) then
-            Result.Error $"{f.Path}: source is not valid UTF-8"
-        elif not (File.Exists globPath) then
-            Result.Error $"{f.Path}: no .glob file; compile the project first"
-        else
-            let globBytes = File.ReadAllBytes globPath
-            let glob = parse globBytes
+/// The count of references into each module, sorted by module.
+let referencedModules (m: FileModel) : (string * int)[] =
+    let counts = SortedDictionary<string, int>(StringComparer.Ordinal)
 
-            let status =
-                match glob.Digest with
-                | None -> "noDigest"
-                | Some d when d <> digest -> "stale"
-                | Some _ -> "ok"
+    for r in m.Refs do
+        let t = m.Targets[r.Target]
 
-            let prepared =
-                {
-                    File = f
-                    Source = source
-                    Digest = digest
-                    GlobBytes = globBytes
-                    GlobDigest = md5Hex globBytes
-                    Glob = if status = "ok" then Some glob else None
-                    Status = status
-                }
+        if t.Kind <> "lib" then
+            counts[t.Module] <-
+                (match counts.TryGetValue t.Module with
+                 | true, c -> c + 1
+                 | _ -> 1)
 
-            match status with
-            | "ok" when glob.Module <> f.Module -> Result.Error $"{f.Path}: .glob names module {glob.Module}, but _CoqProject maps it to {f.Module}"
-            | "ok" -> Result.Ok prepared
-            | _ when options.AllowStale -> Result.Ok prepared
-            | "stale" ->
-                Result.Error
-                    $"{f.Path}: stale .glob: it records digest {glob.Digest.Value}, and the source has {digest}. Recompile, or pass --allow-stale for lexical data only"
-            | _ -> Result.Error $"{f.Path}: .glob has no digest (DIGEST NO), so it cannot be matched to the source"
-
-/// A file's cross-file facts, read from its outline layer whether the file was re-extracted or reused.
-type private OutlineFacts =
-    {
-        Path: string
-        Module: string
-        Digest: string
-        GlobDigest: string
-        GlobStatus: string
-        Root: JsonElement
-        Document: JsonDocument
-    }
-
-let private ints (e: JsonElement) (name: string) =
-    let a = e.GetProperty name
-    let result = Array.zeroCreate<int>(a.GetArrayLength ())
-    let mutable i = 0
-
-    for v in a.EnumerateArray () do
-        result[i] <- v.GetInt32 ()
-        i <- i + 1
-
-    result
-
-let private strings (e: JsonElement) (name: string) =
-    [| for v in (e.GetProperty name).EnumerateArray() -> v.GetString () |]
+    [| for KeyValue (name, count) in counts -> name, count |]
 
 let private qualifyTarget (path: string) (name: string) =
     match path, name with
@@ -260,118 +302,73 @@ let private qualifyTarget (path: string) (name: string) =
     | p, "<>" -> p
     | p, n -> p + "." + n
 
-let private countOf (e: JsonElement) (name: string) =
-    (e.GetProperty name).GetArrayLength()
-
-let private fileSize (path: string) =
-    if File.Exists path then FileInfo(path).Length else 0L
-
-/// Writes `index.json` and `xref.json` from the outline layers.
-let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
+/// Builds the project-wide tables. File order determines numbering, and external nodes sort by name.
+let private build (files: RocqFile[]) : RocqProject =
     let moduleToFile = Dictionary<string, int>()
 
-    facts
+    files
     |> Array.iteri (fun i f -> moduleToFile[f.Module] <- i)
 
-    // Declarations and symbols, numbered across the project.
-    let declOffset = Array.zeroCreate<int> facts.Length
-    let symbolOffset = Array.zeroCreate<int> facts.Length
-    let declId = List<string>()
-    let declName = List<string>()
-    let declKeyword = List<string>()
-    let declCategory = List<string>()
-    let declFile = List<int>()
-    let declLocal = List<int>()
-    let declStart = List<int>()
-    let declEnd = List<int>()
-    let declEnding = List<string>()
-    let declDocs = List<int>()
-
-    let symQualified = List<string>()
-    let symKind = List<string>()
-    let symFile = List<int>()
-    let symDecl = List<int>()
-    let symLocal = List<int>()
+    let declOffset = Array.zeroCreate<int> files.Length
+    let declarations = List<ProjectDeclaration>()
+    let symbols = List<ProjectSymbol>()
     let symbolIndex = Dictionary<string, int>()
 
-    for fi in 0 .. facts.Length - 1 do
-        let f = facts[fi]
-        declOffset[fi] <- declId.Count
-        symbolOffset[fi] <- symQualified.Count
-        let mutable local = 0
+    for fi in 0 .. files.Length - 1 do
+        let f = files[fi]
+        declOffset[fi] <- declarations.Count
 
-        for d in (f.Root.GetProperty "declarations").EnumerateArray() do
-            declId.Add (d.GetProperty("id").GetString())
-            declName.Add (d.GetProperty("name").GetString())
-            declKeyword.Add (d.GetProperty("keyword").GetString())
-            declCategory.Add (d.GetProperty("category").GetString())
-            declFile.Add fi
-            declLocal.Add local
-            let extent = d.GetProperty "extent"
-            declStart.Add (extent[0].GetInt32())
-            declEnd.Add (extent[1].GetInt32())
-            let proofs = d.GetProperty "proofs"
+        f.Model.Declarations
+        |> Array.iteri (fun local d ->
+            declarations.Add
+                {
+                    File = fi
+                    Local = local
+                    Declaration = d
+                })
 
-            declEnding.Add (
-                if proofs.GetArrayLength () = 0 then
-                    null
-                else
-                    proofs[proofs.GetArrayLength () - 1].GetProperty("ending").GetString()
-            )
-
-            declDocs.Add ((d.GetProperty "docs").GetArrayLength())
-            local <- local + 1
-
-        let symbols = f.Root.GetProperty "symbols"
-        let qualified = strings symbols "qualified"
-        let kinds = strings symbols "kind"
-        let decls = ints symbols "decl"
-
-        for i in 0 .. qualified.Length - 1 do
+        f.Model.Symbols
+        |> Array.iteri (fun local s ->
             let key =
-                namespaceOf kinds[i]
+                namespaceOf s.Kind
                 + "|"
                 + f.Module
                 + "#"
-                + qualified[i]
+                + s.Qualified
 
             if not (symbolIndex.ContainsKey key) then
-                symbolIndex[key] <- symQualified.Count
+                symbolIndex[key] <- symbols.Count
 
-            symQualified.Add qualified[i]
-            symKind.Add kinds[i]
-            symFile.Add fi
-            symLocal.Add i
-            symDecl.Add (if decls[i] >= 0 then declOffset[fi] + decls[i] else -1)
+            symbols.Add
+                {
+                    File = fi
+                    Local = local
+                    Declaration = if s.Decl >= 0 then Some (declOffset[fi] + s.Decl) else None
+                    Symbol = s
+                })
 
-    let nSymbols = symQualified.Count
-    let nDecls = declId.Count
+    let nSymbols = symbols.Count
+    let nDecls = declarations.Count
 
-    // Edges. A target outside the symbol table becomes an external node.
+    // Nodes number symbols first, then externals. A target outside the symbol table becomes an external node.
     let externals = Dictionary<string, int>()
-    let extModule = List<string>()
-    let extQualified = List<string>()
-    let extKind = List<string>()
+    let externalNodes = List<ExternalNode>()
     let edges = List<struct (int * int * int * int)>() // to, from, where, count
     let unresolved = List<string * string * string>()
 
-    for fi in 0 .. facts.Length - 1 do
-        let f = facts[fi]
-        let uses = f.Root.GetProperty "uses"
-        let targets = uses.GetProperty "targets"
-        let tModule = strings targets "module"
-        let tPath = strings targets "path"
-        let tName = strings targets "name"
-        let tKind = strings targets "kind"
+    for fi in 0 .. files.Length - 1 do
+        let f = files[fi]
+        let targets, targetColumn = useTargets f.Model
 
         let nodes =
-            Array.init tModule.Length (fun i ->
-                let qualified = qualifyTarget tPath[i] tName[i]
+            targets
+            |> Array.map (fun t ->
+                let qualified = qualifyTarget t.Path t.Name
 
                 let key =
-                    namespaceOf tKind[i]
+                    namespaceOf t.Kind
                     + "|"
-                    + tModule[i]
+                    + t.Module
                     + "#"
                     + qualified
 
@@ -380,38 +377,38 @@ let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
                 | _ ->
                     // `Import` of a whole library names the file itself, which has no symbol.
                     if
-                        moduleToFile.ContainsKey tModule[i]
+                        moduleToFile.ContainsKey t.Module
                         && qualified <> "<>"
                     then
-                        unresolved.Add ((f.Path, tModule[i] + "#" + qualified, tKind[i]))
+                        unresolved.Add ((f.Path, t.Module + "#" + qualified, t.Kind))
 
-                    let exKey = key + "|" + tKind[i]
+                    let exKey = key + "|" + t.Kind
 
                     match externals.TryGetValue exKey with
                     | true, e -> nSymbols + e
                     | _ ->
-                        let e = extModule.Count
+                        let e = externalNodes.Count
                         externals[exKey] <- e
-                        extModule.Add tModule[i]
-                        extQualified.Add qualified
-                        extKind.Add tKind[i]
+
+                        externalNodes.Add
+                            {
+                                Module = t.Module
+                                Qualified = qualified
+                                Kind = t.Kind
+                            }
+
                         nSymbols + e)
 
-        let owner = ints uses "owner"
-        let target = ints uses "target"
-        let where = ints uses "where"
-        let count = ints uses "count"
+        f.Model.Uses
+        |> Array.iteri (fun i u ->
+            let from = if u.Owner >= 0 then declOffset[fi] + u.Owner else ~~~fi
+            edges.Add (struct (nodes[targetColumn[i]], from, u.Where, u.Count)))
 
-        for i in 0 .. owner.Length - 1 do
-            let from = if owner[i] >= 0 then declOffset[fi] + owner[i] else ~~~fi
-            edges.Add (struct (nodes[target[i]], from, where[i], count[i]))
-
-    // External ids sort by name, so the output is independent of file order.
     let externalOrder =
-        [| 0 .. extModule.Count - 1 |]
-        |> Array.sortBy (fun i -> extModule[i], extQualified[i], extKind[i])
+        [| 0 .. externalNodes.Count - 1 |]
+        |> Array.sortBy (fun i -> externalNodes[i].Module, externalNodes[i].Qualified, externalNodes[i].Kind)
 
-    let externalRank = Array.zeroCreate<int> extModule.Count
+    let externalRank = Array.zeroCreate<int> externalNodes.Count
 
     externalOrder
     |> Array.iteri (fun rank old -> externalRank[old] <- rank)
@@ -428,7 +425,7 @@ let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
                     c))
         |> Array.sort
 
-    let nNodes = nSymbols + extModule.Count
+    let nNodes = nSymbols + externalNodes.Count
     let toOffsets = Array.zeroCreate<int>(nNodes + 1)
 
     for struct (t, _, _, _) in sorted do
@@ -437,11 +434,10 @@ let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
     for i in 0 .. nNodes - 1 do
         toOffsets[i + 1] <- toOffsets[i + 1] + toOffsets[i]
 
-    // Forward lookup: owners numbered declarations first, then one slot per file for top-level directives.
     let ownerSlot (from: int) =
         if from >= 0 then from else nDecls + ~~~from
 
-    let nOwners = nDecls + facts.Length
+    let nOwners = nDecls + files.Length
 
     let byFrom =
         [| 0 .. sorted.Length - 1 |]
@@ -458,389 +454,213 @@ let private writeGlobal (options: Options) (facts: OutlineFacts[]) =
     for i in 0 .. nOwners - 1 do
         fromOffsets[i + 1] <- fromOffsets[i + 1] + fromOffsets[i]
 
-    writeJsonFile (Path.Combine (options.OutDir, "xref.json")) (fun w ->
-        writeSchema w "xref"
-        w.WriteNumber ("symbolCount", nSymbols)
-        w.WriteNumber ("declarationCount", nDecls)
-        w.WriteNumber ("fileCount", facts.Length)
-        w.WriteStartObject "externals"
-        writeStrings w "module" (externalOrder |> Seq.map (fun i -> extModule[i]))
+    let requires = List<int * int>()
+    let externalRequires = List<int * string>()
+    let references = List<FileReference>()
+    let externalReferences = List<ExternalFileReference>()
 
-        writeStrings
-            w
-            "qualified"
-            (externalOrder
-             |> Seq.map (fun i -> extQualified[i]))
+    for fi in 0 .. files.Length - 1 do
+        let m = files[fi].Model
 
-        writeStrings w "kind" (externalOrder |> Seq.map (fun i -> extKind[i]))
-        w.WriteEndObject ()
-        w.WriteStartObject "edges"
-        writeInts w "to" (sorted |> Seq.map (fun (struct (t, _, _, _)) -> t))
-        writeInts w "from" (sorted |> Seq.map (fun (struct (_, a, _, _)) -> a))
-        writeInts w "where" (sorted |> Seq.map (fun (struct (_, _, b, _)) -> b))
-        writeInts w "count" (sorted |> Seq.map (fun (struct (_, _, _, c)) -> c))
-        w.WriteEndObject ()
-        writeInts w "toOffsets" toOffsets
-        writeInts w "byFrom" byFrom
-        writeInts w "fromOffsets" fromOffsets)
+        for name in requiredModules m do
+            match moduleToFile.TryGetValue name with
+            | true, t -> requires.Add ((fi, t))
+            | _ -> externalRequires.Add ((fi, name))
 
-    // File graph.
-    let requires = SortedSet<struct (int * int)>()
-    let externalRequires = SortedSet<struct (int * string)>()
-    let references = SortedDictionary<struct (int * int), int>()
-    let externalReferences = SortedDictionary<struct (int * string), int>()
+        for (name, count) in referencedModules m do
+            match moduleToFile.TryGetValue name with
+            | true, t -> references.Add { From = fi; To = t; Count = count }
+            | _ ->
+                externalReferences.Add
+                    {
+                        From = fi
+                        Module = name
+                        Count = count
+                    }
 
-    for fi in 0 .. facts.Length - 1 do
-        for m in strings facts[fi].Root "requires" do
-            match moduleToFile.TryGetValue m with
-            | true, t -> requires.Add (struct (fi, t)) |> ignore
-            | _ -> externalRequires.Add (struct (fi, m)) |> ignore
-
-        let refd = facts[fi].Root.GetProperty "referencedModules"
-        let names = strings refd "module"
-        let counts = ints refd "count"
-
-        for i in 0 .. names.Length - 1 do
-            match moduleToFile.TryGetValue names[i] with
-            | true, t -> references[struct (fi, t)] <- counts[i]
-            | _ -> externalReferences[struct (fi, names[i])] <- counts[i]
-
-    let projectFiles =
-        facts
-        |> Array.map (fun f ->
+    {
+        Files = files
+        Declarations = declarations.ToArray ()
+        Symbols = symbols.ToArray ()
+        CrossReferences =
             {
-                Path = f.Path
-                FullPath = ""
-                Module = f.Module
-            })
-
-    let rocqDep =
-        options.RocqDep
-        |> Option.map (fun p -> readRocqDep p projectFiles)
-
-    let unknownKinds = SortedDictionary<string, int>(StringComparer.Ordinal)
-
-    for f in facts do
-        for u in (f.Root.GetProperty("globLines").GetProperty "unknownKinds").EnumerateArray() do
-            let k = u.GetProperty("kind").GetString()
-
-            unknownKinds[k] <-
-                (match unknownKinds.TryGetValue k with
-                 | true, c -> c + 1
-                 | _ -> 1)
-
-    writeJsonFile (Path.Combine (options.OutDir, "index.json")) (fun w ->
-        writeSchema w "index"
-        w.WriteStartObject "generator"
-        w.WriteString ("name", "FSharp.Data.Rocq")
-        w.WriteString ("version", GeneratorVersion)
-        w.WriteEndObject ()
-
-        match options.RocqVersion with
-        | Some v -> w.WriteString ("rocqVersion", v)
-        | None -> w.WriteNull "rocqVersion"
-
-        w.WriteStartArray "files"
-
-        for f in facts do
-            let root = f.Root
-            let lines = root.GetProperty "globLines"
-
-            let proofs =
-                root.GetProperty("declarations").EnumerateArray()
-                |> Seq.sumBy (fun d -> d.GetProperty("proofs").GetArrayLength())
-
-            w.WriteStartObject ()
-            w.WriteString ("path", f.Path)
-            w.WriteString ("module", f.Module)
-            w.WriteString ("digest", f.Digest)
-
-            if isNull f.GlobDigest then
-                w.WriteNull "globDigest"
-            else
-                w.WriteString ("globDigest", f.GlobDigest)
-
-            w.WriteString ("globStatus", f.GlobStatus)
-            w.WriteNumber ("bytes", root.GetProperty("bytes").GetInt32())
-            w.WriteStartObject "shards"
-
-            for layer in [ "outline"; "refs"; "tokens" ] do
-                let name = shardName f.Module layer
-                w.WriteStartObject layer
-                w.WriteString ("path", name)
-                w.WriteNumber ("bytes", fileSize (Path.Combine (options.OutDir, name)))
-                w.WriteEndObject ()
-
-            w.WriteEndObject ()
-            w.WriteStartObject "counts"
-            w.WriteNumber ("sentences", countOf (root.GetProperty "sentences") "start")
-            w.WriteNumber ("comments", countOf root "comments")
-            w.WriteNumber ("headings", countOf root "headings")
-            w.WriteNumber ("declarations", countOf root "declarations")
-            w.WriteNumber ("proofs", proofs)
-            w.WriteNumber ("symbols", lines.GetProperty("symbols").GetInt32())
-            w.WriteNumber ("refs", lines.GetProperty("refs").GetInt32())
-            w.WriteNumber ("binders", lines.GetProperty("binders").GetInt32())
-            w.WriteNumber ("globLines", lines.GetProperty("total").GetInt32())
-            w.WriteNumber ("diagnostics", countOf root "diagnostics")
-            w.WriteEndObject ()
-            w.WriteEndObject ()
-
-        w.WriteEndArray ()
-
-        w.WriteStartObject "declarations"
-        writeStrings w "id" declId
-        writeStrings w "name" declName
-        writeStrings w "keyword" declKeyword
-        writeStrings w "category" declCategory
-        writeInts w "file" declFile
-        writeInts w "local" declLocal
-        writeInts w "start" declStart
-        writeInts w "end" declEnd
-        writeStrings w "ending" declEnding
-        writeInts w "docCount" declDocs
-        w.WriteEndObject ()
-
-        w.WriteStartObject "symbols"
-        writeStrings w "qualified" symQualified
-        writeStrings w "kind" symKind
-        writeInts w "file" symFile
-        writeInts w "local" symLocal
-        writeInts w "decl" symDecl
-        w.WriteEndObject ()
-
-        w.WriteStartObject "fileGraph"
-        w.WriteStartObject "requires"
-        writeInts w "from" (requires |> Seq.map (fun (struct (a, _)) -> a))
-        writeInts w "to" (requires |> Seq.map (fun (struct (_, b)) -> b))
-        w.WriteEndObject ()
-        w.WriteStartObject "externalRequires"
-
-        writeInts
-            w
-            "from"
-            (externalRequires
-             |> Seq.map (fun (struct (a, _)) -> a))
-
-        writeStrings
-            w
-            "module"
-            (externalRequires
-             |> Seq.map (fun (struct (_, b)) -> b))
-
-        w.WriteEndObject ()
-        w.WriteStartObject "references"
-
-        writeInts
-            w
-            "from"
-            (references.Keys
-             |> Seq.map (fun (struct (a, _)) -> a))
-
-        writeInts
-            w
-            "to"
-            (references.Keys
-             |> Seq.map (fun (struct (_, b)) -> b))
-
-        writeInts w "count" references.Values
-        w.WriteEndObject ()
-        w.WriteStartObject "externalReferences"
-
-        writeInts
-            w
-            "from"
-            (externalReferences.Keys
-             |> Seq.map (fun (struct (a, _)) -> a))
-
-        writeStrings
-            w
-            "module"
-            (externalReferences.Keys
-             |> Seq.map (fun (struct (_, b)) -> b))
-
-        writeInts w "count" externalReferences.Values
-        w.WriteEndObject ()
-
-        match rocqDep with
-        | Some edges ->
-            w.WriteStartObject "rocqDep"
-            writeInts w "from" (edges |> Seq.map (fun (struct (a, _)) -> a))
-            writeInts w "to" (edges |> Seq.map (fun (struct (_, b)) -> b))
-            w.WriteEndObject ()
-        | None -> w.WriteNull "rocqDep"
-
-        w.WriteEndObject ()
-
-        w.WriteStartObject "unknownKinds"
-
-        for KeyValue (k, c) in unknownKinds do
-            w.WriteNumber (k, c)
-
-        w.WriteEndObject ()
-
-        w.WriteStartArray "unresolved"
-
-        for (file, target, kind) in unresolved |> Seq.distinct |> Seq.sort do
-            w.WriteStartObject ()
-            w.WriteString ("file", file)
-            w.WriteString ("target", target)
-            w.WriteString ("kind", kind)
-            w.WriteEndObject ()
-
-        w.WriteEndArray ())
-
-/// Extracts a project. Refuses, with exit code 2 and no writes, when any file's `.glob` cannot be trusted.
-let run (options: Options) : RunReport =
-    let total = Stopwatch.StartNew ()
-    let files = readProject options.Project
-
-    let previous =
-        if options.Force then
-            Dictionary ()
-        else
-            readPreviousIndex (Path.Combine (options.OutDir, "index.json"))
-
-    let prepared = files |> Array.Parallel.map (prepare options)
-
-    let refused =
-        prepared
-        |> Array.choose (function
-            | Result.Error e -> Some e
-            | Result.Ok _ -> None)
-
-    if refused.Length > 0 then
-        {
-            Extracted = [||]
-            Reused = [||]
-            Refused = refused
-            UnknownKinds = Map.empty
-            UnparsedLines = 0
-            ExtractMs = 0L
-            GlobalMs = 0L
-            TotalMs = total.ElapsedMilliseconds
-            ExitCode = 2
-        }
-    else
-        let ready =
-            prepared
-            |> Array.map (function
-                | Result.Ok p -> p
-                | Result.Error _ -> failwith "unreachable")
-
-        let isReusable (p: Prepared) =
-            match previous.TryGetValue p.File.Path with
-            | true, e ->
-                e.Digest = p.Digest
-                && e.GlobDigest = p.GlobDigest
-                && e.GlobStatus = p.Status
-                && [ "outline"; "refs"; "tokens" ]
-                   |> List.forall (fun l -> File.Exists (Path.Combine (options.OutDir, shardName p.File.Module l)))
-            | _ -> false
-
-        let header (p: Prepared) : FileHeader =
-            {
-                Path = p.File.Path
-                Module = p.File.Module
-                Digest = p.Digest
-                GlobDigest = p.GlobDigest
-                GlobStatus = p.Status
+                Externals =
+                    externalOrder
+                    |> Array.map (fun i -> externalNodes[i])
+                Edges =
+                    sorted
+                    |> Array.map (fun (struct (t, from, where, count)) ->
+                        {
+                            Target =
+                                if t >= nSymbols then
+                                    ExternalSymbolNode (t - nSymbols)
+                                else
+                                    SymbolNode t
+                            Owner =
+                                if from >= 0 then
+                                    DeclarationOwner from
+                                else
+                                    FileOwner (~~~from)
+                            Where = where
+                            Count = count
+                        })
+                ToOffsets = toOffsets
+                ByFrom = byFrom
+                FromOffsets = fromOffsets
             }
-
-        let extract = Stopwatch.StartNew ()
-        let toExtract = ready |> Array.filter (isReusable >> not)
-
-        toExtract
-        |> Array.Parallel.iter (fun p ->
-            let model = analyze p.File.Module p.Source p.Glob
-            let h = header p
-
-            let path (layer: string) =
-                Path.Combine (options.OutDir, shardName p.File.Module layer)
-
-            writeOutline (path "outline") h model p.Glob
-            writeRefs (path "refs") h model
-            writeTokens (path "tokens") h model)
-
-        extract.Stop ()
-
-        // Shards of files no longer in the project.
-        let filesDir = Path.Combine (options.OutDir, "files")
-
-        if Directory.Exists filesDir then
-            let current =
-                HashSet<string>(
-                    ready
-                    |> Seq.collect (fun p ->
-                        [ "outline"; "refs"; "tokens" ]
-                        |> List.map (fun l -> Path.GetFileName (shardName p.File.Module l)))
-                )
-
-            for path in Directory.GetFiles (filesDir, "*.json") do
-                if not (current.Contains (Path.GetFileName path)) then
-                    File.Delete path
-
-        let globalStage = Stopwatch.StartNew ()
-
-        let facts =
-            ready
-            |> Array.Parallel.map (fun p ->
-                let bytes =
-                    File.ReadAllBytes (Path.Combine (options.OutDir, shardName p.File.Module "outline"))
-
-                let doc = JsonDocument.Parse bytes
-
-                {
-                    Path = p.File.Path
-                    Module = p.File.Module
-                    Digest = p.Digest
-                    GlobDigest = p.GlobDigest
-                    GlobStatus = p.Status
-                    Root = doc.RootElement
-                    Document = doc
-                })
-
-        writeGlobal options facts
-
-        let unknown =
-            ready
-            |> Seq.collect (fun p ->
-                match p.Glob with
+        FileGraph =
+            {
+                Requires =
+                    requires.ToArray ()
+                    |> Array.distinct
+                    |> Array.sort
+                ExternalRequires =
+                    externalRequires.ToArray ()
+                    |> Array.distinct
+                    |> Array.sort
+                References =
+                    references.ToArray ()
+                    |> Array.sortBy (fun r -> r.From, r.To)
+                ExternalReferences =
+                    externalReferences.ToArray ()
+                    |> Array.sortBy (fun r -> r.From, r.Module)
+            }
+        UnknownKinds =
+            files
+            |> Seq.collect (fun f ->
+                match f.Glob with
                 | Some g -> g.UnknownKinds |> Seq.map snd
                 | None -> Seq.empty)
             |> Seq.countBy id
             |> Map.ofSeq
+        Unresolved =
+            unresolved
+            |> Seq.distinct
+            |> Seq.sort
+            |> Seq.map (fun (file, target, kind) ->
+                {
+                    File = file
+                    Target = target
+                    Kind = kind
+                })
+            |> Seq.toArray
+    }
 
-        let unparsed =
-            ready
-            |> Seq.sumBy (fun p ->
-                match p.Glob with
-                | Some g -> g.Unparsed.Length
-                | None -> 0)
+let private loadFile (options: LoadOptions) (f: ProjectFile) : Result<RocqFile, LoadFailure> =
+    let globPath = Path.ChangeExtension (f.FullPath, ".glob")
 
-        for f in facts do
-            f.Document.Dispose ()
+    if not (File.Exists f.FullPath) then
+        Result.Error (SourceMissing f.Path)
+    else
+        let source = File.ReadAllBytes f.FullPath
 
-        globalStage.Stop ()
+        if not (isValidUtf8 source) then
+            Result.Error (SourceNotUtf8 f.Path)
+        elif not (File.Exists globPath) then
+            Result.Error (GlobMissing f.Path)
+        else
+            let digest = md5Hex source
+            let globBytes = File.ReadAllBytes globPath
+            let parsed = parse globBytes
 
-        {
-            Extracted = toExtract |> Array.map _.File.Path
-            Reused =
-                ready
-                |> Array.filter isReusable
-                |> Array.map _.File.Path
-            Refused = [||]
-            UnknownKinds = unknown
-            UnparsedLines = unparsed
-            ExtractMs = extract.ElapsedMilliseconds
-            GlobalMs = globalStage.ElapsedMilliseconds
-            TotalMs = total.ElapsedMilliseconds
-            ExitCode =
-                if
-                    unparsed > 0
-                    || (options.Strict && not unknown.IsEmpty)
-                then
-                    3
-                else
-                    0
-        }
+            let status =
+                match parsed.Digest with
+                | None -> NoDigest
+                | Some d when d <> digest -> Stale
+                | Some _ -> Current
+
+            let loaded () =
+                let glob = if status = Current then Some parsed else None
+
+                Result.Ok
+                    {
+                        Path = f.Path
+                        FullPath = f.FullPath
+                        Module = f.Module
+                        Digest = digest
+                        GlobDigest = md5Hex globBytes
+                        GlobStatus = status
+                        Glob = glob
+                        Model = analyze f.Module source glob
+                    }
+
+            match status with
+            | Current when parsed.Module <> f.Module -> Result.Error (ModuleMismatch (f.Path, parsed.Module, f.Module))
+            | Current -> loaded ()
+            | _ when options.AllowStale -> loaded ()
+            | Stale -> Result.Error (GlobStaleForSource (f.Path, parsed.Digest.Value, digest))
+            | NoDigest -> Result.Error (GlobHasNoDigest f.Path)
+
+/// Loads a compiled project from its `_CoqProject`, reading each `.v` and `.glob` it lists. Returns every failure when
+/// a file cannot be trusted.
+let loadWith (options: LoadOptions) (projectFile: string) : Result<RocqProject, LoadFailure[]> =
+    if not (File.Exists projectFile) then
+        Result.Error [| ProjectFileMissing projectFile |]
+    else
+        let results =
+            readProject projectFile
+            |> Array.Parallel.map (loadFile options)
+
+        let failures =
+            results
+            |> Array.choose (function
+                | Result.Error e -> Some e
+                | Result.Ok _ -> None)
+
+        if failures.Length > 0 then
+            Result.Error failures
+        else
+            results
+            |> Array.choose (function
+                | Result.Ok f -> Some f
+                | Result.Error _ -> None)
+            |> build
+            |> Result.Ok
+
+/// Loads a compiled project from its `_CoqProject`, refusing any file with a stale `.glob`.
+let load (projectFile: string) : Result<RocqProject, LoadFailure[]> =
+    loadWith { AllowStale = false } projectFile
+
+/// Symbols whose name, module-relative qualified name, or fully qualified name equals `name`.
+let symbolsNamed (project: RocqProject) (name: string) : ProjectSymbol[] =
+    project.Symbols
+    |> Array.filter (fun s ->
+        s.Symbol.Name = name
+        || s.Symbol.Qualified = name
+        || project.Files[s.File].Module
+           + "."
+           + s.Symbol.Qualified
+            =
+            name)
+
+/// Index of a symbol's node, for `usesOf`.
+let symbolNode (project: RocqProject) (symbol: ProjectSymbol) : Node =
+    let first =
+        project.Symbols
+        |> Array.findIndex (fun s -> s.File = symbol.File && s.Local = symbol.Local)
+
+    SymbolNode first
+
+/// The edges targeting a node.
+let usesOf (project: RocqProject) (node: Node) : Edge[] =
+    let x = project.CrossReferences
+
+    let id =
+        match node with
+        | SymbolNode s -> s
+        | ExternalSymbolNode e -> project.Symbols.Length + e
+
+    x.Edges[x.ToOffsets[id] .. x.ToOffsets[id + 1] - 1]
+
+/// The edges from an owner.
+let usesBy (project: RocqProject) (owner: Owner) : Edge[] =
+    let x = project.CrossReferences
+
+    let slot =
+        match owner with
+        | DeclarationOwner d -> d
+        | FileOwner f -> project.Declarations.Length + f
+
+    [|
+        for i in x.FromOffsets[slot] .. x.FromOffsets[slot + 1] - 1 -> x.Edges[x.ByFrom[i]]
+    |]

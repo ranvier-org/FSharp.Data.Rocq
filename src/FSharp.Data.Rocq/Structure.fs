@@ -592,11 +592,20 @@ let private headingsOf (src: byte[]) (commentIndex: int) (format: string) (body:
         let maxLevel = if format = "md" then 6 else 4
         let line = Encoding.UTF8.GetString(src, p, lineEnd - p).TrimEnd()
 
-        if format = "md" && line.StartsWith "```" then
+        if
+            format = "md"
+            && line.StartsWith ("```", StringComparison.Ordinal)
+        then
             verbatim <- not verbatim
-        elif format = "doc" && line.StartsWith "<<" then
+        elif
+            format = "doc"
+            && line.StartsWith ("<<", StringComparison.Ordinal)
+        then
             verbatim <- true
-        elif format = "doc" && line.StartsWith ">>" then
+        elif
+            format = "doc"
+            && line.StartsWith (">>", StringComparison.Ordinal)
+        then
             verbatim <- false
         elif not verbatim then
             let mutable q = p

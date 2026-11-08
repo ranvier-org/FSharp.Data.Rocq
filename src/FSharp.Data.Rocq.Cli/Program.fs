@@ -1,10 +1,10 @@
-module FSharp.Data.Rocq.Program
+module FSharp.Data.Rocq.Cli.Program
 
 open System
-open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Extract
 
 let private usage =
-    """FSharp.Data.Rocq extract --project <_CoqProject> --out <dir> [options]
+    """FSharp.Data.Rocq.Cli extract --project <_CoqProject> --out <dir> [options]
 
 Reads each .v and .glob named by the project and writes structured data to <dir>.
 Compile the project first; reading the output needs no Rocq.

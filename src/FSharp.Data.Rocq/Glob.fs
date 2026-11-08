@@ -83,7 +83,7 @@ let knownKinds =
 
 let private isKnownKind (kind: string) =
     knownKinds.Contains kind
-    || kind.StartsWith "var"
+    || kind.StartsWith ("var", StringComparison.Ordinal)
        && knownKinds.Contains (kind.Substring 3)
 
 let private parseRange (s: string) =

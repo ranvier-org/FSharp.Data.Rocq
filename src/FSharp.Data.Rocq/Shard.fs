@@ -12,6 +12,7 @@ open FSharp.Data.Rocq.Source
 open FSharp.Data.Rocq.Lexer
 open FSharp.Data.Rocq.Glob
 open FSharp.Data.Rocq.Structure
+open FSharp.Data.Rocq.Project
 
 /// Incremented on a change that breaks readers.
 [<Literal>]
@@ -35,6 +36,12 @@ type FileHeader =
         /// `ok`, `stale` or `noDigest`. Only `ok` carries `.glob` facts.
         GlobStatus: string
     }
+
+let globStatusName (status: GlobStatus) =
+    match status with
+    | Current -> "ok"
+    | Stale -> "stale"
+    | NoDigest -> "noDigest"
 
 let private writerOptions =
     JsonWriterOptions (Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, SkipValidation = true)
@@ -303,33 +310,8 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         writeInts w "decl" (m.Symbols |> Seq.map _.Decl)
         w.WriteEndObject ()
 
-        // Uses, with a target table of their own so `xref.json` builds from this layer alone.
-        let useTargets = List<Target>()
-        let remap = Dictionary<int, int>()
-
-        let targetColumn =
-            m.Uses
-            |> Array.map (fun u ->
-                match remap.TryGetValue u.Target with
-                | true, i -> i
-                | _ ->
-                    let i = useTargets.Count
-
-                    // A target naming a symbol under definition is written as that symbol, so it resolves globally.
-                    let t = m.Targets[u.Target]
-
-                    useTargets.Add (
-                        if t.Symbol >= 0 then
-                            { t with
-                                Path = m.Symbols[t.Symbol].Path
-                                Name = m.Symbols[t.Symbol].Name
-                            }
-                        else
-                            t
-                    )
-
-                    remap[u.Target] <- i
-                    i)
+        // Uses, with a target table of their own.
+        let targets, targetColumn = useTargets m
 
         w.WriteStartObject "uses"
         writeInts w "owner" (m.Uses |> Seq.map _.Owner)
@@ -337,38 +319,18 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         writeInts w "where" (m.Uses |> Seq.map _.Where)
         writeInts w "count" (m.Uses |> Seq.map _.Count)
         w.WriteStartObject "targets"
-        writeStrings w "module" (useTargets |> Seq.map _.Module)
-        writeStrings w "path" (useTargets |> Seq.map _.Path)
-        writeStrings w "name" (useTargets |> Seq.map _.Name)
-        writeStrings w "kind" (useTargets |> Seq.map _.Kind)
+        writeStrings w "module" (targets |> Seq.map _.Module)
+        writeStrings w "path" (targets |> Seq.map _.Path)
+        writeStrings w "name" (targets |> Seq.map _.Name)
+        writeStrings w "kind" (targets |> Seq.map _.Kind)
         w.WriteEndObject ()
         w.WriteEndObject ()
 
-        // Required libraries, and the count of references into each module.
-        let requires =
-            m.Refs
-            |> Seq.map (fun r -> m.Targets[r.Target])
-            |> Seq.filter (fun t -> t.Kind = "lib")
-            |> Seq.map _.Module
-            |> Seq.distinct
-            |> Seq.sort
-            |> Seq.toArray
-
-        writeStrings w "requires" requires
-        let counts = SortedDictionary<string, int>(StringComparer.Ordinal)
-
-        for r in m.Refs do
-            let t = m.Targets[r.Target]
-
-            if t.Kind <> "lib" then
-                counts[t.Module] <-
-                    (match counts.TryGetValue t.Module with
-                     | true, c -> c + 1
-                     | _ -> 1)
-
+        writeStrings w "requires" (requiredModules m)
+        let referenced = referencedModules m
         w.WriteStartObject "referencedModules"
-        writeStrings w "module" counts.Keys
-        writeInts w "count" counts.Values
+        writeStrings w "module" (referenced |> Seq.map fst)
+        writeInts w "count" (referenced |> Seq.map snd)
         w.WriteEndObject ()
 
         w.WriteStartObject "globLines"
