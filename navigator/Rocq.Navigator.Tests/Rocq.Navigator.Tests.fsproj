@@ -12,6 +12,7 @@
 
     <ItemGroup>
         <Compile Include="IslandTests.fs" />
+        <Compile Include="DocsTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 
