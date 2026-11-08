@@ -48,6 +48,8 @@ This runs against the committed fixture (`tests/RocqData.Tests/fixtures`), compi
 
 ## Design decisions
 
+**Built rather than adopted.** No existing tool emits this data; see [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
+
 **F#, no packages.** It builds on the .NET SDK alone and fits F# consumers. The tests add Expecto. The scanner is
 hand-written over bytes, following `parsing/cLexer.ml`. Comment and string nesting and the between-commands bullet rule are
 context-sensitive, and exact byte offsets are the product, so a combinator library would add a layer without removing
