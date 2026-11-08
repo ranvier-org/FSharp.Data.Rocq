@@ -83,11 +83,17 @@ let private writeSpanOpt (w: Utf8JsonWriter) (name: string) (s: Span voption) =
     | ValueSome v -> writeSpan w name v
     | ValueNone -> w.WriteNull name
 
-let private writeStringOrNull (w: Utf8JsonWriter) (name: string) (s: string) =
-    if isNull s then
-        w.WriteNull name
-    else
-        w.WriteString (name, s)
+let private writeStringOrNull (w: Utf8JsonWriter) (name: string) (s: string option) =
+    match s with
+    | Some v -> w.WriteString (name, v)
+    | None -> w.WriteNull name
+
+/// The JSON form of an index field: the index, or -1 for none.
+let private indexColumn (index: int option) =
+    index |> Option.defaultValue -1
+
+let private writeIndex (w: Utf8JsonWriter) (name: string) (index: int option) =
+    w.WriteNumber (name, indexColumn index)
 
 /// Writes a JSON document atomically: a reader sees the old file or the new one.
 let writeJsonFile (path: string) (body: Utf8JsonWriter -> unit) =
@@ -111,20 +117,17 @@ let private writeFileHeader (w: Utf8JsonWriter) (h: FileHeader) =
     w.WriteString ("module", h.Module)
     w.WriteString ("path", h.Path)
     w.WriteString ("digest", h.Digest)
-    writeStringOrNull w "globDigest" h.GlobDigest
+    w.WriteString ("globDigest", h.GlobDigest)
     w.WriteString ("globStatus", h.GlobStatus)
 
 let private intern (table: List<string>) (index: Dictionary<string, int>) (value: string) =
-    if isNull value then
-        -1
-    else
-        match index.TryGetValue value with
-        | true, i -> i
-        | _ ->
-            let i = table.Count
-            table.Add value
-            index[value] <- i
-            i
+    match index.TryGetValue value with
+    | true, i -> i
+    | _ ->
+        let i = table.Count
+        table.Add value
+        index[value] <- i
+        i
 
 let private writeDeclaration (w: Utf8JsonWriter) (d: Declaration) =
     w.WriteStartObject ()
@@ -132,11 +135,11 @@ let private writeDeclaration (w: Utf8JsonWriter) (d: Declaration) =
     writeStringOrNull w "name" d.Name
     w.WriteString ("nameSource", nameSourceName d.NameSource)
     writeSpanOpt w "nameSpan" d.NameSpan
-    w.WriteString ("keyword", d.Keyword)
+    writeStringOrNull w "keyword" d.Keyword
     writeSpan w "keywordSpan" d.KeywordSpan
     writeStrings w "modifiers" d.Modifiers
     w.WriteString ("category", categoryName d.Category)
-    w.WriteNumber ("scope", d.Scope)
+    writeIndex w "scope" d.Scope
     w.WriteNumber ("sentence", d.Sentence)
     writeSpan w "sentenceSpan" d.SentenceSpan
     writeSpan w "extent" d.Extent
@@ -151,7 +154,7 @@ let private writeDeclaration (w: Utf8JsonWriter) (d: Declaration) =
         w.WriteString ("ending", proofEndingName p.Ending)
         writeSpan w "span" p.Span
         writeSpan w "bodySpan" p.BodySpan
-        w.WriteNumber ("opener", p.Opener)
+        writeIndex w "opener" p.Opener
         w.WriteNumber ("firstSentence", p.FirstSentence)
         w.WriteNumber ("lastSentence", p.LastSentence)
         w.WriteNumber ("tacticSentences", p.TacticSentences)
@@ -182,7 +185,10 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
 
         let keywordColumn =
             m.Sentences
-            |> Array.map (fun s -> intern keywords keywordIndex s.Keyword)
+            |> Array.map (fun s ->
+                match s.Keyword with
+                | Some keyword -> intern keywords keywordIndex keyword
+                | None -> -1)
 
         w.WriteStartObject "sentences"
         writeStrings w "categories" categories
@@ -191,7 +197,13 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         writeInts w "end" (m.Sentences |> Seq.map _.Span.End)
         writeInts w "category" categoryColumn
         writeInts w "keyword" keywordColumn
-        writeInts w "decl" (m.Sentences |> Seq.map _.Decl)
+
+        writeInts
+            w
+            "decl"
+            (m.Sentences
+             |> Seq.map (fun s -> indexColumn s.Decl))
+
         writeInts w "firstToken" (m.Sentences |> Seq.map _.FirstToken)
         writeInts w "endToken" (m.Sentences |> Seq.map _.EndToken)
         w.WriteStartArray "modifiers"
@@ -214,12 +226,12 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
             writeSpan w "span" c.Span
             writeSpan w "bodySpan" c.BodySpan
             w.WriteString ("text", text m.Bytes c.Span)
-            w.WriteNumber ("sentence", c.Sentence)
-            w.WriteNumber ("nextSentence", c.NextSentence)
+            writeIndex w "sentence" c.Sentence
+            writeIndex w "nextSentence" c.NextSentence
             w.WriteNumber ("newlinesToNext", c.NewlinesToNext)
-            w.WriteNumber ("trailingSentence", c.TrailingSentence)
-            w.WriteNumber ("decl", c.Decl)
-            w.WriteNumber ("attachedTo", c.AttachedTo)
+            writeIndex w "trailingSentence" c.TrailingSentence
+            writeIndex w "decl" c.Decl
+            writeIndex w "attachedTo" c.AttachedTo
             w.WriteEndObject ()
 
         w.WriteEndArray ()
@@ -243,9 +255,9 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
             w.WriteStartObject ()
             w.WriteString ("kind", scopeKindName s.Kind)
             writeStringOrNull w "name" s.Name
-            w.WriteNumber ("parent", s.Parent)
+            writeIndex w "parent" s.Parent
             w.WriteNumber ("sentence", s.Sentence)
-            w.WriteNumber ("endSentence", s.EndSentence)
+            writeIndex w "endSentence" s.EndSentence
             writeSpan w "span" s.Span
             writeInts w "docs" s.Docs
             w.WriteEndObject ()
@@ -286,11 +298,11 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         for n in m.Notations do
             w.WriteStartObject ()
             w.WriteNumber ("sentence", n.Sentence)
-            w.WriteNumber ("decl", n.Decl)
-            w.WriteString ("keyword", n.Keyword)
+            writeIndex w "decl" n.Decl
+            writeStringOrNull w "keyword" n.Keyword
             writeStringOrNull w "literal" n.Literal
             writeSpanOpt w "literalSpan" n.LiteralSpan
-            w.WriteNumber ("symbol", n.Symbol)
+            writeIndex w "symbol" n.Symbol
             writeStringOrNull w "entry" n.Entry
             writeStringOrNull w "scope" n.Scope
             writeStringOrNull w "key" n.Key
@@ -306,15 +318,21 @@ let writeOutline (path: string) (h: FileHeader) (m: FileModel) (glob: GlobFile o
         writeInts w "start" (m.Symbols |> Seq.map _.Span.Start)
         writeInts w "end" (m.Symbols |> Seq.map _.Span.End)
         writeInts w "line" (m.Symbols |> Seq.map _.Line)
-        writeInts w "sentence" (m.Symbols |> Seq.map _.Sentence)
-        writeInts w "decl" (m.Symbols |> Seq.map _.Decl)
+
+        writeInts
+            w
+            "sentence"
+            (m.Symbols
+             |> Seq.map (fun s -> indexColumn s.Sentence))
+
+        writeInts w "decl" (m.Symbols |> Seq.map (fun s -> indexColumn s.Decl))
         w.WriteEndObject ()
 
         // Uses, with a target table of their own.
         let targets, targetColumn = useTargets m
 
         w.WriteStartObject "uses"
-        writeInts w "owner" (m.Uses |> Seq.map _.Owner)
+        writeInts w "owner" (m.Uses |> Seq.map (fun u -> indexColumn u.Owner))
         writeInts w "target" targetColumn
 
         writeInts
@@ -392,8 +410,19 @@ let writeRefs (path: string) (h: FileHeader) (m: FileModel) =
         writeStrings w "path" (m.Targets |> Seq.map _.Path)
         writeStrings w "name" (m.Targets |> Seq.map _.Name)
         writeStrings w "kind" (m.Targets |> Seq.map _.Kind)
-        writeInts w "binder" (m.Targets |> Seq.map _.Binder)
-        writeInts w "symbol" (m.Targets |> Seq.map _.Symbol)
+
+        writeInts
+            w
+            "binder"
+            (m.Targets
+             |> Seq.map (fun t -> indexColumn t.Binder))
+
+        writeInts
+            w
+            "symbol"
+            (m.Targets
+             |> Seq.map (fun t -> indexColumn t.Symbol))
+
         w.WriteEndObject ()
         w.WriteStartObject "refs"
         writeInts w "start" (m.Refs |> Seq.map _.Span.Start)

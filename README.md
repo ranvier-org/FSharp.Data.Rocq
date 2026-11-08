@@ -16,11 +16,11 @@ match load "proofs/_CoqProject" with
 | Ok project ->
     for d in project.Declarations do
         if d.Declaration.Category = Category.Theorem then
-            printfn "%s: %d proofs" d.Declaration.Name d.Declaration.Proofs.Count
+            printfn "%s: %d proofs" d.Declaration.Id d.Declaration.Proofs.Length
 
     for edge in whoUses project "some_lemma" do
         match edge.Owner with
-        | DeclarationOwner i -> printfn "used by %s" project.Declarations[i].Declaration.Name
+        | DeclarationOwner i -> printfn "used by %s" project.Declarations[i].Declaration.Id
         | FileOwner i -> printfn "used at the top level of %s" project.Files[i].Path
 | Error failures ->
     for failure in failures do
@@ -38,8 +38,8 @@ keeps lexical data for a stale file instead.
 | `RocqProject.CrossReferences` | Mentions between declarations and symbols; read with `usesOf`, `usesBy` or `whoUses` |
 | `RocqProject.FileGraph` | Dependencies between files |
 
-Spans are half-open byte offsets into `Model.Bytes`. In the current model, `-1` means "none" on index fields and `null`
-means absent on string fields.
+Spans are half-open byte offsets into `Model.Bytes`. An index or string field that can be absent is an `option`. The JSON
+writes `None` as `-1` on index fields and `null` on string fields.
 
 ## Write JSON
 

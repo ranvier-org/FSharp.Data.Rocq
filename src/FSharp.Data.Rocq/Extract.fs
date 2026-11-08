@@ -212,7 +212,7 @@ let private writeIndex (options: Options) (project: RocqProject) =
             w.WriteNumber ("comments", m.Comments.Length)
             w.WriteNumber ("headings", m.Headings.Length)
             w.WriteNumber ("declarations", m.Declarations.Length)
-            w.WriteNumber ("proofs", m.Declarations |> Array.sumBy _.Proofs.Count)
+            w.WriteNumber ("proofs", m.Declarations |> Array.sumBy _.Proofs.Length)
             w.WriteNumber ("symbols", m.Symbols.Length)
             w.WriteNumber ("refs", m.Refs.Length)
             w.WriteNumber ("binders", m.Binders.Length)
@@ -227,8 +227,18 @@ let private writeIndex (options: Options) (project: RocqProject) =
 
         w.WriteStartObject "declarations"
         writeStrings w "id" (decls |> Seq.map _.Declaration.Id)
-        writeStrings w "name" (decls |> Seq.map _.Declaration.Name)
-        writeStrings w "keyword" (decls |> Seq.map _.Declaration.Keyword)
+
+        writeStrings
+            w
+            "name"
+            (decls
+             |> Seq.map (fun d -> Option.toObj d.Declaration.Name))
+
+        writeStrings
+            w
+            "keyword"
+            (decls
+             |> Seq.map (fun d -> Option.toObj d.Declaration.Keyword))
 
         writeStrings
             w
@@ -248,12 +258,12 @@ let private writeIndex (options: Options) (project: RocqProject) =
              |> Seq.map (fun d ->
                  let proofs = d.Declaration.Proofs
 
-                 if proofs.Count = 0 then
+                 if proofs.Length = 0 then
                      null
                  else
-                     proofEndingName proofs[proofs.Count - 1].Ending))
+                     proofEndingName proofs[proofs.Length - 1].Ending))
 
-        writeInts w "docCount" (decls |> Seq.map _.Declaration.Docs.Count)
+        writeInts w "docCount" (decls |> Seq.map _.Declaration.Docs.Length)
         w.WriteEndObject ()
 
         let symbols = project.Symbols

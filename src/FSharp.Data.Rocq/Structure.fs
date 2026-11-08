@@ -155,11 +155,12 @@ type Sentence =
         FirstToken: int
         /// Index after the sentence's last token.
         EndToken: int
-        mutable Category: Category
-        Keyword: string
+        Category: Category
+        /// `None` when the sentence starts with a symbol.
+        Keyword: string option
         KeywordSpan: Span voption
         Modifiers: string[]
-        mutable Decl: int
+        Decl: int option
         /// True when `Span` lacks a terminator, which only happens at the end of a file that does not compile.
         Terminated: bool
     }
@@ -179,22 +180,22 @@ type Comment =
         Span: Span
         Format: CommentFormat
         BodySpan: Span
-        /// The sentence containing the comment, or -1 at top level.
-        Sentence: int
-        /// The next sentence starting after the comment, or -1.
-        NextSentence: int
+        /// The sentence containing the comment; `None` at top level.
+        Sentence: int option
+        /// The next sentence starting after the comment.
+        NextSentence: int option
         /// Newlines between the comment and `NextSentence`, counting comments between them.
         NewlinesToNext: int
-        /// The previous sentence when it ends on the comment's line, or -1.
-        TrailingSentence: int
-        mutable Decl: int
-        mutable AttachedTo: int
+        /// The previous sentence when it ends on the comment's line.
+        TrailingSentence: int option
+        Decl: int option
+        AttachedTo: int option
     }
 
 type Proof =
     {
-        /// The `Proof ...` sentence, or -1.
-        Opener: int
+        /// The `Proof ...` sentence.
+        Opener: int option
         FirstSentence: int
         LastSentence: int
         Span: Span
@@ -211,77 +212,80 @@ type Symbol =
         Qualified: string
         Kind: string
         Span: Span
-        Sentence: int
-        mutable Decl: int
+        Sentence: int option
+        Decl: int option
     }
 
 type Declaration =
     {
         Index: int
-        mutable Id: string
-        Name: string
+        Id: string
+        /// `None` when `NameSource` is `Anonymous`.
+        Name: string option
         NameSource: NameSource
         NameSpan: Span voption
-        Keyword: string
+        /// `None` when the sentence starts with a symbol.
+        Keyword: string option
         KeywordSpan: Span
         Modifiers: string[]
         Category: Category
         Sentence: int
         SentenceSpan: Span
-        mutable Extent: Span
+        Extent: Span
         Statement: Span voption
         Binders: Span voption
         Type: Span voption
         Body: Span voption
-        Proofs: ResizeArray<Proof>
-        Symbols: ResizeArray<int>
-        Docs: ResizeArray<int>
-        Scope: int
+        Proofs: Proof[]
+        Symbols: int[]
+        Docs: int[]
+        Scope: int option
     }
 
 type Scope =
     {
         Index: int
         Kind: ScopeKind
-        Name: string
-        Parent: int
+        Name: string option
+        Parent: int option
         Sentence: int
-        /// The `End` sentence; -1 when the scope stays open, and `Sentence` for `Module A := B`.
-        mutable EndSentence: int
-        mutable Span: Span
-        Docs: ResizeArray<int>
+        /// The `End` sentence; `None` when the scope stays open, and `Sentence` for `Module A := B`.
+        EndSentence: int option
+        Span: Span
+        Docs: int[]
     }
 
 type ImportedModule =
     {
         Text: string
         Span: Span
-        Resolved: string
+        Resolved: string option
     }
 
 type Import =
     {
         Sentence: int
         Keyword: string
-        From: string
-        Mode: string
+        From: string option
+        Mode: string option
         Modules: ImportedModule[]
     }
 
 type Notation =
     {
         Sentence: int
-        Decl: int
-        Keyword: string
-        /// The notation string with its quotes removed and `""` unescaped, or null.
-        Literal: string
+        Decl: int option
+        /// `None` when the sentence starts with a symbol.
+        Keyword: string option
+        /// The notation string with its quotes removed and `""` unescaped.
+        Literal: string option
         LiteralSpan: Span voption
-        /// Index into `Symbols`, or -1.
-        Symbol: int
-        /// Decoded from the `.glob` name `:entry:scope:key`. Null when absent or empty.
-        Entry: string
-        Scope: string
-        Key: string
+        /// Index into `Symbols`.
+        Symbol: int option
+        /// Decoded from the `.glob` name `:entry:scope:key`. `None` when absent or empty.
+        Entry: string option
+        Scope: string option
+        Key: string option
     }
 
 type Target =
@@ -290,11 +294,11 @@ type Target =
         Path: string
         Name: string
         Kind: string
-        /// The binder named by the target, or -1.
-        Binder: int
-        /// The symbol named by a `name:uid` target with no binder line, or -1. Rocq writes such a target for a name
-        /// under definition: a recursive call, a mutual sibling, or a `Context` variable.
-        Symbol: int
+        /// The binder referenced by the target.
+        Binder: int option
+        /// The symbol referenced by a `name:uid` target with no binder line. Rocq writes such a target for a name under
+        /// definition: a recursive call, a mutual sibling, or a `Context` variable.
+        Symbol: int option
     }
 
 /// A reference with its target interned. `Ref` arrays are sorted by `(Start, End, Line)`.
@@ -313,7 +317,8 @@ type Binder =
 [<Struct>]
 type Use =
     {
-        Owner: int
+        /// The declaration holding the mention; `None` for a top-level directive.
+        Owner: int option
         Target: int
         Where: UseLocation
         Count: int
@@ -806,6 +811,162 @@ let private lastIndexAtOrBefore (starts: int[]) (value: int) =
     let i = Array.BinarySearch (starts, value)
     if i >= 0 then i else ~~~i - 1
 
+let private indexOption (index: int) =
+    if index >= 0 then Some index else None
+
+// Analysis state. In these builders, -1 and null mean none. `analyze` projects them to the public types when it ends.
+type private SentenceBuilder =
+    {
+        Index: int
+        Span: Span
+        FirstToken: int
+        EndToken: int
+        mutable Category: Category
+        Keyword: string
+        KeywordSpan: Span voption
+        Modifiers: string[]
+        mutable Decl: int
+        Terminated: bool
+    }
+
+type private CommentBuilder =
+    {
+        Index: int
+        Span: Span
+        Format: CommentFormat
+        BodySpan: Span
+        Sentence: int
+        NextSentence: int
+        NewlinesToNext: int
+        TrailingSentence: int
+        mutable Decl: int
+        mutable AttachedTo: int
+    }
+
+type private SymbolBuilder =
+    {
+        Line: int
+        Name: string
+        Path: string
+        Qualified: string
+        Kind: string
+        Span: Span
+        Sentence: int
+        mutable Decl: int
+    }
+
+type private DeclarationBuilder =
+    {
+        Index: int
+        mutable Id: string
+        Name: string
+        NameSource: NameSource
+        NameSpan: Span voption
+        Keyword: string
+        KeywordSpan: Span
+        Modifiers: string[]
+        Category: Category
+        Sentence: int
+        SentenceSpan: Span
+        mutable Extent: Span
+        Statement: Span voption
+        Binders: Span voption
+        Type: Span voption
+        Body: Span voption
+        Proofs: ResizeArray<Proof>
+        Symbols: ResizeArray<int>
+        Docs: ResizeArray<int>
+        Scope: int
+    }
+
+type private ScopeBuilder =
+    {
+        Index: int
+        Kind: ScopeKind
+        Name: string
+        Parent: int
+        Sentence: int
+        mutable EndSentence: int
+        mutable Span: Span
+        Docs: ResizeArray<int>
+    }
+
+let private toSentence (s: SentenceBuilder) : Sentence =
+    {
+        Index = s.Index
+        Span = s.Span
+        FirstToken = s.FirstToken
+        EndToken = s.EndToken
+        Category = s.Category
+        Keyword = Option.ofObj s.Keyword
+        KeywordSpan = s.KeywordSpan
+        Modifiers = s.Modifiers
+        Decl = indexOption s.Decl
+        Terminated = s.Terminated
+    }
+
+let private toComment (c: CommentBuilder) : Comment =
+    {
+        Index = c.Index
+        Span = c.Span
+        Format = c.Format
+        BodySpan = c.BodySpan
+        Sentence = indexOption c.Sentence
+        NextSentence = indexOption c.NextSentence
+        NewlinesToNext = c.NewlinesToNext
+        TrailingSentence = indexOption c.TrailingSentence
+        Decl = indexOption c.Decl
+        AttachedTo = indexOption c.AttachedTo
+    }
+
+let private toSymbol (s: SymbolBuilder) : Symbol =
+    {
+        Line = s.Line
+        Name = s.Name
+        Path = s.Path
+        Qualified = s.Qualified
+        Kind = s.Kind
+        Span = s.Span
+        Sentence = indexOption s.Sentence
+        Decl = indexOption s.Decl
+    }
+
+let private toDeclaration (d: DeclarationBuilder) : Declaration =
+    {
+        Index = d.Index
+        Id = d.Id
+        Name = Option.ofObj d.Name
+        NameSource = d.NameSource
+        NameSpan = d.NameSpan
+        Keyword = Option.ofObj d.Keyword
+        KeywordSpan = d.KeywordSpan
+        Modifiers = d.Modifiers
+        Category = d.Category
+        Sentence = d.Sentence
+        SentenceSpan = d.SentenceSpan
+        Extent = d.Extent
+        Statement = d.Statement
+        Binders = d.Binders
+        Type = d.Type
+        Body = d.Body
+        Proofs = d.Proofs.ToArray ()
+        Symbols = d.Symbols.ToArray ()
+        Docs = d.Docs.ToArray ()
+        Scope = indexOption d.Scope
+    }
+
+let private toScope (s: ScopeBuilder) : Scope =
+    {
+        Index = s.Index
+        Kind = s.Kind
+        Name = Option.ofObj s.Name
+        Parent = indexOption s.Parent
+        Sentence = s.Sentence
+        EndSentence = indexOption s.EndSentence
+        Span = s.Span
+        Docs = s.Docs.ToArray ()
+    }
+
 /// Builds the structure of one file from its source bytes and its parsed `.glob`, when one is available.
 let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileModel =
     let diagnostics = ResizeArray<Diagnostic>()
@@ -945,7 +1106,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             headers[k] <- header
 
             {
-                Index = k
+                SentenceBuilder.Index = k
                 Span = span tokens[first].Start tokens[stop - 1].End
                 FirstToken = first
                 EndToken = stop
@@ -960,7 +1121,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     // Symbols and binders, in `.glob` line order.
     let binders = ResizeArray<Binder>()
     let binderByUid = Dictionary<string, int>()
-    let symbols = ResizeArray<Symbol>()
+    let symbols = ResizeArray<SymbolBuilder>()
 
     let sentenceOf (offset: int) =
         let k = lastIndexAtOrBefore starts offset
@@ -1039,7 +1200,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     if sameLine then prev else -1
 
             {
-                Index = index
+                CommentBuilder.Index = index
                 Span = span t.Start t.End
                 Format = format
                 BodySpan = body
@@ -1059,8 +1220,8 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             else
                 (headingsOf src c.Index c.Format c.BodySpan).ToArray())
 
-    let declarations = ResizeArray<Declaration>()
-    let scopes = ResizeArray<Scope>()
+    let declarations = ResizeArray<DeclarationBuilder>()
+    let scopes = ResizeArray<ScopeBuilder>()
     let scopeStack = Stack<int>()
     let imports = ResizeArray<Import>()
     let notationSentences = ResizeArray<int>()
@@ -1084,7 +1245,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
             let proof =
                 {
-                    Opener = opener.Value
+                    Opener = indexOption opener.Value
                     FirstSentence = first
                     LastSentence = k
                     Span = span startSentence.Span.Start sentences[k].Span.End
@@ -1278,7 +1439,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
                 let decl =
                     {
-                        Index = index
+                        DeclarationBuilder.Index = index
                         Id = null
                         Name = name
                         NameSource = nameSource
@@ -1395,7 +1556,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
                     let scope =
                         {
-                            Index = index
+                            ScopeBuilder.Index = index
                             Kind = ScopeKind.Section
                             Name = name
                             Parent = currentScope ()
@@ -1423,7 +1584,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
                     let scope =
                         {
-                            Index = index
+                            ScopeBuilder.Index = index
                             Kind =
                                 (if s.Keyword = "Module Type" then
                                      ScopeKind.ModuleType
@@ -1466,11 +1627,11 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     s.Category <- Category.Import
                     let words = sg |> Array.map (fun i -> tokens[i])
                     let mutable p = header.Next - 1
-                    let mutable from = null
-                    let mutable mode = null
+                    let mutable from = None
+                    let mutable mode = None
 
                     if s.Keyword = "From" && p + 1 < words.Length then
-                        from <- tokenText src words[p + 1]
+                        from <- Some (tokenText src words[p + 1])
                         p <- p + 2
 
                     if
@@ -1480,13 +1641,13 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                         p <- p + 1
 
                     if s.Keyword = "Import" || s.Keyword = "Export" then
-                        mode <- s.Keyword
+                        mode <- Some s.Keyword
                         p <- header.Next
                     elif p < words.Length then
                         let w = tokenText src words[p]
 
                         if w = "Import" || w = "Export" then
-                            mode <- w
+                            mode <- Some w
                             p <- p + 1
 
                     let modules =
@@ -1512,7 +1673,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                                     {
                                         Text = tokenText src t
                                         Span = span t.Start t.End
-                                        Resolved = Option.toObj resolved
+                                        Resolved = resolved
                                     }
                         |]
 
@@ -1537,7 +1698,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
             d.Proofs.Add
                 {
-                    Opener = opener.Value
+                    Opener = indexOption opener.Value
                     FirstSentence = first
                     LastSentence = sentenceCount - 1
                     Span = span sentences[first].Span.Start e
@@ -1622,7 +1783,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             || r.Path <> "<>"
             || colon <= 0
         then
-            -1
+            None
         else
             let baseName = r.Name.Substring (0, colon)
 
@@ -1630,8 +1791,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             | true, own ->
                 own
                 |> Seq.tryFind (fun i -> symbols[i].Name = baseName)
-                |> Option.defaultValue -1
-            | _ -> -1
+            | _ -> None
 
     let internTarget (r: GlobRef) =
         let key = struct (r.Module, r.Path, r.Name, r.Kind)
@@ -1642,10 +1802,10 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             let binder =
                 if r.Module = moduleName && r.Path = "<>" then
                     match binderByUid.TryGetValue r.Name with
-                    | true, b -> b
-                    | _ -> -1
+                    | true, b -> Some b
+                    | _ -> None
                 else
-                    -1
+                    None
 
             let i = targets.Count
             targetIndex[key] <- i
@@ -1657,7 +1817,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                     Name = r.Name
                     Kind = r.Kind
                     Binder = binder
-                    Symbol = if binder >= 0 then -1 else enclosingSymbol r
+                    Symbol = if binder.IsSome then None else enclosingSymbol r
                 }
 
             i
@@ -1678,7 +1838,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     for r in refs do
         let t = targets[r.Target]
 
-        if t.Binder < 0 && t.Kind <> "lib" then
+        if t.Binder.IsNone && t.Kind <> "lib" then
             let k = sentenceOf r.Span.Start
 
             if k < 0 then
@@ -1709,7 +1869,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
         [|
             for KeyValue (struct (owner, target, where), count) in useCounts do
                 {
-                    Owner = owner
+                    Owner = indexOption owner
                     Target = target
                     Where = where
                     Count = count
@@ -1730,7 +1890,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 && tokens[i].Start >= offset)
 
         match first with
-        | None -> null, ValueNone
+        | None -> None, ValueNone
         | Some p ->
             let start = tokens[sg[p]].Start
             let mutable q = p
@@ -1742,7 +1902,7 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
 
             let stop = tokens[sg[q]].End
             let raw = Encoding.UTF8.GetString (src, start + 1, stop - start - 2)
-            raw.Replace ("\"\"", "\""), ValueSome (span start stop)
+            Some (raw.Replace ("\"\"", "\"")), ValueSome (span start stop)
 
     let decodeNotation (name: string) =
         // `:entry:scope:key`, where only the key may contain further colons.
@@ -1751,14 +1911,14 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             let b = if a >= 0 then name.IndexOf (':', a + 1) else -1
 
             if b >= 0 then
-                let empty (s: string) =
-                    if s = "" then null else s
+                let nonEmpty (s: string) =
+                    if s = "" then None else Some s
 
-                empty (name.Substring (1, a - 1)), empty (name.Substring (a + 1, b - a - 1)), name.Substring (b + 1)
+                nonEmpty (name.Substring (1, a - 1)), nonEmpty (name.Substring (a + 1, b - a - 1)), Some (name.Substring (b + 1))
             else
-                null, null, name
+                None, None, Some name
         else
-            null, null, name
+            None, None, Some name
 
     let withSymbol = HashSet<int>()
 
@@ -1775,22 +1935,22 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
                 if s.Kind = "not" then
                     decodeNotation s.Name
                 else
-                    null, null, s.Name
+                    None, None, Some s.Name
 
             let literal, literalSpan =
                 if s.Kind = "not" then
                     literalAt s.Span.Start s.Sentence
                 else
-                    null, ValueNone
+                    None, ValueNone
 
             notations.Add
                 {
                     Sentence = s.Sentence
-                    Decl = s.Decl
-                    Keyword = sentences[s.Sentence].Keyword
+                    Decl = indexOption s.Decl
+                    Keyword = Option.ofObj sentences[s.Sentence].Keyword
                     Literal = literal
                     LiteralSpan = literalSpan
-                    Symbol = i
+                    Symbol = Some i
                     Entry = entry
                     Scope = scope
                     Key = key
@@ -1803,14 +1963,14 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
             notations.Add
                 {
                     Sentence = k
-                    Decl = sentences[k].Decl
-                    Keyword = sentences[k].Keyword
+                    Decl = indexOption sentences[k].Decl
+                    Keyword = Option.ofObj sentences[k].Keyword
                     Literal = literal
                     LiteralSpan = literalSpan
-                    Symbol = -1
-                    Entry = null
-                    Scope = null
-                    Key = null
+                    Symbol = None
+                    Entry = None
+                    Scope = None
+                    Key = None
                 }
 
     let orderedNotations =
@@ -1842,14 +2002,14 @@ let analyze (moduleName: string) (src: byte[]) (glob: GlobFile option) : FileMod
     {
         Bytes = src
         Tokens = tokens
-        Sentences = sentences
-        Comments = commentData
+        Sentences = sentences |> Array.map toSentence
+        Comments = commentData |> Array.map toComment
         Headings = headings
-        Declarations = declarations.ToArray ()
-        Scopes = scopes.ToArray ()
+        Declarations = declarations.ToArray () |> Array.map toDeclaration
+        Scopes = scopes.ToArray () |> Array.map toScope
         Imports = imports.ToArray ()
         Notations = orderedNotations
-        Symbols = symbols.ToArray ()
+        Symbols = symbols.ToArray () |> Array.map toSymbol
         Binders = binders.ToArray ()
         Targets = targets.ToArray ()
         Refs = refs
