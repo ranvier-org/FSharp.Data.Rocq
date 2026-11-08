@@ -1,7 +1,8 @@
 # Rocq navigator: design
 
-A public, static documentation site for a compiled Rocq project, built from `FSharp.Data.Rocq` on `Ranvier.View`,
-`Ranvier.Css` and, where it earns its place, `Ranvier.View.Anime`. It replaces rocqnavi for the Ranvier core proofs.
+A Nacara plugin that turns a compiled Rocq project into public, static documentation pages, built from
+`FSharp.Data.Rocq` on `Ranvier.View`, `Ranvier.Css` and, where it earns its place, `Ranvier.View.Anime`. It replaces
+rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one more collection.
 
 ## Core and view state
 
@@ -46,6 +47,8 @@ comments are not attached to anything. The `proofs/docs.sh` pipeline already pat
 - **Public static page.** Readers download files; nothing runs Rocq for them.
 - **MIT licence.**
 - **Packages:** `Ranvier.View` and `Ranvier.Css`, plus `Ranvier.View.Anime` if suitable.
+- **Nacara:** the navigator is a Nacara plugin, so it can come into the docs natively. The front end stays entirely ours:
+  the plugin's layout replaces the theme's chrome on these pages.
 - **Demo data:** the Ranvier core proofs (see [Data](#data)).
 
 ## Goals
@@ -63,8 +66,8 @@ comments are not attached to anything. The `proofs/docs.sh` pipeline already pat
 - Proof states, tactic stepping, `rocq-lsp` or `fcc` data. A later version may add them.
 - Links or hover inside printed types, which are plain text with no positions.
 - Running Rocq in the browser, editing, or comments from readers.
-- Publishing a NuGet package of the navigator, deploying the site, or changing the Ranvier repository. The build writes
-  a directory.
+- Publishing the plugin to NuGet, deploying the site, or changing the Ranvier repository. Adding the plugin to the
+  Ranvier docs is a later step. A small demo site in this repository builds a directory.
 - Copying rocqnavi code or assets. It is GPL-2.0.
 
 ## Anti-goals
@@ -75,11 +78,13 @@ comments are not attached to anything. The `proofs/docs.sh` pipeline already pat
 
 ## Page structure
 
-**URLs.** One page per module, named `<Module>.html`, with anchor `#<declaration name>`. Existing comments link in this
-form (`Ranvier.Pure.Witnesses.html#walk_visits_added_observer`), so those links keep working without rewriting. A heading
-gets anchor `#h-<slug>`.
+**URLs.** One page per module, at `<root>/<Module>.html` through `Route.file`, with anchor `#<declaration name>`. `root` is
+the plugin's route prefix, empty by default. Existing comments link in this form
+(`Ranvier.Pure.Witnesses.html#walk_visits_added_observer`), so their source needs no edits. The plugin resolves such a
+link to its site URL when it renders the comment, which is also what `LinkValidator` can check. A heading gets anchor
+`#h-<slug>`.
 
-**Guarantees (`index.html`).** Each `Theorem` and `Corollary` whose attached `(**md` comment opens with a bold line
+**Guarantees (`<root>/index.html`).** Each `Theorem` and `Corollary` whose attached `(**md` comment opens with a bold line
 becomes an entry titled by that line, under its module. Entries sort into groups, first match winning (the author's call):
 
 | Group | Rule | Input |
@@ -89,7 +94,7 @@ becomes an entry titled by that line, under its module. Entries sort into groups
 | Checks | The comment holds the configured marker | `navigator.json`: `"checkMarker": "*Check, not a guarantee.*"` |
 | Guarantees | Every other entry | |
 
-`navigator.json` sits beside `_CoqProject`, is passed to `build`, and is optional: without it only Open and Guarantees
+`navigator.json` sits beside `_CoqProject`, is named in the plugin's options, and is optional: without it only Open and Guarantees
 exist. The tool stays generic, and it does not read `BUGS.md`. Open and Falsified entries are marked in the structure
 and never show a passing badge. An Admitted theorem's `Print Assumptions` result is therefore not presented as a pass.
 
@@ -106,9 +111,10 @@ and never show a passing badge. An Admitted theorem's `Print Assumptions` result
 
 `Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
 
-**Docs.** `Comment.AttachedTo` and `Declaration.Docs` decide attachment. `(**md` bodies are Markdown; `(** ... *)` bodies are
-coqdoc, of which headings, `[code]` and paragraphs are handled. Code in docs that names a symbol in scope becomes a
-reference.
+**Docs.** `Comment.AttachedTo` and `Declaration.Docs` decide attachment. `(**md` bodies are Markdown, rendered by Markdig at the
+version `Nacara.Plugin.Markdown` uses, with any `IMarkdownExtension` the site registered and raw HTML disabled. `(** ... *)`
+bodies are coqdoc, of which headings, `[code]` and paragraphs are handled. Code in docs that names a symbol in scope becomes
+a reference.
 
 **Right pane.** Outline of the page, with the section in view marked. For the declaration in view, "Uses" and "Used by" from
 `CrossReferences`.
@@ -143,44 +149,55 @@ Cards open after about 120 ms, stay open while the pointer is on them, close on 
 with Rocq 9.1.0. No file currently imports Iris, so the demo shows Rocq model proofs. That worktree belongs to another
 session and is read only.
 
-**Facts step.** A separate command, `navigator capture`, runs `rocq repl` over the compiled project and writes one
-`facts.json`: per symbol the `Check` text, per theorem the `Print Assumptions` result, plus the Rocq version and each file's
-digest. It uses `Require Import` of every project module in `_CoqProject` order, so names print in their shortest
-unambiguous form. Measured at about 2.2 s for 1,018 symbols and 18 s for 234 theorems. Local-binder types come from the
+**Facts step.** A separate command the plugin adds to the site's command line, `rocq-capture`, runs `rocq repl` over the
+compiled project and writes one `facts.json`: per symbol the `Check` text, per theorem the `Print Assumptions` result, plus
+the Rocq version and each file's digest. It uses `Require Import` of every project module in `_CoqProject` order, so names
+print in their shortest unambiguous form, after any `captureImports` lines from `navigator.json` (the author's call: probes
+showed names like `is_Some` need `From stdpp Require Import prelude gmap`). Measured at about 2.2 s for 1,018 symbols and 18 s for 234 theorems. Local-binder types come from the
 `Check` of the enclosing theorem, by matching binder names.
 
-**Without Rocq.** The site build takes `facts.json` as an option. Absent, the site still builds, with source headers in cards
-and no badges. If a file's digest in `facts.json` differs from the project, the build refuses unless told to drop facts for
-that file. `FSharp.Data.Rocq` itself gains no Rocq dependency.
+**Without Rocq.** The plugin takes `facts.json` as an option. Absent, the site still builds, with source headers in cards and
+no badges. If a file's digest in `facts.json` differs from the project, the build reports the error `rocq/facts-stale` unless
+told to drop facts for that file. A build never runs Rocq, and `FSharp.Data.Rocq` itself gains no Rocq dependency.
 
 **Client data.** A `symbols.json` per module and one `search.json`, fetched on first hover or first search. Pages carry the
 symbol's identifier on each reference in a data attribute.
 
 ## Architecture
 
-Three projects under `navigator/` in this repository. The library project stays free of packages, and the navigator
-projects are `IsPackable=false`.
+Four projects under `navigator/` in this repository. The library project stays free of packages, and the navigator
+projects are `IsPackable=false` for now.
 
 | Project | Compiled by | Holds |
 |---|---|---|
-| `Rocq.Navigator.Shared` | .NET and Fable | Page components, typed styles and tokens, card and search components, data types and codecs |
-| `Rocq.Navigator` | .NET | CLI: `capture` and `build`. Reads `RocqProject` directly and calls `Server.renderDocument` for each page |
-| `Rocq.Navigator.Client` | Fable, then Vite | Hydrates the islands |
+| `Rocq.Navigator.Shared` | .NET and Fable | Island components, typed styles and tokens, data types and codecs |
+| `Nacara.Plugin.Rocq` | .NET | The plugin: collection, front matter format, content transform, Reader layout, assets, `rocq-capture`. Reads `RocqProject` directly |
+| `Rocq.Navigator.Client` | Fable, then esbuild | Hydrates the islands. The bundle is embedded in the plugin, so a consuming site needs neither Fable nor Node |
+| `Rocq.Navigator.Site` | .NET | The demo site: a few lines of `Site.create` over the plugin |
+
+**The plugin (the shape of `Nacara.Plugin.FSharpApi`).** `Rocq.collection` is a producer that generates one document per
+module plus Guarantees, each depending on its `.v`, `.glob` and `facts.json`. Generated documents use the extension
+`.rocqpage`, with the plugin's own front matter format and content transform. The Markdown transform therefore never sees
+them, which is what keeps source text byte-exact. `Rocq.reader` is the layout. It renders the whole document with
+`Server.renderDocument` and hands it to Nacara as raw text. The site can use it, or supply another layout over the same
+semantic article. Problems are build diagnostics named `rocq/...`, and `--strict` is Nacara's own.
 
 **Islands.** The article is server-only HTML with no hydration, because a 60 KB module is large and static. Hydrated
 islands: search dialog, look and mode switch, hover card layer, section-in-view marker. A failure in the client leaves a
 fully readable page.
 
 `Server.renderDocument` and page declarations assume one host, and hydration removes marked head entries it did not adopt.
-The first implementation step proves several islands on one static page. If they do not work, the fallback is one host for
+The first implementation step proves several islands on one static page, inside a Nacara build. If they do not work, the fallback is one host for
 the islands' shell with the article in a plain element outside it, or mounting the islands fresh on the client; the
 article stays server-only either way.
 
-**Build output.** A self-contained directory with relative URLs, servable from a GitHub Pages subpath: HTML, one extracted
-CSS file, one JS bundle, data files, fonts.
+**Build output.** The site's output directory, with URLs from `Site.baseUrl`, so a GitHub Pages subpath is a setting: HTML,
+one extracted CSS file, one JS bundle, data files, fonts. Link and anchor checks come from `Nacara.Plugin.LinkValidator`;
+the plugin adds its own check that every `data-ref` has a card. Output must also survive `Nuglify.minifyHtml`, which the
+Ranvier docs turn on: the byte check runs on the written file with it enabled.
 
 **Styles.** Typed `Ranvier.Css`, with static CSS from the published `Ranvier.Css.Build` (`Compiler.compile` over explicit
-`CssModule` records), so CI needs no sibling checkout (the author's call). `Ranvier.Css.Compile` is an unpublished tool and is
+`CssModule` records), shipped as a plugin asset, so CI needs no sibling checkout (the author's call). `Ranvier.Css.Compile` is an unpublished tool and is
 not used. Looks and modes are the same token set redefined on `:root[data-look]` and `[data-mode]`. Mode follows the system unless overridden. Both looks ship in one
 stylesheet. An inline script sets the attributes before first paint, to avoid a flash.
 
@@ -191,8 +208,8 @@ render in the mono face.
 `prefers-reduced-motion` all are instant. Use `Ranvier.View.Anime` when the bundle cost is acceptable and the versions
 resolve; otherwise CSS transitions, and say so. Fold height is the case CSS handles worst.
 
-**Packages.** `Ranvier.View`, `Ranvier.View.Dom`, `Ranvier.Css`, `Ranvier.Css.Bindings`, `Ranvier.Css.Build`,
-`Ranvier.Css.View`, `Ranvier.View.Anime`. Published versions differ (`Ranvier.View` 0.1.48, `Ranvier.View.Anime` 0.1.44), and
+**Packages.** `Nacara.Core` (2.0.0-beta.6), `Nacara.Plugin.LinkValidator`, Markdig, `Ranvier.View`, `Ranvier.View.Dom`,
+`Ranvier.Css`, `Ranvier.Css.Bindings`, `Ranvier.Css.Build`, `Ranvier.Css.View`, `Ranvier.View.Anime`. Published versions differ (`Ranvier.View` 0.1.48, `Ranvier.View.Anime` 0.1.44), and
 the View family depends on itself at exact versions. The first implementation step finds the newest set that restores and compiles, in both
 .NET and Fable, and pins it. Prereleases are acceptable. If no set includes Anime, Anime is dropped, not forced.
 
@@ -201,7 +218,9 @@ the View family depends on itself at exact versions. The first implementation st
 - `Ranvier.View` rules: the view uses core primitives, and this document's first section is binding. New view-owned state
   needs the owner's agreement.
 - Doc comment rules from Ranvier's `comments.md` apply to code here.
-- Do not edit Ranvier's `proofs/`, `src/Ranvier` or docs site.
+- Do not edit Ranvier's `proofs/`, `src/Ranvier` or docs site, or the Nacara repository.
+- Follow Nacara's plugin conventions: `create` / `createWith`, `register` / `registerWith`, an options record with `defaults`,
+  one setter per option, and diagnostics that name the situation and give a hint.
 - Tests must not hardcode real proof names. Tests run on the committed fixture, with the proofs as an opt-in corpus.
 
 ## Acceptance
@@ -209,7 +228,7 @@ the View family depends on itself at exact versions. The first implementation st
 Run on the fixture in CI and on the proofs as a corpus:
 
 1. All modules render, and every declaration has its anchor.
-2. Every internal link and every reference's target resolves.
+2. `LinkValidator` passes on every internal link and anchor, and every `data-ref` has a card.
 3. The bytes of each statement and proof on the page equal the `.v` span.
 4. Every Guarantees entry matches an independent scan of the comments.
 5. Browser checks under Chromium, for both looks and both modes: card opens by hover and by keyboard, search finds a
@@ -225,8 +244,8 @@ to the owner for review before the styles spread to the other components.
 
 ## Left to the builder
 
-Markdown library or a small renderer; search ranking; exact spacing and type scale within the mockups; the serif face; test
-tooling; how Fable and Vite are invoked from the build.
+Search ranking; exact spacing and type scale within the mockups; the serif face; test tooling; how Fable and esbuild are
+invoked to produce the embedded bundle.
 
 ## Visual reference
 
