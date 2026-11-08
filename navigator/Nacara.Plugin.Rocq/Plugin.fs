@@ -24,6 +24,7 @@ module Rocq =
             Config = None
             DropStaleFacts = false
             Home = None
+            Extensions = []
         }
 
     /// <summary>Set <c>Project</c>.</summary>
@@ -62,6 +63,12 @@ module Rocq =
     let home value (options: RocqOptions) =
         { options with Home = value }
 
+    /// <summary>Set <c>Extensions</c>.</summary>
+    /// <param name="value">The value to use.</param>
+    /// <param name="options">The options so far.</param>
+    let extensions value (options: RocqOptions) =
+        { options with Extensions = value }
+
     let private indexPath (root: string) =
         match root.Trim '/' with
         | "" -> "index.html"
@@ -73,7 +80,7 @@ module Rocq =
     let private linksFor (site: SiteInfo) (options: RocqOptions) =
         {
             Module = fun name -> site.UrlOf (Anchors.routeOf options.Root site.RootLocale name)
-            Pipeline = Docs.pipeline []
+            Pipeline = Docs.pipeline options.Extensions
         }
 
     /// Removes the verdicts of theorems that disprove a claim, so no surface shows them passing.

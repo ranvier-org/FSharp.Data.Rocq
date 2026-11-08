@@ -39,6 +39,8 @@ type RocqOptions =
         DropStaleFacts: bool
         /// A link back to the host site: its label and URL.
         Home: (string * string) option
+        /// The Markdig extensions applied to comments. Raw HTML stays disabled.
+        Extensions: Markdig.IMarkdownExtension list
     }
 
 /// <summary>The panes, article and document of a page.</summary>
@@ -259,7 +261,8 @@ module internal RocqReader =
     let private shortName (moduleName: string) =
         moduleName.Substring (moduleName.LastIndexOf '.' + 1)
 
-    /// <summary>The left pane: the Guarantees link, then modules in project order grouped by directory, with declaration counts.</summary>
+    /// <summary>The left pane: the Guarantees link, the root-level modules, then the directory modules in project order, with declaration counts.</summary>
+    /// <remarks>A directory whose modules are interleaved with another directory's repeats its heading.</remarks>
     /// <param name="links">Maps a module to its page.</param>
     /// <param name="project">The project.</param>
     /// <param name="indexUrl">The URL of the Guarantees page.</param>
@@ -281,18 +284,21 @@ module internal RocqReader =
         out.Append """<p class="pane-label">Modules</p>"""
         |> ignore
 
+        let rootLevel, inDirectories =
+            project.Files
+            |> Array.indexed
+            |> Array.partition (fun (_, file) -> modulePath file.Module = "")
+
         let mutable group = ""
 
-        project.Files
-        |> Array.iteri (fun index file ->
+        for index, file in Array.append rootLevel inDirectories do
             let directory = modulePath file.Module
 
             if directory <> group then
                 group <- directory
 
-                if directory <> "" then
-                    out.Append ($"""<p class="pane-group">{encode directory}</p>""")
-                    |> ignore
+                out.Append ($"""<p class="pane-group">{encode directory}</p>""")
+                |> ignore
 
             let count =
                 match counts.TryGetValue index with
@@ -302,7 +308,7 @@ module internal RocqReader =
             out.Append (
                 $"""<a class="pane-item{currentMark (current = Some file.Module)}" href="{encode (links.Module file.Module)}"><span>{encode (shortName file.Module)}</span><span class="count">{count}</span></a>"""
             )
-            |> ignore)
+            |> ignore
 
         out.ToString ()
 

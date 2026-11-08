@@ -9,6 +9,7 @@ open System.Text.RegularExpressions
 open Expecto
 open Feliz.ViewEngine
 open FSharp.Data.Rocq.Project
+open Markdig.Extensions.Tables
 open Nacara.Core
 open Nacara.Plugins
 open Rocq.Navigator
@@ -369,6 +370,81 @@ let private tests' =
                          |> LinkValidator.register)
 
                 Expect.equal (errors result |> List.map _.Message) [] "no diagnostics")
+
+        testCase "the left pane lists a root-level module before the directory groups, with its own count"
+        <| fun () ->
+            let project = FixtureFiles.fixtureProject ()
+
+            let otherIndex =
+                project.Files
+                |> Array.findIndex (fun file -> file.Module.EndsWith "Other")
+
+            let guide = guideIndex project
+            Expect.isLessThan otherIndex guide "the directory file comes first in the project"
+
+            let nested =
+                { project with
+                    Files =
+                        project.Files
+                        |> Array.mapi (fun index file ->
+                            if index = otherIndex then
+                                { file with
+                                    Module = "Fixture.Sub.Other"
+                                }
+                            else
+                                file)
+                }
+
+            let countOf (index: int) =
+                project.Declarations
+                |> Array.filter (fun declaration -> declaration.File = index)
+                |> Array.length
+
+            Expect.notEqual (countOf otherIndex) (countOf guide) "the counts tell the files apart"
+            let html = RocqReader.leftPane links nested "/index.html" None
+
+            let rootItem = $"""<span>Guide</span><span class="count">{countOf guide}</span>"""
+
+            let directoryItem =
+                $"""<span>Other</span><span class="count">{countOf otherIndex}</span>"""
+
+            Expect.stringContains html rootItem "the root-level module keeps its count"
+            Expect.stringContains html directoryItem "the directory module keeps its count"
+            let heading = html.IndexOf """<p class="pane-group">Sub</p>"""
+            Expect.isGreaterThan heading -1 "the group heading"
+            Expect.isLessThan (html.IndexOf rootItem) heading "the root-level module comes before the first heading"
+            Expect.isGreaterThan (html.IndexOf directoryItem) heading "the directory module sits under its heading"
+
+        testCase "build: a site's Markdown extension reaches comments, and raw HTML stays disabled"
+        <| fun () ->
+            let comment =
+                "\n(**md\n| left | right |\n|---|---|\n| 1 | 2 |\n\nRaw <marquee>text</marquee> here.\n*)\n"
+
+            let render (configure: RocqOptions -> RocqOptions) =
+                withRoot (fun root ->
+                    let project = fixtureCopy root (Some ("Guide", comment))
+
+                    let result =
+                        buildAt
+                            root
+                            (siteWith (
+                                fixtureOptions ()
+                                |> Rocq.project project
+                                |> configure
+                            ))
+
+                    Expect.equal (errors result |> List.map _.Message) [] "no diagnostics"
+                    read root "Fixture.Guide.html")
+
+            let plain = render id
+            let extended = render (Rocq.extensions [ PipeTableExtension () ])
+
+            Expect.isFalse (plain.Contains "<table") "the default options render no table"
+            Expect.stringContains extended "<table" "the extension renders the table"
+
+            for name, html in [ "default", plain; "extended", extended ] do
+                Expect.isFalse (html.Contains "<marquee") $"{name}: raw HTML is not written as markup"
+                Expect.stringContains html "&lt;marquee&gt;" $"{name}: raw HTML displays as text"
 
         testCase "build: a data-ref with no card is the diagnostic rocq/ref-without-card"
         <| fun () ->
