@@ -100,7 +100,7 @@ Everything later depends on this result. Record the outcome at the top of `navig
 - Modify: `FSharp.Data.Rocq.slnx`, `.config/dotnet-tools.json` (add `fable` 5.13.0)
 
 **Interfaces:**
-- Produces: the pinned set in `Packages.props`; `Page.hostAttribute = "data-island"`; the island mounting shape every later island uses.
+- Produces: the pinned set in `Packages.props`; `Islands.hostAttribute = "data-island"`; the island mounting shape every later island uses; `navigator/Rocq.Navigator/Spike.fs`, which Task 7 deletes along with its test when `Page` takes over.
 
 - [ ] **Step 1: Try the Anime set first.** In `Packages.props`, pin `Ranvier.View`, `Ranvier.View.Dom` and `Ranvier.View.Anime` at 0.1.44 with `Ranvier.Css.View`, `Ranvier.Css.Build` and the matching `Ranvier.Css` and `.Bindings` from 0.1.1-alpha.1. Add `Ranvier.Wire`.
 
@@ -347,7 +347,7 @@ The independent scan is a regex over the `.v` text in the test. It does not use 
 
 - [ ] **Step 2: Run them to verify they fail.** Expected: compile failure on `Guarantees`.
 
-- [ ] **Step 3: Implement `Guarantees.fs`.** Rules are from the spec's Guarantees table.
+- [ ] **Step 3: Implement `Guarantees.fs`.** Rules are from the spec's Guarantees table. `Category.Theorem` also covers `Lemma` and others, so select on `Declaration.Keyword` being `Theorem` or `Corollary`.
 
 - [ ] **Step 4: Run the tests.** Expected: PASS.
 
@@ -599,7 +599,7 @@ test("a failing bundle leaves a fully readable page")                 // route t
 test("a link to a primed or repeated name lands on its declaration")  // from Task 5's anchors
 ```
 
-- [ ] **Step 2: Run it.** Run: `npx playwright test` from `navigator/browser`. Expected: all pass, or fix what fails. The Task 7 byte check runs in the same suite as acceptance 3.
+- [ ] **Step 2: Run it.** Run: `npx playwright test` from `navigator/browser`. Expected: all pass, or fix what fails. Acceptance 3 is the Task 4 byte check, which runs in the .NET suite.
 
 - [ ] **Step 3: Validate the workflow.** Run the steps of `navigator.yml` locally, in order, on a clean `git worktree` of this branch. Expected: each exits 0 and no step needs a sibling checkout.
 
