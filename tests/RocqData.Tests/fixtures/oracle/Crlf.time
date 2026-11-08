@@ -1,0 +1,6 @@
+Chars 0 - 33 [From~Fixture~Require~Import~Base.]
+Chars 69 - 102 [Definition~crlf_def~:=~base_id~1.]
+Chars 106 - 145 [Lemma~crlf_lemma~:~crlf_def~=~...]
+Chars 147 - 153 [Proof.]
+Chars 157 - 169 [reflexivity.]
+Chars 171 - 175 [Qed.]

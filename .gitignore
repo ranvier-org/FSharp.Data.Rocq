@@ -1,0 +1,11 @@
+bin/
+obj/
+out/
+.idea/
+*.user
+# Compiled by fixtures/generate.sh and committed, since tests run without Rocq.
+!tests/RocqData.Tests/fixtures/**/*.glob
+tests/RocqData.Tests/fixtures/**/*.vo
+tests/RocqData.Tests/fixtures/**/*.vok
+tests/RocqData.Tests/fixtures/**/*.vos
+tests/RocqData.Tests/fixtures/**/.*.aux

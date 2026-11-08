@@ -1,0 +1,2 @@
+# A fixture's .glob holds the MD5 of its .v and byte offsets into it, so its bytes must not change.
+tests/RocqData.Tests/fixtures/** -text -whitespace

@@ -1,0 +1,6 @@
+Chars 72 - 112 [Definition~base_id~(n~:~nat)~:...]
+Chars 114 - 152 [Inductive~colour~:~Set~:=~~~|~...]
+Chars 154 - 189 [Lemma~base_id_eq~n~:~base_id~n...]
+Chars 190 - 196 [Proof.]
+Chars 197 - 209 [reflexivity.]
+Chars 210 - 214 [Qed.]

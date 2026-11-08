@@ -1,0 +1,20 @@
+DIGEST 74c60dadc66a869777810c3e210d4fc4
+FFixture.Base
+def 83:89 <> base_id
+R96:98 Corelib.Init.Datatypes <> nat ind
+binder 92:92 <> n:1
+R103:105 Corelib.Init.Datatypes <> nat ind
+R110:110 Fixture.Base <> n:1 var
+ind 124:129 <> colour
+constr 140:142 <> Red
+constr 146:150 <> Green
+scheme 124:129 <> colour_rect
+scheme 124:129 <> colour_ind
+scheme 124:129 <> colour_rec
+scheme 124:129 <> colour_sind
+prf 160:169 <> base_id_eq
+binder 171:171 <> n:4
+R184:186 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R175:181 Fixture.Base <> base_id def
+R183:183 Fixture.Base <> n:4 var
+R187:187 Fixture.Base <> n:4 var

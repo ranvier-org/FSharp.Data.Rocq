@@ -1,0 +1,3 @@
+theories/Base.vo theories/Base.glob theories/Base.v.beautified theories/Base.required_vo: theories/Base.v
+theories/Kitchen.vo theories/Kitchen.glob theories/Kitchen.v.beautified theories/Kitchen.required_vo: theories/Kitchen.v theories/Base.vo
+theories/Crlf.vo theories/Crlf.glob theories/Crlf.v.beautified theories/Crlf.required_vo: theories/Crlf.v theories/Base.vo

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RocqData/RocqData.fsproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/RocqData.Sample/RocqData.Sample.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RocqData.Tests/RocqData.Tests.fsproj" />
+  </Folder>
+</Solution>

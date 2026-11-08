@@ -1,0 +1,14 @@
+<Project>
+
+    <!-- This file stops MSBuild's upward search, so the project builds the same inside or outside a host repository. -->
+    <PropertyGroup>
+        <LangVersion>latest</LangVersion>
+        <Nullable>disable</Nullable>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <IsPackable>false</IsPackable>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    </PropertyGroup>
+
+</Project>

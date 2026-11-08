@@ -1,0 +1,9 @@
+DIGEST de5e0efdb242feca1a9a2801ae39ca05
+FFixture.Crlf
+R28:31 Fixture.Base <> <> lib
+def 80:87 <> crlf_def
+R92:98 Fixture.Base <> base_id def
+prf 112:121 <> crlf_lemma
+R133:135 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R125:132 Fixture.Crlf <> crlf_def def
+R136:143 Fixture.Crlf <> crlf_def def
