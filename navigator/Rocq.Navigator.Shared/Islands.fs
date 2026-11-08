@@ -10,6 +10,9 @@ let hostAttribute = "data-island"
 let idPrefix (name: string) =
     "r" + name
 
+/// The islands on a page, in document order.
+let names = [ "search"; "switch"; "section"; "cards" ]
+
 /// An island with no content, standing in until the real islands exist.
 let stub: Component<unit> =
     Component.define (fun _ () -> ()) (fun t -> t.fragment [||])

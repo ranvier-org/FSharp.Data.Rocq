@@ -7,7 +7,6 @@
     <Import Project="..\Packages.props" />
 
     <ItemGroup>
-        <Compile Include="Spike.fs" />
         <Compile Include="Config.fs" />
         <Compile Include="Facts.fs" />
         <Compile Include="Source.fs" />
@@ -15,6 +14,13 @@
         <Compile Include="Anchors.fs" />
         <Compile Include="Article.fs" />
         <Compile Include="Guarantees.fs" />
+        <Compile Include="Cards.fs" />
+        <Compile Include="Reader.fs" />
+        <Compile Include="Plugin.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Rocq.Navigator.Tests" />
     </ItemGroup>
 
     <ItemGroup>

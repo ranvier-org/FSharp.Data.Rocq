@@ -5,6 +5,7 @@ open System
 open System.Collections.Generic
 open System.Net
 open System.Text
+open System.Text.RegularExpressions
 open FSharp.Data.Rocq.Project
 open FSharp.Data.Rocq.Structure
 open Markdig
@@ -69,7 +70,7 @@ let internal declarationHref (project: RocqProject) (links: Links) : int -> stri
         + "#"
         + anchors[declaration.File].Value[declaration.Local]
 
-let private symbolHref (project: RocqProject) (links: Links) (declarationHref: int -> string) (symbol: ProjectSymbol) =
+let internal symbolHref (project: RocqProject) (links: Links) (declarationHref: int -> string) (symbol: ProjectSymbol) =
     match symbol.Declaration with
     | Some declaration -> declarationHref declaration
     | None -> links.Module project.Files[symbol.File].Module
@@ -116,6 +117,11 @@ let internal resolver (project: RocqProject) (links: Links) (declarationHref: in
                 |> Option.map (fun symbol -> $"s{symbol.Index}", symbolHref project links declarationHref symbol)
         Link = resolveModuleLink project links
     }
+
+/// <summary>The written form of a notation, read from its declaring sentence.</summary>
+let internal notationText (file: RocqFile) (declaration: Declaration) : string option =
+    let m = Regex.Match (Source.text file declaration.SentenceSpan, "\"([^\"]*)\"")
+    if m.Success then Some m.Groups[1].Value else None
 
 /// <summary>The comment's body as source text.</summary>
 let internal commentBody (file: RocqFile) (comment: Comment) : string =
@@ -196,7 +202,8 @@ let private referenceTable (project: RocqProject) (links: Links) (declarationHre
             | true, symbol -> Some (symbolRef symbol)
             | _ ->
                 match externals.TryGetValue ((target.Module, qualified, target.Kind)) with
-                | true, index ->
+                // A notation from outside the project has no card, and its span crosses spaces and brackets.
+                | true, index when target.Kind <> "not" ->
                     Some
                         {
                             Key = $"x{index}"
@@ -243,12 +250,22 @@ let private refLists
             if Array.exists (fun (other: ProjectSymbol) -> other.Index = symbol.Index) own then
                 None
             else
-                Some
+                let name =
+                    match symbol.Symbol.Kind, symbol.Declaration with
+                    | "not", Some declaration ->
+                        let owned = project.Declarations[declaration]
+                        notationText project.Files[owned.File] owned.Declaration
+                    | "not", None -> None
+                    | _ -> Some symbol.Symbol.Qualified
+
+                name
+                |> Option.map (fun name ->
                     {
-                        Name = symbol.Symbol.Qualified
+                        Name = name
                         Key = $"s{symbol.Index}"
                         Href = Some (symbolHref project links declarationHref symbol)
-                    }
+                    })
+        | ExternalSymbolNode node when project.CrossReferences.Externals[node].Kind = "not" -> None
         | ExternalSymbolNode node ->
             Some
                 {
@@ -261,11 +278,16 @@ let private refLists
         match owner with
         | DeclarationOwner other when other = index -> None
         | DeclarationOwner other ->
-            let declaration = project.Declarations[other].Declaration
+            let owned = project.Declarations[other]
+            let declaration = owned.Declaration
 
             let name =
-                declaration.Name
-                |> Option.defaultValue $"d{other}"
+                if declaration.Category = Category.Notation then
+                    notationText project.Files[owned.File] declaration
+                    |> Option.defaultValue $"d{other}"
+                else
+                    declaration.Name
+                    |> Option.defaultValue $"d{other}"
 
             Some
                 {
@@ -352,7 +374,7 @@ type private Item =
 
 /// <summary>A file's blocks in source order. The source-bearing fields, read in order, give every byte of the file apart from the comments rendered as prose.</summary>
 /// <param name="fileIndex">The index in <c>RocqProject.Files</c>.</param>
-let blocks (project: RocqProject) (links: Links) (fileIndex: int) (_facts: Facts option) : Block[] =
+let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
     let file = project.Files[fileIndex]
     let model = file.Model
     let href = declarationHref project links
@@ -542,12 +564,13 @@ let private appendDeclaration
     (out: StringBuilder)
     (className: string)
     (anchor: string)
+    (badge: string)
     (doc: string)
     (statement: string)
     (proofs: ProofBlock[])
     (refs: RefLists)
     =
-    out.Append ($"""<section class="decl {className}" id="{encode anchor}">{doc}<pre class="statement"><code>{statement}</code></pre>""")
+    out.Append ($"""<section class="decl {className}" id="{encode anchor}">{badge}{doc}<pre class="statement"><code>{statement}</code></pre>""")
     |> ignore
 
     for proof in proofs do
@@ -556,8 +579,12 @@ let private appendDeclaration
     appendRefs out refs
     out.Append "</section>" |> ignore
 
+let private leadingBold = Regex @"^<p><strong>(.*?)</strong></p>"
+
 /// <summary>The HTML of a page's blocks. Proofs and reference lists fold with <c>details</c> and need no script.</summary>
-let toHtml (blocks: Block[]) : string =
+/// <param name="badge">The badge markup of a documented declaration, by its index in <c>RocqProject.Declarations</c>. Empty for none.</param>
+/// <param name="blocks">The page's blocks in order.</param>
+let toHtmlWith (badge: int -> string) (blocks: Block[]) : string =
     let out = StringBuilder ()
 
     for block in blocks do
@@ -565,9 +592,10 @@ let toHtml (blocks: Block[]) : string =
         | Heading (level, text, anchor) ->
             out.Append ($"""<h{level} id="{encode anchor}">{encode text}</h{level}>""")
             |> ignore
-        | Documented (_, anchor, doc, statement, proofs, refs) ->
-            appendDeclaration out "documented" anchor $"""<div class="doc">{doc}</div>""" statement proofs refs
-        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out "quiet" anchor "" statement proofs refs
+        | Documented (decl, anchor, doc, statement, proofs, refs) ->
+            let titled = leadingBold.Replace (doc, """<p class="decl-title">$1</p>""")
+            appendDeclaration out "documented" anchor (badge decl) $"""<div class="doc">{titled}</div>""" statement proofs refs
+        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out "quiet" anchor "" "" statement proofs refs
         | Command html when String.IsNullOrWhiteSpace html -> out.Append html |> ignore
         | Command html ->
             out.Append ($"""<pre class="command"><code>{html}</code></pre>""")
@@ -577,3 +605,7 @@ let toHtml (blocks: Block[]) : string =
             |> ignore
 
     out.ToString ()
+
+/// <summary>The HTML of a page's blocks, with no badges.</summary>
+let toHtml (blocks: Block[]) : string =
+    toHtmlWith (fun _ -> "") blocks

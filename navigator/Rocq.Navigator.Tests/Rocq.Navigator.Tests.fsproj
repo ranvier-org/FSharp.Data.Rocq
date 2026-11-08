@@ -11,13 +11,13 @@
     <Import Project="..\Packages.props" />
 
     <ItemGroup>
-        <Compile Include="IslandTests.fs" />
         <Compile Include="FixtureFiles.fs" />
         <Compile Include="FactsTests.fs" />
         <Compile Include="SourceTests.fs" />
         <Compile Include="DocsTests.fs" />
         <Compile Include="ArticleTests.fs" />
         <Compile Include="GuaranteesTests.fs" />
+        <Compile Include="PluginTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 
@@ -29,6 +29,7 @@
         <PackageReference Include="Expecto" Version="$(ExpectoVersion)" />
         <PackageReference Include="Nacara.Plugin.Markdown" Version="$(NacaraMarkdownVersion)" />
         <PackageReference Include="Nacara.Plugin.LinkValidator" Version="$(NacaraLinkValidatorVersion)" />
+        <PackageReference Include="Nacara.Plugin.Assets.Nuglify" Version="$(NacaraNuglifyVersion)" />
     </ItemGroup>
 
 </Project>

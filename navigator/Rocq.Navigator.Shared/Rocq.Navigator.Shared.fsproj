@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <Compile Include="Islands.fs" />
+        <Compile Include="Model.fs" />
     </ItemGroup>
 
     <ItemGroup>

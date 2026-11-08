@@ -12,6 +12,7 @@
         <NacaraCoreVersion>2.0.0-beta.6</NacaraCoreVersion>
         <NacaraMarkdownVersion>1.0.0-beta.2</NacaraMarkdownVersion>
         <NacaraLinkValidatorVersion>1.0.0-beta.2</NacaraLinkValidatorVersion>
+        <NacaraNuglifyVersion>1.0.0-beta.1</NacaraNuglifyVersion>
         <RanvierViewVersion>0.1.44</RanvierViewVersion>
         <RanvierCssVersion>0.1.1-alpha.1</RanvierCssVersion>
         <RanvierWireVersion>0.1.1-preview.1</RanvierWireVersion>

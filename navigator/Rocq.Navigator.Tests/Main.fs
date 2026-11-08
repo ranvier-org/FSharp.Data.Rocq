@@ -10,10 +10,10 @@ let main args =
         (testList
             "navigator"
             [
-                IslandTests.tests
                 FactsTests.tests
                 SourceTests.tests
                 DocsTests.tests
                 ArticleTests.tests
                 GuaranteesTests.tests
+                PluginTests.tests
             ])

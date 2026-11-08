@@ -191,7 +191,7 @@ let tests =
                 Expect.isGreaterThan (position ">Falsified<") (position ">Open<") "Open first"
                 Expect.isGreaterThan (position ">Checks<") (position ">Falsified<") "Falsified second"
                 Expect.isGreaterThan (position ">Guarantees<") (position ">Checks<") "Checks third"
-                Expect.stringContains html "<h3>Fixture.Guide</h3>" "the module"
+                Expect.stringContains html ">Fixture.Guide</h3>" "the module"
                 Expect.stringContains html """<a href="/site/Fixture.Guide.html#sum_refl">Reflexivity of sums.</a>""" "the title links"
 
             testCase "entries match an independent regex scan of the fixture's comments"

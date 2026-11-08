@@ -143,7 +143,7 @@ let private badge (entry: Entry) =
     match entry.Group, entry.Axioms with
     | (Open | Falsified), _
     | _, None -> ""
-    | _, Some Closed -> """<span class="badge pass">Closed under the global context</span>"""
+    | _, Some Closed -> """<span class="badge pass">✓ No axioms</span>"""
     | _, Some (RestsOn axioms) ->
         let names = axioms |> Array.map encode |> String.concat ", "
         $"""<span class="badge axioms">Rests on {names}</span>"""
@@ -164,11 +164,11 @@ let toHtml (entries: Entry[]) : string =
             |> Array.filter (fun entry -> entry.Group = group)
 
         if members.Length > 0 then
-            out.Append ($"""<section class="group group-{className}"><h2>{heading}</h2>""")
+            out.Append ($"""<section class="group group-{className}"><h2 id="group-{className}">{heading}</h2>""")
             |> ignore
 
             for moduleName, moduleEntries in members |> Array.groupBy _.Module do
-                out.Append ($"""<h3>{encode moduleName}</h3>""")
+                out.Append ($"""<h3 id="{className}-{encode moduleName}">{encode moduleName}</h3>""")
                 |> ignore
 
                 for entry in moduleEntries do

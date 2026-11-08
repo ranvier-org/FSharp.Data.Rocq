@@ -1,0 +1,355 @@
+namespace Nacara.Plugins
+
+open System
+open System.Collections.Generic
+open System.Net
+open System.Reflection
+open System.Text
+open System.Text.RegularExpressions
+open FSharp.Data.Rocq.Project
+open FSharp.Data.Rocq.Structure
+open Feliz.ViewEngine
+open Nacara.Core
+open Ranvier.View
+open Rocq.Navigator
+open Rocq.Navigator.Article
+open Rocq.Navigator.Model
+
+/// <summary>The front matter of a generated page.</summary>
+type RocqPage =
+    {
+        Title: string
+        /// <c>None</c> for the Guarantees page.
+        Module: string option
+        Description: string option
+    }
+
+/// <summary>Options of the Rocq plugin.</summary>
+type RocqOptions =
+    {
+        /// The <c>_CoqProject</c> file, relative to the project root or absolute.
+        Project: string
+        /// The route prefix of the pages. Empty places them at the site root.
+        Root: string
+        /// The <c>facts.json</c> file. <c>None</c> builds with source headers and no badges.
+        Facts: string option
+        /// The <c>navigator.json</c> file. <c>None</c> leaves every setting absent.
+        Config: string option
+        /// Drops the facts of a file whose digest changed, rather than failing with <c>rocq/facts-stale</c>.
+        DropStaleFacts: bool
+        /// A link back to the host site: its label and URL.
+        Home: (string * string) option
+    }
+
+/// <summary>The panes, article and document of a page.</summary>
+module internal RocqReader =
+
+    let encode (value: string) =
+        WebUtility.HtmlEncode value
+
+    /// Separates the panes from the article in a generated body. Source text and comments on a page have `<` escaped.
+    [<Literal>]
+    let Split = "<!--rocq:split-->"
+
+    let embedded (name: string) : byte array =
+        use stream =
+            Assembly.GetExecutingAssembly().GetManifestResourceStream($"Nacara.Plugin.Rocq.assets.%s{name}")
+
+        match stream with
+        | null -> [||]
+        | stream ->
+            use memory = new IO.MemoryStream ()
+            stream.CopyTo memory
+            memory.ToArray ()
+
+    let bundle =
+        lazy
+            (match embedded "navigator.js" with
+             | [||] -> None
+             | bytes -> Some bytes)
+
+    let scriptAsset = "assets/navigator.js"
+
+    let private serverOptions =
+        { Server.Options.defaults with
+            Policy = Omit
+        }
+
+    let private hostOf (name: string) =
+        $"""<div %s{Islands.hostAttribute}="%s{name}"></div>"""
+
+    /// <summary>Inserts text before the end of the head.</summary>
+    /// <returns><c>Error</c> when the document has no head.</returns>
+    let insertInHead (text: string) (html: string) : Result<string, string> =
+        match html.IndexOf ("</head>", StringComparison.Ordinal) with
+        | -1 -> Result.Error "The rendered document has no </head>."
+        | index -> Ok (html.Insert (index, text))
+
+    /// <summary>Removes the head marks hydration would remove the elements for, leaving plain elements.</summary>
+    /// <returns><c>Error</c> when the document has no head.</returns>
+    let unmarkHead (html: string) : Result<string, string> =
+        match html.IndexOf ("</head>", StringComparison.Ordinal) with
+        | -1 -> Result.Error "The rendered document has no </head>."
+        | index ->
+            Ok (
+                Regex.Replace (html.Substring (0, index), " data-ranvier-head=\"[^\"]*\"", "")
+                + html.Substring index
+            )
+
+    /// <summary>Places an island's server markup in its empty host.</summary>
+    /// <returns><c>Error</c> naming the island when the document has no such host.</returns>
+    let fillHost (name: string) (markup: string) (html: string) : Result<string, string> =
+        let host = hostOf name
+
+        match html.IndexOf (host, StringComparison.Ordinal) with
+        | -1 -> Result.Error $"The rendered document has no host for the {name} island."
+        | index -> Ok (html.Insert (index + host.Length - "</div>".Length, markup))
+
+    /// <summary>Removes the doctype <c>Server.renderDocument</c> writes, since Nacara writes its own.</summary>
+    let withoutDoctype (html: string) : string =
+        Regex.Replace (html, @"^\s*<!doctype html>", "", RegexOptions.IgnoreCase)
+
+    let private shell (title: string) =
+        Component.define (fun _ (markup: UnsafeHtml) -> markup) (fun t ->
+            t.fragment
+                [|
+                    t.Document.title title
+                    t.element<obj> (Representation.HtmlTag "div") [| t.Unsafe.html<obj>(fun markup -> markup) |] [||]
+                |])
+
+    let private islandMarkup (name: string) =
+        Server.render
+            { serverOptions with
+                IdPrefix = Islands.idPrefix name
+            }
+            Islands.stub
+            ()
+
+    let private orFail (result: Result<string, string>) =
+        match result with
+        | Ok html -> html
+        | Result.Error message -> failwith $"rocq: {message}"
+
+    /// <summary>The URL of a page's card data, relative to the output directory.</summary>
+    let dataPath (root: string) (name: string) =
+        match root.Trim '/' with
+        | "" -> $"data/{name}"
+        | prefix -> $"{prefix}/data/{name}"
+
+    let private symbolsFile (page: RocqPage) =
+        match page.Module with
+        | Some name -> $"{name}.symbols.json"
+        | None -> "index.symbols.json"
+
+    /// <summary>The whole document of a page.</summary>
+    /// <param name="stylesheets">The site URLs of the stylesheets.</param>
+    /// <param name="options">The plugin's options.</param>
+    /// <param name="context">The page, with its panes in its data.</param>
+    let render (stylesheets: string list) (options: RocqOptions) (context: PageContext<RocqPage>) : ReactElement =
+        let site = context.Site
+        let page = context.FrontMatter
+
+        let data (key: string) =
+            context.Page.TryData<string> key
+            |> Option.defaultValue ""
+
+        let left = data "rocq/left"
+        let right = data "rocq/right"
+
+        let index =
+            match options.Root.Trim '/' with
+            | "" -> "index.html"
+            | prefix -> $"{prefix}/index.html"
+
+        let home =
+            match options.Home with
+            | Some (label, url) -> $"""<a class="home" href="{encode url}">{encode label}</a>"""
+            | None -> ""
+
+        let brand =
+            $"""<div class="brand">{home}<a class="site" href="{encode (site.UrlOfAsset index)}">{encode site.Title}</a></div>"""
+
+        let crumb =
+            match page.Module with
+            | Some name -> encode name
+            | None -> "Guarantees"
+
+        let shellMarkup =
+            String.concat
+                ""
+                [
+                    """<div class="shell">"""
+                    $"""<nav class="pane pane-left" aria-label="Modules">{brand}{left}</nav>"""
+                    """<div class="center"><header class="topbar">"""
+                    $"""<p class="crumb">{crumb}</p>"""
+                    hostOf "search"
+                    hostOf "switch"
+                    "</header>"
+                    hostOf "section"
+                    hostOf "cards"
+                    $"""<details class="drawer"><summary>Modules</summary>{brand}{left}</details>"""
+                    $"""<details class="drawer"><summary>On this page</summary>{right}</details>"""
+                    $"""<article class="page"><h1 class="page-title">{encode page.Title}</h1>{context.Content}</article>"""
+                    "</div>"
+                    $"""<aside class="pane pane-right" aria-label="On this page">{right}</aside>"""
+                    "</div>"
+                ]
+
+        let document =
+            { Server.DocumentShell.defaults with
+                Lang = Some "en"
+                HtmlAttributes = [ "data-look", "family" ]
+                BodyAttributes =
+                    [
+                        "data-symbols", site.UrlOfAsset (dataPath options.Root (symbolsFile page))
+                        "data-search", site.UrlOfAsset (dataPath options.Root "search.json")
+                    ]
+                Stylesheets = stylesheets
+                Scripts =
+                    match bundle.Value with
+                    | Some _ -> [ Server.ModuleScript.Src (site.UrlOfAsset scriptAsset) ]
+                    | None -> []
+            }
+
+        let head =
+            let description =
+                match page.Description with
+                | Some text -> $"""<meta name="description" content="{encode text}">"""
+                | None -> ""
+
+            $"""<meta name="viewport" content="width=device-width, initial-scale=1">{description}"""
+
+        let html =
+            Server.renderDocument serverOptions document (shell page.Title) (UnsafeHtml.Trust shellMarkup)
+            |> unmarkHead
+            |> Result.bind (insertInHead head)
+
+        Islands.names
+        |> List.fold
+            (fun html name ->
+                html
+                |> Result.bind (fillHost name (islandMarkup name)))
+            html
+        |> orFail
+        |> withoutDoctype
+        |> Html.rawText
+
+    let private modulePath (moduleName: string) =
+        let parts = moduleName.Split '.'
+        // The first component is the logical root, and the last one the file.
+        if parts.Length > 2 then
+            String.Join (".", parts[1 .. parts.Length - 2])
+        else
+            ""
+
+    let private shortName (moduleName: string) =
+        moduleName.Substring (moduleName.LastIndexOf '.' + 1)
+
+    /// <summary>The left pane: the Guarantees link, then modules in project order grouped by directory, with declaration counts.</summary>
+    /// <param name="links">Maps a module to its page.</param>
+    /// <param name="project">The project.</param>
+    /// <param name="indexUrl">The URL of the Guarantees page.</param>
+    /// <param name="current">The module of the page, or <c>None</c> on the Guarantees page.</param>
+    let leftPane (links: Links) (project: RocqProject) (indexUrl: string) (current: string option) : string =
+        let out = StringBuilder ()
+
+        let counts =
+            project.Declarations
+            |> Array.countBy _.File
+            |> dict
+
+        let currentMark (isCurrent: bool) =
+            if isCurrent then """ on" aria-current="page""" else ""
+
+        out.Append ($"""<a class="pane-item{currentMark current.IsNone}" href="{encode indexUrl}">Guarantees</a>""")
+        |> ignore
+
+        out.Append """<p class="pane-label">Modules</p>"""
+        |> ignore
+
+        let mutable group = ""
+
+        project.Files
+        |> Array.iteri (fun index file ->
+            let directory = modulePath file.Module
+
+            if directory <> group then
+                group <- directory
+
+                if directory <> "" then
+                    out.Append ($"""<p class="pane-group">{encode directory}</p>""")
+                    |> ignore
+
+            let count =
+                match counts.TryGetValue index with
+                | true, count -> count
+                | _ -> 0
+
+            out.Append (
+                $"""<a class="pane-item{currentMark (current = Some file.Module)}" href="{encode (links.Module file.Module)}"><span>{encode (shortName file.Module)}</span><span class="count">{count}</span></a>"""
+            )
+            |> ignore)
+
+        out.ToString ()
+
+    let private unnamedAnchor = Regex @"^d\d+$"
+
+    /// <summary>The right pane of a module page: its outline, and the empty slots of the cross-reference lists.</summary>
+    let rightPane (blocks: Block[]) : string =
+        let out = StringBuilder ()
+
+        out.Append """<p class="pane-label">On this page</p>"""
+        |> ignore
+
+        let item (className: string) (anchor: string) (text: string) =
+            out.Append ($"""<a class="pane-item {className}" href="#{encode anchor}">{encode text}</a>""")
+            |> ignore
+
+        for block in blocks do
+            match block with
+            | Heading (level, text, anchor) -> item $"outline-heading depth-{level}" anchor text
+            | Documented (_, anchor, _, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-documented" anchor anchor
+            | Quiet (_, anchor, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-quiet" anchor anchor
+            | _ -> ()
+
+        out.Append """<div class="xref" data-slot="uses"></div><div class="xref" data-slot="used-by"></div>"""
+        |> ignore
+
+        out.ToString ()
+
+    /// <summary>The right pane of the Guarantees page: its groups and their modules.</summary>
+    let guaranteesPane (entries: Guarantees.Entry[]) : string =
+        let out = StringBuilder ()
+
+        out.Append """<p class="pane-label">On this page</p>"""
+        |> ignore
+
+        for group, className, heading in
+            [
+                Guarantees.Open, "open", "Open"
+                Guarantees.Falsified, "falsified", "Falsified"
+                Guarantees.Check, "check", "Checks"
+                Guarantees.Guarantee, "guarantee", "Guarantees"
+            ] do
+            let members =
+                entries
+                |> Array.filter (fun entry -> entry.Group = group)
+
+            if members.Length > 0 then
+                out.Append ($"""<a class="pane-item outline-heading depth-2" href="#group-{className}">{heading}</a>""")
+                |> ignore
+
+                for name in members |> Array.map _.Module |> Array.distinct do
+                    out.Append ($"""<a class="pane-item outline-quiet" href="#{className}-{encode name}">{encode (shortName name)}</a>""")
+                    |> ignore
+
+        out.ToString ()
+
+    /// <summary>The badge markup of a declaration.</summary>
+    let badgeHtml (badge: Badge option) : string =
+        match badge with
+        | None -> ""
+        | Some NoAxioms -> """<span class="badge pass">✓ No axioms</span>"""
+        | Some (Rests axioms) ->
+            let names = axioms |> Array.map encode |> String.concat ", "
+            $"""<span class="badge axioms">Rests on {names}</span>"""

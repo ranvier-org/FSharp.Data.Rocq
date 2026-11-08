@@ -32,5 +32,6 @@ let private hydrateIsland (graph: Graph) (name: string) (definition: Component<'
 
 let start () =
     let graph = new Graph ()
-    hydrateIsland graph "a" Islands.stub ()
-    hydrateIsland graph "b" Islands.stub ()
+
+    for name in Islands.names do
+        hydrateIsland graph name Islands.stub ()

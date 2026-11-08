@@ -24,7 +24,7 @@ let private guideIndex (project: RocqProject) =
 
 let private guideBlocks () =
     let project = FixtureFiles.fixtureProject ()
-    project, blocks project links (guideIndex project) None
+    project, blocks project links (guideIndex project)
 
 let private sourceHtml (block: Block) =
     match block with
@@ -260,7 +260,7 @@ let tests =
             <| fun () ->
                 let project = FixtureFiles.fixtureProject ()
                 let otherIndex = 1 - guideIndex project
-                let others = blocks project links otherIndex None
+                let others = blocks project links otherIndex
 
                 match declarationBlock others "other_def" with
                 | Documented (_, _, _, _, _, refs) ->
@@ -291,7 +291,7 @@ let tests =
                 for project in [ FixtureFiles.fixtureProject (); FixtureFiles.libraryProject () ] do
                     project.Files
                     |> Array.iteri (fun index file ->
-                        let blocks = blocks project links index None
+                        let blocks = blocks project links index
                         Expect.equal (decodedSource blocks) (expectedSource file) file.Path
 
                         let page = toHtml blocks
