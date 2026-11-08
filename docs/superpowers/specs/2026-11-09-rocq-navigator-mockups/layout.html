@@ -1,0 +1,101 @@
+<style>
+.nv{--bg:#14161c;--pane:#1a1d25;--line:#2b303b;--ink:#e6e8ee;--dim:#98a0b0;--accent:#7cc4ff;--ok:#7fd8a6;--kw:#c6a0f6;--ty:#f0c674;
+  background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;font:13px/1.5 Inter,system-ui,sans-serif;width:100%;overflow:visible;text-align:left}
+.nv *{box-sizing:border-box}
+.nv-g{display:grid;min-height:330px}
+.nv-p{padding:12px 14px;border-right:1px solid var(--line);min-width:0}
+.nv-p:last-child{border-right:0}
+.nv-l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+.nv-i{display:block;padding:2px 6px;border-radius:4px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv-i.on{background:#25304a;color:var(--ink)}
+.nv-t{font-size:15px;font-weight:600;margin:0 0 4px;color:var(--ink)}
+.nv-d{color:#c4c9d4;margin:0 0 8px}
+.nv pre{font:12px/1.55 "JetBrains Mono",Consolas,monospace;background:var(--pane);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0 0 8px;white-space:pre-wrap;color:var(--ink)}
+.nv-k{color:var(--kw)}.nv-y{color:var(--ty)}.nv-m{color:var(--dim)}.nv-o{color:var(--ok)}
+.h{position:relative;color:var(--accent);border-bottom:1px dotted var(--accent);cursor:help}
+.hc{display:none;position:absolute;left:0;top:1.6em;z-index:30;width:320px;background:#232733;border:1px solid #414a5c;border-radius:8px;padding:9px 11px;box-shadow:0 10px 28px #0009;font:12.5px/1.45 Inter,system-ui,sans-serif;color:var(--ink);white-space:normal}
+.h:hover .hc{display:block}
+.hc code{font:11.5px "JetBrains Mono",Consolas,monospace;color:var(--ty);display:block;margin-bottom:5px}
+.hc small{display:block;color:var(--dim);margin-top:6px}
+.nv-gr{display:grid;grid-template-columns:1fr 190px;gap:0 14px}
+.nv-n{border-left:2px solid var(--accent);padding-left:9px;color:#c4c9d4;font-size:12px;margin-bottom:10px}
+.nv-b{display:inline-block;font-size:10px;border:1px solid var(--line);border-radius:9px;padding:0 7px;color:var(--dim);margin-right:4px}
+.nv-c{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px;background:var(--pane)}
+.nv-c.closed .nv-t{margin:0;font-size:13px}
+.opt-stack .option{display:block}
+.opt-stack .option .letter{float:left;margin:0 10px 8px 0}
+.opt-stack .option h3{margin-bottom:2px}
+.opt-stack .nv{clear:both;margin-top:8px}
+</style>
+
+<h2>Which of these feels closest to how you want to read the proofs?</h2>
+<p class="subtitle">The content is real, from <code>Ranvier.Pure.Marking</code>. Hover any dotted blue name: the card shows its own comment as docs, its header from the source, and how often it's mentioned. Only the layouts differ, so judge the structure. Colours come later.</p>
+
+<div class="options opt-stack">
+
+<div class="option" data-choice="a" onclick="toggleSelect(this)">
+  <div class="letter">A</div>
+  <div class="content"><h3>Reader</h3><p>Docs come first and read like an article. Statements sit under their docs, and proofs stay folded. Modules are on the left, the page outline and cross-references on the right.</p></div>
+  <div class="nv"><div class="nv-g" style="grid-template-columns:170px 1fr 170px">
+    <div class="nv-p"><p class="nv-l">Modules</p>
+      <span class="nv-i">Base.Prelude</span><span class="nv-i">Base.Syntax</span><span class="nv-i">Reference.Semantics</span><span class="nv-i">Reference.Properties</span><span class="nv-i">Pure.Edges</span><span class="nv-i on">Pure.Marking</span><span class="nv-i">Pure.Engine</span><span class="nv-i">Pure.Check</span></div>
+    <div class="nv-p">
+      <p class="nv-m" style="margin:0 0 6px">Pure.Marking › The marking operations</p>
+      <p class="nv-t">Marks only raise freshness.</p>
+      <p class="nv-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+<pre><span class="nv-k">Theorem</span> mark_monotone fuel n r s s' m d :
+  <span class="h">any_mark<span class="hc"><code>Definition any_mark (fuel : nat) (n : node_id) (r : option node_id) (s s' : state) : Prop</code>Any of the five marking operations, from <b>s</b> to <b>s'</b>.<small>Pure.Marking · mentioned by 4 · click to open</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="h">freshness_le<span class="hc"><code>Definition freshness_le (f g : freshness) : Prop</code>Order <b>Clean &lt;= Check &lt;= Dirty</b>.<small>Base.Prelude · mentioned by 27 · click to open</small></span></span> (n_freshness d) (n_freshness d').</pre>
+      <p class="nv-m" style="margin:0 0 12px">▸ Proof · 3 lines</p>
+      <p class="nv-t">Marking a node finishes on any graph, cycles included.</p>
+      <p class="nv-d">With fuel above <span class="h">mark_measure<span class="hc"><code>Definition mark_measure (s : state) : nat</code>Bound on the walks started by later marks: one per memo in <b>Clean</b>, one per memo holding an announcement.<small>Pure.Marking · mentioned by 12 · click to open</small></span></span>, <code>mark_check</code> and <code>mark_dirty</code> return a state.</p>
+    </div>
+    <div class="nv-p"><p class="nv-l">On this page</p><span class="nv-i">mark_terminates</span><span class="nv-i">notify_terminates</span><span class="nv-i on">mark_monotone</span><span class="nv-i">dirty_not_lost</span><span class="nv-i">mark_preserves_edges</span>
+      <p class="nv-l" style="margin-top:12px">Uses</p><span class="nv-i">any_mark</span><span class="nv-i">freshness_le</span><span class="nv-i">marks_rises</span></div>
+  </div></div>
+</div>
+
+<div class="option" data-choice="b" onclick="toggleSelect(this)">
+  <div class="letter">B</div>
+  <div class="content"><h3>Guarantees atlas</h3><p>Opens on what the proofs promise, in plain language, not on files. A search box is the main way around. Each guarantee opens in place, with source a level further in.</p></div>
+  <div class="nv"><div class="nv-g" style="grid-template-columns:1fr">
+    <div class="nv-p">
+      <pre style="margin-bottom:10px;color:var(--dim)">⌕  Search guarantees, definitions and modules</pre>
+      <p class="nv-l">Marking · 6 guarantees</p>
+      <div class="nv-c closed"><p class="nv-t">▸ Marking a node finishes on any graph, cycles included.</p></div>
+      <div class="nv-c"><p class="nv-t">▾ Marks only raise freshness.</p>
+        <p class="nv-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+<pre><span class="nv-k">Theorem</span> mark_monotone fuel n r s s' m d :
+  <span class="h">any_mark<span class="hc"><code>Definition any_mark (fuel : nat) (n : node_id) (r : option node_id) (s s' : state) : Prop</code>Any of the five marking operations, from <b>s</b> to <b>s'</b>.<small>Pure.Marking · mentioned by 4 · click to open</small></span></span> fuel n r s s' -&gt; ...</pre>
+        <span class="nv-b">mark_monotone</span><span class="nv-b">Pure.Marking</span><span class="nv-b">View source</span></div>
+      <div class="nv-c closed"><p class="nv-t">▸ A <code>Check</code> mark leaves a <code>Dirty</code> node <code>Dirty</code>.</p></div>
+      <div class="nv-c closed"><p class="nv-t">▸ Marks leave the edges alone.</p></div>
+    </div>
+  </div></div>
+</div>
+
+<div class="option" data-choice="c" onclick="toggleSelect(this)">
+  <div class="letter">C</div>
+  <div class="content"><h3>Source with margin docs</h3><p>The file stays whole and in order, as Rocq sees it. Comments move out of the code into a margin, lined up with the value they describe. It's closest to rocqnavi, but cleaner.</p></div>
+  <div class="nv"><div class="nv-g" style="grid-template-columns:150px 1fr">
+    <div class="nv-p"><p class="nv-l">Pure.Marking</p><span class="nv-i">mark_measure</span><span class="nv-i">mark_terminates</span><span class="nv-i">notify_terminates</span><span class="nv-i on">mark_monotone</span><span class="nv-i">dirty_not_lost</span></div>
+    <div class="nv-p">
+      <div class="nv-gr">
+<pre><span class="nv-k">Theorem</span> mark_terminates fuel n s :
+  <span class="h">mark_measure<span class="hc"><code>Definition mark_measure (s : state) : nat</code>Bound on the walks started by later marks: one per memo in <b>Clean</b>, one per memo holding an announcement.<small>Pure.Marking · mentioned by 12 · click to open</small></span></span> s &lt; fuel -&gt;
+  is_Some (mark_check fuel n s) /\ is_Some (mark_dirty fuel n s).
+<span class="nv-m">Proof. intros Hb. split; [by apply mark_check_some|by apply mark_dirty_some]. Qed.</span></pre>
+        <div class="nv-n"><b>Marking a node finishes on any graph, cycles included.</b><br>With fuel above <code>mark_measure</code>, both return a state.</div>
+<pre><span class="nv-k">Theorem</span> mark_monotone fuel n r s s' m d :
+  <span class="h">any_mark<span class="hc"><code>Definition any_mark (fuel : nat) (n : node_id) (r : option node_id) (s s' : state) : Prop</code>Any of the five marking operations, from <b>s</b> to <b>s'</b>.<small>Pure.Marking · mentioned by 4 · click to open</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="h">freshness_le<span class="hc"><code>Definition freshness_le (f g : freshness) : Prop</code>Order <b>Clean &lt;= Check &lt;= Dirty</b>.<small>Base.Prelude · mentioned by 27 · click to open</small></span></span> ...
+<span class="nv-m">Proof. ... Qed.</span></pre>
+        <div class="nv-n"><b>Marks only raise freshness.</b><br>After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen.</div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+</div>

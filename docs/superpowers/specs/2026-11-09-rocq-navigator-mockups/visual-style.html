@@ -1,0 +1,87 @@
+<style>
+.v{border-radius:10px;overflow:visible;text-align:left;margin-top:10px;clear:both;display:grid;grid-template-columns:150px minmax(0,1fr);border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--body)}
+.v *{box-sizing:border-box}
+.v-s{padding:14px 12px;border-right:1px solid var(--line);background:var(--side);border-radius:10px 0 0 10px}
+.v-l{font:600 10px/1.4 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+.v-i{display:block;font:12.5px/1.8 var(--ui);color:var(--dim);padding:0 7px;border-radius:5px;white-space:nowrap}
+.v-i.on{background:var(--sel);color:var(--selink);font-weight:600}
+.v-m{padding:18px 22px;min-width:0}
+.v-c{font:12px/1.4 var(--ui);color:var(--dim);margin:0 0 12px}
+.v-t{font:var(--titlew) var(--titles)/1.3 var(--title);margin:0 0 6px;color:var(--ink)}
+.v-d{font-size:14.5px;line-height:1.6;margin:0 0 12px;color:var(--soft)}
+.v-d code,.v-t code{font:.9em var(--mono);color:var(--inl)}
+.v pre{font:12.5px/1.65 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:var(--rad);padding:10px 12px;margin:0 0 8px;white-space:pre-wrap;color:var(--ink)}
+.kw{color:var(--kw);font-weight:600}.bd{color:var(--bd)}
+.hv{position:relative;color:var(--link);border-bottom:1px dotted var(--link);cursor:help}
+.hcard{display:none;position:absolute;left:0;top:1.7em;z-index:40;width:340px;background:var(--card);border:1px solid var(--cardl);border-radius:8px;padding:10px 12px;box-shadow:0 12px 30px #0005;font:13px/1.5 var(--body);color:var(--ink);white-space:normal}
+.hv:hover .hcard{display:block}
+.hcard code{display:block;font:11.5px/1.5 var(--mono);color:var(--bd);margin-bottom:6px}
+.hcard small{display:block;font:11px var(--ui);color:var(--dim);margin-top:6px}
+.bdg{display:inline-block;font:11px/1.6 var(--ui);color:var(--okk);border:1px solid var(--okl);background:var(--okb);border-radius:10px;padding:0 9px;margin:0 0 8px}
+.fold{font:12px var(--ui);color:var(--dim);margin:0}
+.a{--bg:#0f1419;--side:#161c23;--line:#2a3340;--ink:#e8ebf0;--soft:#c3c9d3;--dim:#8d97a5;--sel:#21224a;--selink:#c7c9ff;--code:#161c23;--inl:#c7c9ff;--kw:#9b9ef0;--bd:#e5c07b;--link:#9b9ef0;--card:#1a2129;--cardl:#3a4453;--okk:#7fd8a6;--okl:#2f5c47;--okb:#14241c;--rad:7px;
+  --body:Inter,system-ui,sans-serif;--ui:Inter,system-ui,sans-serif;--mono:"JetBrains Mono",Consolas,monospace;--title:Inter,system-ui,sans-serif;--titles:19px;--titlew:650}
+.b{--bg:#fbf9f4;--side:#f3efe6;--line:#ddd6c8;--ink:#23201b;--soft:#3d3931;--dim:#7a7264;--sel:#e8e1d2;--selink:#23201b;--code:#f3efe6;--inl:#7c2d3f;--kw:#7c2d3f;--bd:#4f6a3a;--link:#27508f;--card:#fffdf8;--cardl:#cfc7b6;--okk:#2f6b47;--okl:#b5cfbd;--okb:#edf5ee;--rad:3px;
+  --body:Georgia,"Iowan Old Style","Times New Roman",serif;--ui:Inter,system-ui,sans-serif;--mono:"JetBrains Mono",Consolas,monospace;--title:Georgia,"Iowan Old Style",serif;--titles:22px;--titlew:500}
+.c{--bg:#0a0d10;--side:#0a0d10;--line:#23303a;--ink:#d8e4ea;--soft:#b5c5cd;--dim:#6d8290;--sel:#0f2a2c;--selink:#5ff0d0;--code:#0f1418;--inl:#5ff0d0;--kw:#5ff0d0;--bd:#ffb86b;--link:#5ff0d0;--card:#10181d;--cardl:#2e4552;--okk:#5ff0d0;--okl:#1e5a50;--okb:#0c211e;--rad:0;
+  --body:"JetBrains Mono",Consolas,monospace;--ui:"JetBrains Mono",Consolas,monospace;--mono:"JetBrains Mono",Consolas,monospace;--title:"JetBrains Mono",Consolas,monospace;--titles:16px;--titlew:600}
+.c .v-d{font-size:13px}
+.opt-stack .option{display:block}
+.opt-stack .option .letter{float:left;margin:0 10px 8px 0}
+.opt-stack .option h3{margin-bottom:2px}
+</style>
+
+<h2>Which of these looks most like the page you want?</h2>
+<p class="subtitle">The same Reader layout and real content in each, with only the look changing. The hover cards work here too. A and B would each come with a matching light or dark version.</p>
+
+<div class="options opt-stack">
+
+<div class="option" data-choice="family" onclick="toggleSelect(this)">
+  <div class="letter">A</div>
+  <div class="content"><h3>Ranvier family</h3><p>The violet accent from your docs theme, in a clean sans-serif. It sits naturally beside the rest of the Ranvier sites.</p></div>
+  <div class="v a">
+    <div class="v-s"><p class="v-l">Modules</p><span class="v-i">Base.Prelude</span><span class="v-i">Pure.Edges</span><span class="v-i on">Pure.Marking</span><span class="v-i">Pure.Engine</span><span class="v-i">Pure.Check</span></div>
+    <div class="v-m"><p class="v-c">Pure.Marking</p><span class="bdg">✓ No axioms</span>
+      <p class="v-t">Marks only raise freshness.</p>
+      <p class="v-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+<pre><span class="kw">Theorem</span> mark_monotone <span class="bd">fuel n r s s' m d</span> :
+  <span class="hv">any_mark<span class="hcard"><code>any_mark : nat -&gt; node_id -&gt; option node_id -&gt; State.state -&gt; State.state -&gt; Prop</code>Any of the five marking operations, from s to s'.<small>Pure.Marking · mentioned by 4</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="hv">freshness_le<span class="hcard"><code>freshness_le : freshness -&gt; freshness -&gt; Prop</code>Order Clean &lt;= Check &lt;= Dirty.<small>Base.Prelude · mentioned by 27</small></span></span> (n_freshness d) (n_freshness d').</pre>
+      <p class="fold">▸ Proof</p></div>
+  </div>
+</div>
+
+<div class="option" data-choice="journal" onclick="toggleSelect(this)">
+  <div class="letter">B</div>
+  <div class="content"><h3>Journal</h3><p>Warm paper and a serif reading face, like a well-set mathematics paper. Long doc prose reads best here, and it looks the least like a typical developer site.</p></div>
+  <div class="v b">
+    <div class="v-s"><p class="v-l">Modules</p><span class="v-i">Base.Prelude</span><span class="v-i">Pure.Edges</span><span class="v-i on">Pure.Marking</span><span class="v-i">Pure.Engine</span><span class="v-i">Pure.Check</span></div>
+    <div class="v-m"><p class="v-c">Pure.Marking</p><span class="bdg">✓ No axioms</span>
+      <p class="v-t">Marks only raise freshness.</p>
+      <p class="v-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+<pre><span class="kw">Theorem</span> mark_monotone <span class="bd">fuel n r s s' m d</span> :
+  <span class="hv">any_mark<span class="hcard"><code>any_mark : nat -&gt; node_id -&gt; option node_id -&gt; State.state -&gt; State.state -&gt; Prop</code>Any of the five marking operations, from s to s'.<small>Pure.Marking · mentioned by 4</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="hv">freshness_le<span class="hcard"><code>freshness_le : freshness -&gt; freshness -&gt; Prop</code>Order Clean &lt;= Check &lt;= Dirty.<small>Base.Prelude · mentioned by 27</small></span></span> (n_freshness d) (n_freshness d').</pre>
+      <p class="fold">▸ Proof</p></div>
+  </div>
+</div>
+
+<div class="option" data-choice="instrument" onclick="toggleSelect(this)">
+  <div class="letter">C</div>
+  <div class="content"><h3>Instrument</h3><p>Near-black and all monospace, with one bright signal colour. It looks like a precise tool and suits code more than prose. Dark only.</p></div>
+  <div class="v c">
+    <div class="v-s"><p class="v-l">Modules</p><span class="v-i">Base.Prelude</span><span class="v-i">Pure.Edges</span><span class="v-i on">Pure.Marking</span><span class="v-i">Pure.Engine</span><span class="v-i">Pure.Check</span></div>
+    <div class="v-m"><p class="v-c">Pure.Marking</p><span class="bdg">✓ No axioms</span>
+      <p class="v-t">Marks only raise freshness.</p>
+      <p class="v-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+<pre><span class="kw">Theorem</span> mark_monotone <span class="bd">fuel n r s s' m d</span> :
+  <span class="hv">any_mark<span class="hcard"><code>any_mark : nat -&gt; node_id -&gt; option node_id -&gt; State.state -&gt; State.state -&gt; Prop</code>Any of the five marking operations, from s to s'.<small>Pure.Marking · mentioned by 4</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="hv">freshness_le<span class="hcard"><code>freshness_le : freshness -&gt; freshness -&gt; Prop</code>Order Clean &lt;= Check &lt;= Dirty.<small>Base.Prelude · mentioned by 27</small></span></span> (n_freshness d) (n_freshness d').</pre>
+      <p class="fold">▸ Proof</p></div>
+  </div>
+</div>
+
+</div>

@@ -1,0 +1,256 @@
+# Rocq navigator: design
+
+A public, static documentation site for a compiled Rocq project, built from `FSharp.Data.Rocq` on `Ranvier.View`,
+`Ranvier.Css` and, where it earns its place, `Ranvier.View.Anime`. It replaces rocqnavi for the Ranvier core proofs.
+
+## Core and view state
+
+**Core primitives used:**
+
+| Primitive | Job |
+|---|---|
+| `Signal` | Current look, light or dark mode, hovered or focused reference, search text, search open, section in view |
+| `createMemo` / `createMemoWithComparer` | Search results from the text; the hover card's symbol from the hovered reference, skipping unchanged symbols |
+| `createProjection` | Keyed rows of the search results |
+| `createEffect` | Writes look and mode to the root element |
+| `createRoot`, `Owner`, `onCleanup` | Lifetime of each hydrated island and its listeners |
+
+**View-owned state:**
+
+| State | Why the core cannot hold it |
+|---|---|
+| DOM nodes of the server-rendered article | DOM state; the article is static HTML |
+| The one delegated `pointerover`/`focusin` listener on the article | Event delegation |
+| Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
+| Server HTML | Written by the build |
+
+Saved look and mode live in `localStorage`, which is browser storage. A signal holds the current values.
+
+The view adds no ownership tree, reconciler, selection cache or commit queue.
+
+## Intent
+
+The owner wants a better-looking system with better navigation, where comments are documentation tied to the values
+they describe, so that hovering any name shows that documentation. Rocqnavi output is hard to move around in, and its
+comments are not attached to anything. The `proofs/docs.sh` pipeline already patches behaviour in with `ranvier.js` and
+`guarantees.py`.
+
+## Decided by the owner
+
+- **Layout: Reader.** Modules on the left. A doc-first article in the middle, with each statement under its doc and proofs
+  folded. Page outline and cross-references on the right.
+- **Two looks, both built:** Ranvier family (violet accent `#6669d7` light / `#9b9ef0` dark, sans-serif) and Journal
+  (warm paper, serif prose, restrained colour). See [Visual reference](#visual-reference). A switch on the page and a
+  light and dark mode for each look are the author's call.
+- **Rocq layers in the first version:** inferred types and an axiom badge from `Print Assumptions`.
+- **Public static page.** Readers download files; nothing runs Rocq for them.
+- **MIT licence.**
+- **Packages:** `Ranvier.View` and `Ranvier.Css`, plus `Ranvier.View.Anime` if suitable.
+- **Demo data:** the Ranvier core proofs (see [Data](#data)).
+
+## Goals
+
+1. Every module reads top to bottom as headings, doc prose, statements and folded proofs.
+2. Every reference in statements, proofs and doc code has a card on hover or keyboard focus, and activating it goes to the
+   definition. The card shows the type or source header, the attached doc, the module and the mention count.
+3. A reader finds any declaration in under a few keystrokes with `Ctrl+K` or `/`.
+4. The site opens on the Guarantees page: what the proofs promise, in plain language, grouped by module.
+5. Each declaration shows what it uses and what uses it.
+6. Pages are readable, foldable and linked with JavaScript off. Cards, search and the look switch need JavaScript.
+
+## Non-goals
+
+- Proof states, tactic stepping, `rocq-lsp` or `fcc` data. A later version may add them.
+- Links or hover inside printed types, which are plain text with no positions.
+- Running Rocq in the browser, editing, or comments from readers.
+- Publishing a NuGet package of the navigator, deploying the site, or changing the Ranvier repository. The build writes
+  a directory.
+- Copying rocqnavi code or assets. It is GPL-2.0.
+
+## Anti-goals
+
+- A page that looks good but loses source fidelity: statement and proof text is byte-exact from the `.v`.
+- Motion a reader notices for its own sake.
+- Claims the data cannot support: a missing fact shows as absent, never as a green badge.
+
+## Page structure
+
+**URLs.** One page per module, named `<Module>.html`, with anchor `#<declaration name>`. Existing comments link in this
+form (`Ranvier.Pure.Witnesses.html#walk_visits_added_observer`), so those links keep working without rewriting. A heading
+gets anchor `#h-<slug>`.
+
+**Guarantees (`index.html`).** Each `Theorem` and `Corollary` whose attached `(**md` comment opens with a bold line
+becomes an entry titled by that line, under its module. Entries sort into groups, first match winning (the author's call):
+
+| Group | Rule | Input |
+|---|---|---|
+| Open | The proof ends `Admitted` | `proofs[].ending`; always on |
+| Falsified | The name ends with the configured suffix | `navigator.json`: `"falsifiedSuffix": "_falsified"` |
+| Checks | The comment holds the configured marker | `navigator.json`: `"checkMarker": "*Check, not a guarantee.*"` |
+| Guarantees | Every other entry | |
+
+`navigator.json` sits beside `_CoqProject`, is passed to `build`, and is optional: without it only Open and Guarantees
+exist. The tool stays generic, and it does not read `BUGS.md`. Open and Falsified entries are marked in the structure
+and never show a passing badge. An Admitted theorem's `Print Assumptions` result is therefore not presented as a pass.
+
+**Article order.** Source order. Each sentence renders as one of:
+
+| Source | Rendering |
+|---|---|
+| Heading comment `(** * x *)` | A heading at that level |
+| Declaration with an attached doc | Doc prose, then the statement |
+| Declaration with no attached doc | Compact statement with no prose; these runs read quieter than documented items |
+| `Proof. ... Qed.` | `<details>`, closed, labelled with its ending (`Qed`, `Defined`, `Admitted`) |
+| Other commands (`Import`, `Section`, `Instance`, ...) | Compact code; the file stays complete |
+| Comment attached to nothing | Prose in place |
+
+`Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
+
+**Docs.** `Comment.AttachedTo` and `Declaration.Docs` decide attachment. `(**md` bodies are Markdown; `(** ... *)` bodies are
+coqdoc, of which headings, `[code]` and paragraphs are handled. Code in docs that names a symbol in scope becomes a
+reference.
+
+**Right pane.** Outline of the page, with the section in view marked. For the declaration in view, "Uses" and "Used by" from
+`CrossReferences`.
+
+**Cross-references without JavaScript (the author's call).** Each declaration's lists are static HTML, in a `<details>`
+under its statement. On wide screens with JavaScript, the section-in-view island copies the current declaration's lists into
+the right pane and hides the inline ones. Lists show the first 8 entries, with the rest in a nested `<details>`, so there is
+no separate list page.
+
+**Left pane.** Modules in `_CoqProject` order, grouped by directory, with declaration counts.
+
+**Narrow screens.** Below about 900 px the side panes collapse into drawers. Cards become tap-to-open. No horizontal page
+scroll; long code wraps.
+
+## Hover card
+
+| Part | Source | When absent |
+|---|---|---|
+| Type | `Check` capture | Source header of the declaration |
+| Doc | Attached comment | "No documentation" in quiet text |
+| Module, mention count | `RocqProject` | Always present |
+| Axiom badge, on theorems | `Print Assumptions` capture | No badge |
+
+Local binders show their inferred type where the capture has it. A reference outside the project (`stdpp`, `Corelib`) shows
+its qualified name and "external"; those libraries are not documented or linked.
+
+Cards open after about 120 ms, stay open while the pointer is on them, close on `Esc`, and are reachable by keyboard.
+
+## Data
+
+**Project.** `proofs/_CoqProject` on Ranvier branch `claude/iris-rocq-ranvier-project-f3d6ae`: 16 files, 455 KB, compiled
+with Rocq 9.1.0. No file currently imports Iris, so the demo shows Rocq model proofs. That worktree belongs to another
+session and is read only.
+
+**Facts step.** A separate command, `navigator capture`, runs `rocq repl` over the compiled project and writes one
+`facts.json`: per symbol the `Check` text, per theorem the `Print Assumptions` result, plus the Rocq version and each file's
+digest. It uses `Require Import` of every project module in `_CoqProject` order, so names print in their shortest
+unambiguous form. Measured at about 2.2 s for 1,018 symbols and 18 s for 234 theorems. Local-binder types come from the
+`Check` of the enclosing theorem, by matching binder names.
+
+**Without Rocq.** The site build takes `facts.json` as an option. Absent, the site still builds, with source headers in cards
+and no badges. If a file's digest in `facts.json` differs from the project, the build refuses unless told to drop facts for
+that file. `FSharp.Data.Rocq` itself gains no Rocq dependency.
+
+**Client data.** A `symbols.json` per module and one `search.json`, fetched on first hover or first search. Pages carry the
+symbol's identifier on each reference in a data attribute.
+
+## Architecture
+
+Three projects under `navigator/` in this repository. The library project stays free of packages, and the navigator
+projects are `IsPackable=false`.
+
+| Project | Compiled by | Holds |
+|---|---|---|
+| `Rocq.Navigator.Shared` | .NET and Fable | Page components, typed styles and tokens, card and search components, data types and codecs |
+| `Rocq.Navigator` | .NET | CLI: `capture` and `build`. Reads `RocqProject` directly and calls `Server.renderDocument` for each page |
+| `Rocq.Navigator.Client` | Fable, then Vite | Hydrates the islands |
+
+**Islands.** The article is server-only HTML with no hydration, because a 60 KB module is large and static. Hydrated
+islands: search dialog, look and mode switch, hover card layer, section-in-view marker. A failure in the client leaves a
+fully readable page.
+
+`Server.renderDocument` and page declarations assume one host, and hydration removes marked head entries it did not adopt.
+The first implementation step proves several islands on one static page. If they do not work, the fallback is one host for
+the islands' shell with the article in a plain element outside it, or mounting the islands fresh on the client; the
+article stays server-only either way.
+
+**Build output.** A self-contained directory with relative URLs, servable from a GitHub Pages subpath: HTML, one extracted
+CSS file, one JS bundle, data files, fonts.
+
+**Styles.** Typed `Ranvier.Css`, with static CSS from the published `Ranvier.Css.Build` (`Compiler.compile` over explicit
+`CssModule` records), so CI needs no sibling checkout (the author's call). `Ranvier.Css.Compile` is an unpublished tool and is
+not used. Looks and modes are the same token set redefined on `:root[data-look]` and `[data-mode]`. Mode follows the system unless overridden. Both looks ship in one
+stylesheet. An inline script sets the attributes before first paint, to avoid a flash.
+
+**Fonts.** Self-hosted, free-licensed: Inter, JetBrains Mono, and a serif for Journal. Unicode in proofs (`∀ ∧ → ∅ ∘`) must
+render in the mono face.
+
+**Motion.** Only where it keeps a reader's place: card appearance, fold opening, and the target settling after a jump. With
+`prefers-reduced-motion` all are instant. Use `Ranvier.View.Anime` when the bundle cost is acceptable and the versions
+resolve; otherwise CSS transitions, and say so. Fold height is the case CSS handles worst.
+
+**Packages.** `Ranvier.View`, `Ranvier.View.Dom`, `Ranvier.Css`, `Ranvier.Css.Bindings`, `Ranvier.Css.Build`,
+`Ranvier.Css.View`, `Ranvier.View.Anime`. Published versions differ (`Ranvier.View` 0.1.48, `Ranvier.View.Anime` 0.1.44), and
+the View family depends on itself at exact versions. The first implementation step finds the newest set that restores and compiles, in both
+.NET and Fable, and pins it. Prereleases are acceptable. If no set includes Anime, Anime is dropped, not forced.
+
+## Constraints
+
+- `Ranvier.View` rules: the view uses core primitives, and this document's first section is binding. New view-owned state
+  needs the owner's agreement.
+- Doc comment rules from Ranvier's `comments.md` apply to code here.
+- Do not edit Ranvier's `proofs/`, `src/Ranvier` or docs site.
+- Tests must not hardcode real proof names. Tests run on the committed fixture, with the proofs as an opt-in corpus.
+
+## Acceptance
+
+Run on the fixture in CI and on the proofs as a corpus:
+
+1. All modules render, and every declaration has its anchor.
+2. Every internal link and every reference's target resolves.
+3. The bytes of each statement and proof on the page equal the `.v` span.
+4. Every Guarantees entry matches an independent scan of the comments.
+5. Browser checks under Chromium, for both looks and both modes: card opens by hover and by keyboard, search finds a
+   declaration and navigates, fold opens, switch persists across pages, no hydration mismatch reported, no console errors.
+6. With JavaScript off, a module page reads, folds and links.
+7. At 375 px there is no horizontal page scroll.
+8. Text meets WCAG AA contrast in all four look and mode combinations.
+9. `prefers-reduced-motion` removes motion.
+10. Report JS, CSS and largest-page sizes and build time. There is no fixed budget in the first version.
+
+The owner judges "looks better" against rocqnavi output and the mockups. One real module page, rendered in both looks, goes
+to the owner for review before the styles spread to the other components.
+
+## Left to the builder
+
+Markdown library or a small renderer; search ranking; exact spacing and type scale within the mockups; the serif face; test
+tooling; how Fable and Vite are invoked from the build.
+
+## Visual reference
+
+The mockups are in [`2026-11-09-rocq-navigator-mockups/`](2026-11-09-rocq-navigator-mockups/): `layout.html` (the chosen layout
+is Reader, option A), `visual-style.html` (the chosen looks are A and B) and `proof-layers.html` (the chosen layers are 1 and
+2). They are HTML fragments, unstyled outside their own `<style>` block. The tokens below cover the two looks shown there.
+
+| Token | Ranvier family, dark | Journal, light |
+|---|---|---|
+| Background | `#0f1419` | `#fbf9f4` |
+| Side pane, code | `#161c23` | `#f3efe6` |
+| Line | `#2a3340` | `#ddd6c8` |
+| Ink | `#e8ebf0` | `#23201b` |
+| Soft text | `#c3c9d3` | `#3d3931` |
+| Dim text | `#8d97a5` | `#7a7264` |
+| Selected | `#21224a` | `#e8e1d2` |
+| Keyword | `#9b9ef0` | `#7c2d3f` |
+| Binder | `#e5c07b` | `#4f6a3a` |
+| Link | `#9b9ef0` | `#27508f` |
+| Passing badge | `#7fd8a6` | `#2f6b47` |
+| Corner radius | 7 px | 3 px |
+| Body | Inter | Georgia-like serif |
+| Title | Inter 19 px, 650 | Serif 22 px, 500 |
+
+Ranvier family light takes its base from the docs theme (`--nacara-bg #ffffff`, `--nacara-bg-subtle #f6f7f9`, primary
+`#6669d7`). Journal dark is warm dark paper, in the same restrained hue families. Both are the builder's to tune for
+contrast.
