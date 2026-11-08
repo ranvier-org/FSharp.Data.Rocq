@@ -500,11 +500,20 @@ The project and navigator.json come from the plugin's options. The project must 
                                         }
                                     | _ -> { page with Html = page.Body }
                         }
+                    |> Registry.asset (WriteText (snd (Styles.compiled ()), RelativePath.create RocqReader.styleAsset))
                     |> Registry.onBuildComplete (writeData options)
                     |> Registry.command (
                         PluginCommand.create "rocq-capture" "Capture types and assumptions from a compiled Rocq project" (capture options)
                         |> PluginCommand.help captureHelp
                     )
+
+                let registry =
+                    RocqReader.fontFiles
+                    |> List.fold
+                        (fun registry name ->
+                            registry
+                            |> Registry.asset (WriteBytes (RocqReader.embedded $"fonts.{name}", RelativePath.create $"assets/fonts/{name}")))
+                        registry
 
                 match RocqReader.bundle.Value with
                 | Some bytes ->
@@ -533,7 +542,7 @@ The project and navigator.json come from the plugin's options. The project must 
     /// <param name="options">The same options the collection was given.</param>
     /// <param name="context">The page being rendered.</param>
     let reader (options: RocqOptions) (context: PageContext<RocqPage>) =
-        RocqReader.render [] options context
+        RocqReader.render [ context.Site.UrlOfAsset RocqReader.styleAsset ] options context
 
     let private decoder: Decoder<RocqPage> =
         Decode.object (fun get ->
@@ -544,7 +553,7 @@ The project and navigator.json come from the plugin's options. The project must 
             })
 
     /// <summary>A collection whose pages are the project's modules and its Guarantees page.</summary>
-    /// <remarks>Problems loading the project are the diagnostics <c>rocq/project-load-failed</c> and <c>rocq/facts-stale</c>. A build never runs Rocq.</remarks>
+    /// <remarks>Load problems are the diagnostics <c>rocq/project-load-failed</c> and <c>rocq/facts-stale</c>. A build never runs Rocq.</remarks>
     /// <param name="name">What the site calls the collection.</param>
     /// <param name="options">Which project to read, and where to publish it.</param>
     let collection (name: string) (options: RocqOptions) : Collection<RocqPage> =

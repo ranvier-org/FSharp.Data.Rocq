@@ -45,7 +45,7 @@ type RocqOptions =
 module internal RocqReader =
 
     let encode (value: string) =
-        WebUtility.HtmlEncode value
+        Source.encode value
 
     /// Separates the panes from the article in a generated body. Source text and comments on a page have `<` escaped.
     [<Literal>]
@@ -69,6 +69,20 @@ module internal RocqReader =
              | bytes -> Some bytes)
 
     let scriptAsset = "assets/navigator.js"
+    let styleAsset = "assets/navigator.css"
+
+    /// The fonts and their licences, written beside the stylesheet.
+    let fontFiles =
+        [
+            "Inter-wght.woff2"
+            "JetBrainsMono-Regular.woff2"
+            "JetBrainsMono-SemiBold.woff2"
+            "SourceSerif4-wght.woff2"
+            "SourceSerif4-wght-italic.woff2"
+            "OFL-Inter.txt"
+            "OFL-JetBrainsMono.txt"
+            "OFL-SourceSerif4.txt"
+        ]
 
     let private serverOptions =
         { Server.Options.defaults with
@@ -189,7 +203,7 @@ module internal RocqReader =
                     hostOf "cards"
                     $"""<details class="drawer"><summary>Modules</summary>{brand}{left}</details>"""
                     $"""<details class="drawer"><summary>On this page</summary>{right}</details>"""
-                    $"""<article class="page"><h1 class="page-title">{encode page.Title}</h1>{context.Content}</article>"""
+                    $"""<article class="page"><h1 class="page-title">{(encode page.Title).Replace(".", ".<wbr>")}</h1>{context.Content}</article>"""
                     "</div>"
                     $"""<aside class="pane pane-right" aria-label="On this page">{right}</aside>"""
                     "</div>"

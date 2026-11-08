@@ -32,7 +32,7 @@ module Docs =
         builder.Build ()
 
     let private encode (text: string) =
-        WebUtility.HtmlEncode text
+        Rocq.Navigator.Source.encode text
 
     let private referenceHtml (text: string) (key: string) (href: string) =
         $"""<a class="ref" data-ref="%s{encode key}" href="%s{encode href}"><code>%s{encode text}</code></a>"""
@@ -75,10 +75,14 @@ module Docs =
             | :? AutolinkInline as link when not link.IsEmail && not (isSafeUrl link.Url) -> link.ReplaceBy (LiteralInline link.Url) |> ignore
             | _ -> ()
 
+    let private escapedPrimeInHref = Regex "href=\"[^\"]*%27[^\"]*\""
+
+    /// Markdig writes a prime in a URL as %27, which differs from the anchor as written.
     let private renderMarkdown (pipeline: MarkdownPipeline) (resolve: Resolve) (body: string) =
         let document = Markdown.Parse (body, pipeline)
         rewrite resolve document
-        document.ToHtml pipeline
+
+        escapedPrimeInHref.Replace (document.ToHtml pipeline, (fun m -> m.Value.Replace ("%27", "'")))
 
     let private starHeading = Regex (@"^\s*(\*{1,4})\s+(.*?)\s*$")
     let private codeSpan = Regex @"\[([^\[\]]+)\]"

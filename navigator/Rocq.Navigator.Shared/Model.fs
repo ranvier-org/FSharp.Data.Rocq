@@ -28,7 +28,7 @@ type CardData =
         Name: string
         Qualified: string
         Module: string
-        /// <c>None</c> for a name with no page or a local binder.
+        /// <summary><c>None</c> for a name with no page or a local binder.</summary>
         Href: string option
         Signature: string
         /// Whether <c>Signature</c> is a type Rocq printed, rather than source text.
@@ -50,7 +50,7 @@ type SearchEntry =
         Summary: string
     }
 
-/// Rests with no names never occurs: Rocq lists at least one axiom.
+/// An empty array stands for NoAxioms.
 let private badgeCodec: Codec<Badge> =
     Codec.map
         (fun names ->

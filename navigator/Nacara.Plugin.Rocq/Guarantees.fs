@@ -4,6 +4,7 @@ module Rocq.Navigator.Guarantees
 open System
 open System.Net
 open System.Text
+open System.Text.RegularExpressions
 open FSharp.Data.Rocq.Project
 open FSharp.Data.Rocq.Structure
 open Nacara.Plugins
@@ -137,7 +138,7 @@ let entries (project: RocqProject) (links: Links) (config: Config) (facts: Facts
         | _ -> None)
 
 let private encode (value: string) =
-    WebUtility.HtmlEncode value
+    Source.encode value
 
 let private badge (entry: Entry) =
     match entry.Group, entry.Axioms with
@@ -147,6 +148,12 @@ let private badge (entry: Entry) =
     | _, Some (RestsOn axioms) ->
         let names = axioms |> Array.map encode |> String.concat ", "
         $"""<span class="badge axioms">Rests on {names}</span>"""
+
+let private codeSpan = Regex "`([^`]+)`"
+
+/// A title is one line of Markdown, of which code spans occur in practice.
+let private titleHtml (title: string) =
+    codeSpan.Replace (encode title, "<code>$1</code>")
 
 /// <summary>The index page's HTML: each non-empty group under its heading, with entries under their module.</summary>
 let toHtml (entries: Entry[]) : string =
@@ -173,7 +180,7 @@ let toHtml (entries: Entry[]) : string =
 
                 for entry in moduleEntries do
                     out.Append (
-                        $"""<article class="entry"><h4><a href="{encode entry.Href}">{encode entry.Title}</a></h4>{badge entry}{entry.DocHtml}</article>"""
+                        $"""<article class="entry"><h4><a href="{encode entry.Href}">{titleHtml entry.Title}</a></h4>{badge entry}{entry.DocHtml}</article>"""
                     )
                     |> ignore
 

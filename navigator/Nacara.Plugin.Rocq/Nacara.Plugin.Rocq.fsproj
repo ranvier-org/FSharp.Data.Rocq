@@ -28,6 +28,7 @@
             Include="assets\navigator.js"
             LogicalName="Nacara.Plugin.Rocq.assets.navigator.js"
             Condition="Exists('assets\navigator.js')" />
+        <EmbeddedResource Include="assets\fonts\*" LogicalName="Nacara.Plugin.Rocq.assets.fonts.%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>

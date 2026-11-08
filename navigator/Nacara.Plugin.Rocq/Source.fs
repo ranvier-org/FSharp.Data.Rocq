@@ -16,6 +16,10 @@ type Ref =
         Href: string option
     }
 
+/// <summary>Encodes text for an element or a double-quoted attribute. A prime stays literal, so an anchor and its links compare equal as written.</summary>
+let encode (value: string) : string =
+    (WebUtility.HtmlEncode value).Replace("&#39;", "'")
+
 /// <summary>The exact source text of <c>span</c>.</summary>
 let text (file: RocqFile) (span: FSharp.Data.Rocq.Source.Span) : string =
     FSharp.Data.Rocq.Source.text file.Model.Bytes span

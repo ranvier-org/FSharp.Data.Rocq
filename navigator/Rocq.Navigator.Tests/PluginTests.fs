@@ -261,7 +261,7 @@ let private tests' =
                     let html = read root $"{file.Module}.html"
 
                     for _, anchor in Map.toList (Anchors.forFile file) do
-                        Expect.stringContains html ("id=\"" + WebUtility.HtmlEncode anchor + "\"") $"{file.Module}#{anchor}"
+                        Expect.stringContains html ("id=\"" + Source.encode anchor + "\"") $"{file.Module}#{anchor}"
 
                 Expect.stringContains (read root "index.html") "Reflexivity of sums" "the Guarantees page")
 
@@ -355,6 +355,20 @@ let private tests' =
                         diagnostic.Code.EndsWith "anchor-missing"
                         && diagnostic.Message.Contains "gone")
                     "the missing anchor")
+
+        testCase "build: LinkValidator accepts a link to a primed anchor"
+        <| fun () ->
+            withRoot (fun root ->
+                let project =
+                    fixtureCopy root (Some ("Guide", "\n(**md A [link](Fixture.Guide.html#sum_refl') to `sum_refl'`. *)\n"))
+
+                let result =
+                    buildAt
+                        root
+                        (siteWith (fixtureOptions () |> Rocq.project project)
+                         |> LinkValidator.register)
+
+                Expect.equal (errors result |> List.map _.Message) [] "no diagnostics")
 
         testCase "build: a data-ref with no card is the diagnostic rocq/ref-without-card"
         <| fun () ->
@@ -526,7 +540,7 @@ let private tests' =
 
                 let project = FixtureFiles.fixtureProject ()
 
-                // Nuglify writes a source CRLF as LF, which is also how an HTML parser reads a CRLF.
+                // The written page holds a source CRLF as LF, with or without Nuglify, which is also how an HTML parser reads a CRLF.
                 let text (html: string) =
                     (Source.stripTags html).Replace("\r\n", "\n")
 
@@ -593,6 +607,23 @@ let private tests' =
                 let page = read root "proofs/Fixture.Guide.html"
                 Expect.isFalse (page.Contains "class=\"host\"") "the plugin's layout"
                 Expect.stringContains page "&lt;script&gt;" "the page is the plugin's own")
+
+        testCase "a guarantee title renders its code spans and escapes its text"
+        <| fun () ->
+            let html =
+                Guarantees.toHtml
+                    [|
+                        {
+                            Title = "A `Clean` memo <stays>"
+                            Group = Guarantees.Guarantee
+                            Module = "M"
+                            Href = "/M.html#a"
+                            DocHtml = ""
+                            Axioms = None
+                        }
+                    |]
+
+            Expect.stringContains html "A <code>Clean</code> memo &lt;stays&gt;" "the title"
 
         testCase "rocq-capture --help prints its arguments"
         <| fun () ->

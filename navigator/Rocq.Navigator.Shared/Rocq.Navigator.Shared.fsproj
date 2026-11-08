@@ -10,6 +10,8 @@
     <ItemGroup>
         <Compile Include="Islands.fs" />
         <Compile Include="Model.fs" />
+        <Compile Include="Tokens.fs" />
+        <Compile Include="Styles.fs" />
     </ItemGroup>
 
     <ItemGroup>
@@ -19,6 +21,7 @@
         <PackageReference Include="Ranvier.Css" Version="$(RanvierCssVersion)" />
         <PackageReference Include="Ranvier.Css.Bindings" Version="$(RanvierCssVersion)" />
         <PackageReference Include="Ranvier.Css.View" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
     </ItemGroup>
 
 </Project>

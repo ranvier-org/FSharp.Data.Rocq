@@ -16,4 +16,5 @@ let main args =
                 ArticleTests.tests
                 GuaranteesTests.tests
                 PluginTests.tests
+                TokenTests.tests
             ])

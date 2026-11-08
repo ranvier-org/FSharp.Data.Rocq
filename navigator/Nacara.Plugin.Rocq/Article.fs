@@ -508,7 +508,7 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
     result.ToArray ()
 
 let private encode (value: string) =
-    WebUtility.HtmlEncode value
+    Source.encode value
 
 let private visibleCount = 8
 
