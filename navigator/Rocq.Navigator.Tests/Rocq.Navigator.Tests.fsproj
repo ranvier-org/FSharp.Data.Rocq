@@ -14,6 +14,7 @@
         <Compile Include="FixtureFiles.fs" />
         <Compile Include="FactsTests.fs" />
         <Compile Include="SourceTests.fs" />
+        <Compile Include="HighlightTests.fs" />
         <Compile Include="DocsTests.fs" />
         <Compile Include="ArticleTests.fs" />
         <Compile Include="GuaranteesTests.fs" />

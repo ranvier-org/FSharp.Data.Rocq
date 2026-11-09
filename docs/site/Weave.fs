@@ -67,13 +67,13 @@ let private rocqSource (reference: string) =
         |> Array.find (fun file -> file.Path.EndsWith (path, StringComparison.Ordinal))
 
     match name with
-    | None -> fence "text" (Encoding.UTF8.GetString file.Model.Bytes)
+    | None -> fence "rocq" (Encoding.UTF8.GetString file.Model.Bytes)
     | Some name ->
         let declaration =
             file.Model.Declarations
             |> Array.find (fun declaration -> declaration.Name = Some name)
 
-        fence "text" (Source.text file declaration.Extent)
+        fence "rocq" (Source.text file declaration.Extent)
 
 /// The comment's source, then what the plugin renders from it.
 let private prose (baseUrl: string) (phrase: string) =
@@ -113,7 +113,7 @@ let private prose (baseUrl: string) (phrase: string) =
 
     let html = (Regex.Replace ($"{rendered}{arguments}", @"\n\s*\n", "\n")).Trim()
 
-    let source = fence "text" (Source.text file comment.Span)
+    let source = fence "rocq" (Source.text file comment.Span)
     $"{source}\n\n<div class=\"prose-rendered\">\n{html}\n</div>"
 
 let private frame (baseUrl: string) (target: string) =
