@@ -110,8 +110,11 @@ and never show a passing badge. An Admitted theorem's `Print Assumptions` result
 | Comment attached to nothing | Prose in place |
 
 Two optional `navigator.json` settings fold a statement's code body, and both are off without them. `"collapsibleCode": true`
-gives every body a fold that starts open. `"collapseCodeOver": <lines>` gives a body longer than that a fold that starts
-closed. A folded body shows its first line and its length.
+makes the rendered first line of every multi-line body the fold for the rest, starting open. `"collapseCodeOver": <lines>`
+does the same for a body longer than that, starting closed. A folded body shows its first line and its length.
+
+A page's imports collect in one closed block after its opening heading and prose. Source lines are blocks whose wrapped
+text hangs four columns past their own indent, and copied text stays exact.
 
 `Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
 

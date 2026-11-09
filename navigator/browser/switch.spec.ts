@@ -242,34 +242,120 @@ test("a declaration's admitted proof keeps its warning in the footer", async ({ 
   await expect(page.locator('.decl[id="open_goal"] .panel > details.proof.warning summary')).toContainText("Not proved");
 });
 
-test("a collapsible code body folds, and shows its first line while folded", async ({ page }) => {
+test("a multi-line statement folds on its rendered first line", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await clientReady(page);
 
-  const body = page.locator('.decl[id="sum_refl"] .panel > details.body');
-  const statement = body.locator("pre.statement");
-  const peek = body.locator(".peek");
+  const body = page.locator("article .panel > details.body").first();
+  const head = body.locator("summary pre.statement");
+  const rest = body.locator("> pre.statement");
 
   await expect(body).toHaveJSProperty("open", true);
-  await expect(statement).toBeVisible();
-  await expect(peek).toBeHidden();
+  await expect(rest).toBeVisible();
+  await expect(head).toContainText('Notation "∀ x .. y , P"');
 
-  await body.locator("summary").click();
+  await head.click();
 
   await expect(body).toHaveJSProperty("open", false);
-  await expect(statement).toBeHidden();
-  await expect(peek).toHaveText("Theorem sum_refl (a b : nat) : a + b = a + b.");
-  await expect(page.locator('.decl[id="sum_refl"] .panel > details.proof summary')).toBeVisible();
+  await expect(rest).toBeHidden();
+  await expect(head).toBeVisible();
+});
+
+test("a one-line statement has no fold", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await expect(page.locator('.decl[id="sum_refl"] .panel > pre.statement')).toBeVisible();
+  await expect(page.locator('.decl[id="sum_refl"] details.body')).toHaveCount(0);
+});
+
+test("a selection dragged across a definition line leaves the fold open", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const body = page.locator("article .panel > details.body").first();
+  const box = (await body.locator("summary pre.statement").boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 18);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 18);
+  await page.mouse.up();
+
+  expect(await page.evaluate(() => getSelection()!.toString().length)).toBeGreaterThan(0);
+  await expect(body).toHaveJSProperty("open", true);
+});
+
+test("a page's imports collect in one closed block after its opening prose", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const imports = page.locator("article details.imports");
+  await expect(imports).toHaveCount(1);
+  await expect(imports).toHaveJSProperty("open", false);
+  await expect(imports.locator("summary")).toHaveText("1");
+
+  const code = imports.locator("pre.command");
+  await expect(code).toBeHidden();
+  await imports.locator("summary").click();
+  await expect(code).toHaveText("From Fixture Require Import Other.");
+
+  const follows = await imports.evaluate(
+    (block) => !!(block.previousElementSibling?.matches(".prose") && block.nextElementSibling?.matches(".decl")),
+  );
+  expect(follows).toBe(true);
+});
+
+test("code wraps under its own indent, and copies as the source", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const wrapped = await page.evaluate(() => {
+    const line = [...document.querySelectorAll("article pre.statement .l")].find((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+      return tops.size > 1;
+    })!;
+    const range = document.createRange();
+    range.selectNodeContents(line);
+    const rects = [...range.getClientRects()];
+    const lastTop = Math.max(...rects.map((rect) => rect.top));
+    const first = rects[0].left;
+    const last = rects.find((rect) => rect.top === lastTop)!.left;
+    return { hang: last - first, ch: parseFloat(getComputedStyle(line).paddingLeft) / 4 };
+  });
+  expect(wrapped.hang).toBeCloseTo(wrapped.ch * 4, 0);
+
+  const copied = await page.evaluate(() => {
+    const proof = [...document.querySelectorAll<HTMLDetailsElement>("details.proof")].find((fold) =>
+      fold.textContent!.includes("a comment inside the proof"),
+    )!;
+    proof.open = true;
+    const code = proof.querySelector("pre code")!;
+    const range = document.createRange();
+    range.selectNodeContents(code);
+    const selection = getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return { selected: selection.toString(), source: code.textContent! };
+  });
+  expect(copied.selected.trimEnd()).toBe(copied.source.trimEnd());
+  expect(copied.source).toContain("(* a comment inside the proof *)\n  reflexivity.\n");
 });
 
 test.describe("with JavaScript off", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("a collapsible code body still folds", async ({ page }) => {
+  test("a definition line still folds", async ({ page }) => {
     await page.goto(MODULE_PAGE);
-    const body = page.locator('.decl[id="sum_refl"] .panel > details.body');
+    const body = page.locator("article .panel > details.body").first();
     await body.locator("summary").click();
-    await expect(body.locator("pre.statement")).toBeHidden();
+    await expect(body.locator("> pre.statement")).toBeHidden();
+  });
+
+  test("imports still open", async ({ page }) => {
+    await page.goto(MODULE_PAGE);
+    const imports = page.locator("article details.imports");
+    await imports.locator("summary").click();
+    await expect(imports.locator("pre.command")).toBeVisible();
   });
 });
 

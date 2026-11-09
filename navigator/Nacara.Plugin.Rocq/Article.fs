@@ -44,6 +44,8 @@ type Block =
     | Quiet of decl: int * anchor: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
     /// A sentence outside any declaration, or the whitespace between two blocks.
     | Command of html: string
+    /// A sentence of the Import category. A page shows its imports together.
+    | Import of html: string
     /// A comment attached to no declaration, or the text around a comment's headings.
     | Prose of html: string
 
@@ -491,7 +493,15 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
                 cursor <- declaration.Extent.End
             | SentenceItem sentence ->
                 appendGap (lineStart model.Bytes cursor start)
-                result.Add (Command (source cursor sentence.Span.End))
+                let html = source cursor sentence.Span.End
+
+                result.Add (
+                    if sentence.Category = Category.Import then
+                        Import html
+                    else
+                        Command html
+                )
+
                 cursor <- sentence.Span.End
             | CommentItem comment ->
                 appendGap start
@@ -512,6 +522,18 @@ let private encode (value: string) =
 
 let private visibleCount = 8
 
+/// Each line is a block carrying its source indentation, which sets where its wrapped text hangs.
+let private lineHtml (line: string) =
+    match Source.indent line with
+    | 0 -> $"""<span class="l">{line}</span>"""
+    | indent -> $"""<span class="l" style="--i:{indent}">{line}</span>"""
+
+let private linesHtml (lines: string[]) =
+    lines |> Array.map lineHtml |> String.concat ""
+
+let private codeHtml (html: string) =
+    linesHtml (Source.lines html)
+
 let private appendProof (out: StringBuilder) (proof: ProofBlock) =
     let name = proofEndingName proof.Ending
 
@@ -522,7 +544,7 @@ let private appendProof (out: StringBuilder) (proof: ProofBlock) =
         out.Append ($"""<details class="proof"><summary>{name}</summary>""")
         |> ignore
 
-    out.Append ($"""<pre><code>{proof.Html}</code></pre></details>""")
+    out.Append ($"""<pre><code>{codeHtml proof.Html}</code></pre></details>""")
     |> ignore
 
 let private itemHtml (item: RefItem) =
@@ -561,23 +583,54 @@ let private appendRefs (out: StringBuilder) (refs: RefLists) =
         out.Append "</details>" |> ignore
 
 let private appendStatement (out: StringBuilder) (config: Config) (statement: string) =
-    let code = $"""<pre class="statement"><code>{statement}</code></pre>"""
-    let lines = (Source.stripTags statement).Trim().Split '\n'
+    let statementPre (lines: string[]) =
+        $"""<pre class="statement"><code>{linesHtml lines}</code></pre>"""
+
+    let lines = Source.lines statement
+    let hasText (line: string) = not (String.IsNullOrWhiteSpace (Source.stripTags line))
+    let first = lines |> Array.tryFindIndex hasText |> Option.defaultValue 0
+    let last = lines |> Array.tryFindIndexBack hasText |> Option.defaultValue 0
+    let count = last - first + 1
 
     let long =
         config.CollapseCodeOver
-        |> Option.exists (fun limit -> lines.Length > limit)
+        |> Option.exists (fun limit -> count > limit)
 
-    if config.CollapsibleCode || long then
+    if count > 1 && (config.CollapsibleCode || long) then
         let state = if long then "" else " open"
-        let unit = if lines.Length = 1 then "line" else "lines"
 
         out.Append (
-            $"""<details class="body"{state}><summary><code class="peek">{encode (lines[0].TrimEnd ())}</code><span class="lines">{lines.Length} {unit}</span></summary>{code}</details>"""
+            $"""<details class="body"{state}><summary data-lines="{count} lines">{statementPre lines[.. first]}</summary>{statementPre lines[first + 1 ..]}</details>"""
         )
         |> ignore
     else
-        out.Append code |> ignore
+        out.Append (statementPre lines) |> ignore
+
+let private appendImports (out: StringBuilder) (imports: string[]) =
+    if imports.Length > 0 then
+        let code =
+            imports
+            |> Array.map _.TrimStart()
+            |> String.concat "\n"
+
+        out.Append ($"""<details class="imports"><summary>{imports.Length}</summary><pre class="command"><code>{codeHtml code}</code></pre></details>""")
+        |> ignore
+
+/// The index of the block after a page's opening heading and its prose.
+let private leadEnd (blocks: Block[]) =
+    let rec find (index: int) (seenHeading: bool) =
+        if index = blocks.Length then
+            index
+        else
+            match blocks[index] with
+            | Heading _ when seenHeading -> index
+            | Heading _ -> find (index + 1) true
+            | Prose _
+            | Import _ -> find (index + 1) seenHeading
+            | Command html when String.IsNullOrWhiteSpace html -> find (index + 1) seenHeading
+            | _ -> index
+
+    find 0 false
 
 let private appendDeclaration
     (out: StringBuilder)
@@ -604,14 +657,25 @@ let private appendDeclaration
 
 let private leadingBold = Regex @"^<p><strong>(.*?)</strong></p>"
 
-/// <summary>The HTML of a page's blocks. Proofs and reference lists fold with <c>details</c> and need no script.</summary>
+/// <summary>The HTML of a page's blocks. Proofs, imports and reference lists fold with <c>details</c> and need no script. The imports appear together, closed, after the page's opening heading and prose.</summary>
 /// <param name="config">The settings selecting which code bodies fold.</param>
 /// <param name="badge">The badge markup of a documented declaration, by its index in <c>RocqProject.Declarations</c>. Empty for none.</param>
 /// <param name="blocks">The page's blocks in order.</param>
 let toHtmlWith (config: Config) (badge: int -> string) (blocks: Block[]) : string =
     let out = StringBuilder ()
 
-    for block in blocks do
+    let imports =
+        blocks
+        |> Array.choose (function
+            | Import html -> Some html
+            | _ -> None)
+
+    let importsAt = leadEnd blocks
+
+    for index, block in Array.indexed blocks do
+        if index = importsAt then
+            appendImports out imports
+
         match block with
         | Heading (level, text, anchor) ->
             out.Append ($"""<h{level} id="{encode anchor}">{encode text}</h{level}>""")
@@ -622,11 +686,15 @@ let toHtmlWith (config: Config) (badge: int -> string) (blocks: Block[]) : strin
         | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out config "quiet" anchor "" "" statement proofs refs
         | Command html when String.IsNullOrWhiteSpace html -> out.Append html |> ignore
         | Command html ->
-            out.Append ($"""<pre class="command"><code>{html}</code></pre>""")
+            out.Append ($"""<pre class="command"><code>{codeHtml html}</code></pre>""")
             |> ignore
+        | Import _ -> ()
         | Prose html ->
             out.Append ($"""<div class="prose">{html}</div>""")
             |> ignore
+
+    if importsAt = blocks.Length then
+        appendImports out imports
 
     out.ToString ()
 

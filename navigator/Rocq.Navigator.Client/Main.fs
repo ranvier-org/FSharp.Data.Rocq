@@ -11,6 +11,10 @@ open Rocq.Navigator
 [<Global "document">]
 let private document: Document = jsNative
 
+/// True when the page's text selection starts inside the element.
+[<Emit "(getSelection() != null && !getSelection().isCollapsed && $0.contains(getSelection().anchorNode))">]
+let private selectionStartsIn (element: Element) : bool = jsNative
+
 let private hydrateIsland (graph: Graph) (name: string) (definition: Component<'props>) (props: 'props) =
     match
         document.querySelector $"""[%s{Islands.hostAttribute}="%s{name}"]"""
@@ -51,12 +55,22 @@ let private animateFolds (graph: Graph) =
                 let policy = Reactive.policy ()
 
                 let onClick (event: Event) =
-                    let summary = (unbox<Element> event.target).closest "summary"
+                    let target = unbox<Element> event.target
+                    let summary = target.closest "summary"
 
-                    if
+                    let isFold =
                         not (isNull summary)
-                        && summary.parentElement.matches "details.proof, details.refs, details.more, details.body"
+                        && summary.parentElement.matches "details.proof, details.refs, details.more, details.body, details.imports"
+
+                    if isFold && not (isNull (target.closest "a")) then
+                        ()
+                    elif
+                        isFold
+                        && (not (isNull (target.closest "[data-ref]"))
+                            || selectionStartsIn summary)
                     then
+                        event.preventDefault ()
+                    elif isFold then
                         let fold = unbox<HTMLDetailsElement> summary.parentElement
                         let target: Targets = unbox fold
                         let closing = fold.``open`` && not (fold.hasAttribute closingAttribute)

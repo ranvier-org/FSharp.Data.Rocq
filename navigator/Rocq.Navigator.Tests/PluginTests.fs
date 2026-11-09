@@ -664,6 +664,17 @@ let private tests' =
                         |> Seq.map (fun m -> Source.stripTags m.Groups[2].Value)
                         |> Set.ofSeq
 
+                    let folded =
+                        Regex.Matches (
+                            html,
+                            "<summary[^>]*><pre class=\"?statement\"?><code>(.*?)</code></pre></summary><pre class=\"?statement\"?><code>(.*?)</code></pre>",
+                            RegexOptions.Singleline
+                        )
+                        |> Seq.map (fun m -> Source.stripTags (m.Groups[1].Value + m.Groups[2].Value))
+                        |> Set.ofSeq
+
+                    let written = Set.union written folded
+
                     let proofs =
                         Regex.Matches (html, "</summary><pre><code>(.*?)</code></pre>", RegexOptions.Singleline)
                         |> Seq.map (fun m -> Source.stripTags m.Groups[1].Value)

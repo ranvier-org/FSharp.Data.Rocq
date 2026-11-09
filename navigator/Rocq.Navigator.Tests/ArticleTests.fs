@@ -35,7 +35,8 @@ let private sourceHtml (block: Block) =
             for proof in proofs do
                 proof.Html
         ]
-    | Command html -> [ html ]
+    | Command html
+    | Import html -> [ html ]
     | Heading _
     | Prose _ -> []
 
@@ -241,15 +242,92 @@ let tests =
                 let html = toHtmlWith Config.none (fun _ -> "") [| Quiet (0, "a", "one\ntwo\nthree\n", [||], noRefs) |]
                 Expect.isFalse (html.Contains "details") "no fold"
 
-            testCase "toHtmlWith: collapsibleCode folds every body, starting open"
+            testCase "toHtmlWith: collapsibleCode makes the first line the fold, starting open"
             <| fun () ->
                 let config = { Config.none with CollapsibleCode = true }
-                let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "\n  one &lt; x\ntwo\n", [||], noRefs) |]
+                let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one &lt; x\n  two\n", [||], noRefs) |]
 
                 Expect.stringContains
                     html
-                    """<details class="body" open><summary><code class="peek">one &lt; x</code><span class="lines">2 lines</span></summary><pre class="statement"><code>"""
-                    "an open fold, labelled with the first line and the length"
+                    """<details class="body" open><summary data-lines="2 lines"><pre class="statement"><code><span class="l">one &lt; x"""
+                    "an open fold, with the first line as its summary"
+
+                Expect.stringContains
+                    html
+                    """</summary><pre class="statement"><code><span class="l" style="--i:2">  two"""
+                    "the rest follows, carrying its indent"
+
+            testCase "toHtmlWith: a one-line body has nothing to fold"
+            <| fun () ->
+                let config =
+                    { Config.none with
+                        CollapsibleCode = true
+                        CollapseCodeOver = Some 1
+                    }
+
+                let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one.\n", [||], noRefs) |]
+                Expect.isFalse (html.Contains "details") "no fold"
+
+            testCase "toHtml: a page's imports collect in one closed block after its opening prose"
+            <| fun () ->
+                let html =
+                    toHtml
+                        [|
+                            Import "From A Require Import B."
+                            Command "\n"
+                            Heading (1, "Title", "h-title")
+                            Prose "intro"
+                            Quiet (0, "a", "one.", [||], noRefs)
+                            Import "  Import C."
+                        |]
+
+                Expect.stringContains
+                    html
+                    """<details class="imports"><summary>2</summary><pre class="command"><code><span class="l">From A Require Import B."""
+                    "closed, with the count"
+
+                Expect.stringContains html """<span class="l">Import C.</span></code></pre></details>""" "a later import joins them"
+                Expect.isLessThan (html.IndexOf "intro") (html.IndexOf "details") "after the opening prose"
+                Expect.isLessThan (html.IndexOf "details") (html.IndexOf "one.") "before the first declaration"
+
+            testCase "toHtml: a page with no imports has no imports block"
+            <| fun () ->
+                Expect.isFalse ((toHtml [| Prose "intro" |]).Contains "imports") "no block"
+
+            testCase "toHtml: an empty page puts a lone import's block at the end"
+            <| fun () ->
+                Expect.stringContains (toHtml [| Import "Import A." |]) "Import A." "shown"
+
+            testCase "toHtml: the fixture's import sentence is an Import block"
+            <| fun () ->
+                let _, blocks = guideBlocks ()
+
+                let imports =
+                    blocks
+                    |> Array.choose (function
+                        | Import html -> Some (Source.stripTags html)
+                        | _ -> None)
+
+                Expect.equal imports [| "From Fixture Require Import Other." |] "the import"
+
+            testCase "Source.lines balances each line's tags and keeps the text"
+            <| fun () ->
+                let html = """  <span class="comment">a &lt;
+  <a href="x">b</a></span> c
+"""
+
+                let lines = Source.lines html
+
+                Expect.equal
+                    lines
+                    [|
+                        "  <span class=\"comment\">a &lt;\n</span>"
+                        "<span class=\"comment\">  <a href=\"x\">b</a></span> c\n"
+                    |]
+                    "tags close and reopen at the newline"
+
+                Expect.equal (lines |> Array.map Source.indent) [| 2; 2 |] "the indent reads through tags"
+                Expect.equal (Source.stripTags (String.concat "" lines)) (Source.stripTags html) "the text is unchanged"
 
             testCase "toHtmlWith: collapseCodeOver starts a body closed only past the limit"
             <| fun () ->
@@ -259,7 +337,7 @@ let tests =
                     toHtmlWith config (fun _ -> "") [| Quiet (0, "a", statement, [||], noRefs) |]
 
                 Expect.isFalse ((page "one\ntwo\n").Contains "details") "at the limit"
-                Expect.stringContains (page "one\ntwo\nthree\n") """<details class="body"><summary>""" "past the limit"
+                Expect.stringContains (page "one\ntwo\nthree\n") """<details class="body"><summary data-lines=""" "past the limit"
 
             testCase "toHtmlWith: a long body starts closed when every body is collapsible"
             <| fun () ->
@@ -270,7 +348,7 @@ let tests =
                     }
 
                 let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one\ntwo\n", [||], noRefs) |]
-                Expect.stringContains html """<details class="body"><summary>""" "closed"
+                Expect.stringContains html """<details class="body"><summary data-lines=""" "closed"
 
             testCase "toHtml: Admitted carries the warning class and text"
             <| fun () ->
@@ -341,8 +419,8 @@ let tests =
                         let blocks = blocks project links index
                         Expect.equal (decodedSource blocks) (expectedSource file) file.Path
 
-                        let page = toHtml blocks
+                        let page = Source.stripTags (toHtml blocks)
 
                         for html in blocks |> Array.toList |> List.collect sourceHtml do
-                            Expect.stringContains page html $"{file.Path}: the page holds its blocks")
+                            Expect.stringContains page ((Source.stripTags html).TrimStart ()) $"{file.Path}: the page holds its blocks")
         ]

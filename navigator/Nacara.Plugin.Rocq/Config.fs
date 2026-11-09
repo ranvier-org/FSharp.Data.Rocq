@@ -13,9 +13,9 @@ type Config =
         CheckMarker: string option
         /// The modules imported before capture, which select the notations Rocq prints.
         CaptureImports: string[]
-        /// Gives every declaration's code body a fold, starting open.
+        /// Makes the first line of every multi-line code body a fold for the rest, starting open.
         CollapsibleCode: bool
-        /// The most lines a code body shows on load. A longer body gets a fold, starting closed.
+        /// The most lines a code body shows on load. A longer body folds to its first line, starting closed.
         CollapseCodeOver: int option
     }
 

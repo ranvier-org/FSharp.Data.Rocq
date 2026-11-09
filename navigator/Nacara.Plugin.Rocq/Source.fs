@@ -138,3 +138,59 @@ let private tag = Regex "<[^>]*>"
 /// <summary>The text of an HTML fragment: tags removed and entities decoded once.</summary>
 let stripTags (html: string) : string =
     WebUtility.HtmlDecode (tag.Replace (html, ""))
+
+/// <summary>An HTML fragment's lines. Each keeps its newline and balances its own tags, and the concatenated text equals the fragment's text.</summary>
+let lines (html: string) : string[] =
+    let result = ResizeArray<string> ()
+    let line = StringBuilder ()
+    let opened = ResizeArray<string> ()
+
+    let closing (opening: string) =
+        let stop = opening.IndexOfAny [| ' '; '>' |]
+        "</" + opening.Substring (1, stop - 1) + ">"
+
+    let mutable index = 0
+
+    while index < html.Length do
+        match html[index] with
+        | '<' ->
+            let stop = html.IndexOf ('>', index)
+            let element = html.Substring (index, stop - index + 1)
+            line.Append element |> ignore
+
+            if element.StartsWith "</" then
+                opened.RemoveAt (opened.Count - 1)
+            else
+                opened.Add element
+
+            index <- stop + 1
+        | '\n' ->
+            line.Append '\n' |> ignore
+
+            for position in opened.Count - 1 .. -1 .. 0 do
+                line.Append (closing opened[position]) |> ignore
+
+            result.Add (line.ToString ())
+            line.Clear () |> ignore
+
+            for opening in opened do
+                line.Append opening |> ignore
+
+            index <- index + 1
+        | character ->
+            line.Append character |> ignore
+            index <- index + 1
+
+    if stripTags (line.ToString ()) <> "" then
+        result.Add (line.ToString ())
+
+    result.ToArray ()
+
+/// <summary>The width of a line's leading spaces and tabs. A blank line has none.</summary>
+let indent (line: string) : int =
+    let text = stripTags line
+
+    if System.String.IsNullOrWhiteSpace text then
+        0
+    else
+        text.Length - text.TrimStart([| ' '; '\t' |]).Length

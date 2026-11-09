@@ -88,7 +88,7 @@ let private shell =
             ".shell"
             [
                 "display", "grid"
-                "grid-template-columns", "minmax(11rem, 15rem) minmax(0, 1fr) minmax(11rem, 15rem)"
+                "grid-template-columns", "minmax(11rem, min(14vw, 15rem)) minmax(0, 1fr) minmax(11rem, min(14vw, 15rem))"
                 "min-height", "100vh"
             ]
         rule ".center" [ "min-width", "0"; "padding", "0 2.25rem 6rem" ]
@@ -99,12 +99,12 @@ let private shell =
                 "flex-wrap", "wrap"
                 "align-items", "center"
                 "gap", "0.75rem"
-                "max-width", "46rem"
+                "max-width", "60rem"
                 "margin", "0 auto"
                 "padding", "1.1rem 0 0.25rem"
             ]
         rule ".crumb" [ "flex", "1"; "margin", "0"; "font", $"12px/1.4 {ui}"; "color", "var(--dim)" ]
-        rule ".page" [ "max-width", "46rem"; "margin", "0 auto" ]
+        rule ".page" [ "max-width", "60rem"; "margin", "0 auto" ]
     ]
 
 let private panes =
@@ -235,7 +235,7 @@ let private prose =
             ]
         rule ".page h3" [ "font-size", "1.05rem"; "margin", "2rem 0 0.5rem" ]
         rule ".page h4" [ "font-size", "1rem"; "margin", "1.25rem 0 0.25rem" ]
-        rule ".doc, .prose, .entry" [ "font-size", "0.92rem"; "line-height", "1.6"; "color", "var(--soft)" ]
+        rule ".doc, .prose, .entry" [ "max-width", "46rem"; "font-size", "0.92rem"; "line-height", "1.6"; "color", "var(--soft)" ]
         rule ".doc p, .prose p, .entry p" [ "margin", "0 0 0.75rem" ]
         rule ".doc ul, .doc ol, .prose ul, .prose ol, .entry ul, .entry ol" [ "margin", "0 0 0.75rem"; "padding-left", "1.4rem" ]
         rule ".doc code, .prose code, .entry p code, .entry li code, .decl-title code" [ "font", $"0.9em {mono}"; "color", "var(--link)" ]
@@ -270,6 +270,13 @@ let private code =
                 "color", "var(--ink)"
             ]
         rule "pre code" [ "font", "inherit"; "color", "inherit" ]
+        rule
+            ".l"
+            [
+                "display", "block"
+                "padding-left", "calc((var(--i, 0) + 4) * 1ch)"
+                "text-indent", "calc((var(--i, 0) + 4) * -1ch)"
+            ]
         rule ".kw" [ "color", "var(--keyword)"; "font-weight", "600" ]
         rule ".comment" [ "color", "var(--dim)" ]
         rule "[data-ref^=\"b\"]" [ "color", "var(--binder)" ]
@@ -308,7 +315,7 @@ let private code =
 let private folds =
     [
         rule
-            "details.proof > summary, details.refs > summary, details.more > summary, details.body > summary"
+            "details.proof > summary, details.refs > summary, details.more > summary, details.imports > summary"
             [
                 "font", $"12px/1.8 {ui}"
                 "color", "var(--dim)"
@@ -317,7 +324,7 @@ let private folds =
                 "user-select", "none"
             ]
         rule
-            "details.proof > summary::-webkit-details-marker, details.refs > summary::-webkit-details-marker, details.body > summary::-webkit-details-marker"
+            "details.proof > summary::-webkit-details-marker, details.refs > summary::-webkit-details-marker, details.body > summary::-webkit-details-marker, details.imports > summary::-webkit-details-marker"
             [ "display", "none" ]
         rule "details.proof > summary::before" [ "content", "\"▸ Proof · \"" ]
         rule "details.proof[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Proof · \"" ]
@@ -327,21 +334,42 @@ let private folds =
         rule ".panel > details.proof" [ "border-top", "1px solid var(--line)" ]
         rule ".panel > details > summary" [ "padding", "2px 12px" ]
         rule ".panel > details > summary:hover" [ "color", "var(--ink)" ]
-        rule "details.body > summary" [ "display", "flex"; "gap", "1ch"; "align-items", "baseline" ]
-        rule "details.body > summary::before" [ "content", "\"▸\""; "flex", "none" ]
-        rule "details.body[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Code\"" ]
+        rule "details.imports" [ "margin", "0.5rem 0 1rem" ]
+        rule "details.imports > summary::before" [ "content", "\"▸ Imports · \"" ]
+        rule "details.imports[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Imports · \"" ]
         rule
-            ".peek"
+            "details.body > summary"
             [
-                "font", $"12px/1.8 {mono}"
-                "color", "var(--ink)"
-                "min-width", "0"
-                "overflow", "hidden"
-                "text-overflow", "ellipsis"
-                "white-space", "nowrap"
+                "display", "flex"
+                "position", "relative"
+                "padding", "0"
+                "cursor", "pointer"
+                "list-style", "none"
             ]
-        rule "details.body[open]:not([data-closing]) .peek" [ "display", "none" ]
-        rule ".lines" [ "flex", "none"; "margin-left", "auto" ]
+        rule "details.body > summary > pre" [ "flex", "1"; "min-width", "0" ]
+        rule
+            "details.body > summary::before"
+            [
+                "content", "\"▸\""
+                "position", "absolute"
+                "left", "1px"
+                "top", "10px"
+                "font", $"12px/20px {ui}"
+                "color", "var(--dim)"
+            ]
+        rule "details.body[open]:not([data-closing]) > summary::before" [ "content", "\"▾\"" ]
+        rule "details.body > summary:hover::before" [ "color", "var(--ink)" ]
+        rule
+            "details.body > summary::after"
+            [
+                "content", "attr(data-lines)"
+                "flex", "none"
+                "padding", "10px 12px 0 0"
+                "font", $"11px/20px {ui}"
+                "color", "var(--dim)"
+            ]
+        rule "details.body[open]:not([data-closing]) > summary:not(:hover)::after" [ "visibility", "hidden" ]
+        rule ".page .panel details.body > pre" [ "margin-top", "-10px"; "padding-top", "0" ]
         rule ".warning-text" [ "font-weight", "600"; "margin-left", "0.35rem" ]
         rule ".decl.quiet details.proof, .decl.quiet details.refs" [ "margin-left", "0" ]
         rule ".ref-list" [ "margin", "0.25rem 0 0.5rem" ]
@@ -596,7 +624,7 @@ let private narrow =
                     ".drawer"
                     [
                         "display", "block"
-                        "max-width", "46rem"
+                        "max-width", "60rem"
                         "margin-left", "auto"
                         "margin-right", "auto"
                     ]
