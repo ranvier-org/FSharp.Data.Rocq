@@ -284,7 +284,7 @@ let private code =
         rule ".decl" [ "margin", "1.9rem 0"; "scroll-margin-top", Islands.landingMargin ]
         rule ".decl.quiet" [ "margin", "0.2rem 0" ]
         rule
-            ".decl.quiet pre.statement, .page pre.command"
+            ".page pre.command"
             [
                 "background", "transparent"
                 "border", "0"

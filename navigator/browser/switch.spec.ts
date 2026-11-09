@@ -194,3 +194,24 @@ test("a hydration mismatch is reported, and the page stays readable", async ({ p
 
   problems.length = 0;
 });
+
+test("every statement sits in a pane, documented or not, and commands stay bare", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+
+  const paneOf = (selector: string) =>
+    page.locator(selector).first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        border: style.borderTopWidth,
+        padding: style.paddingTop,
+        fontSize: style.fontSize,
+        color: style.color,
+      };
+    });
+
+  const documented = await paneOf(".decl.documented pre.statement");
+  expect(documented.border).toBe("1px");
+  expect(await paneOf(".decl.quiet pre.statement")).toEqual(documented);
+  expect((await paneOf("pre.command")).border).toBe("0px");
+});

@@ -104,7 +104,7 @@ and never show a passing badge. An Admitted theorem's `Print Assumptions` result
 |---|---|
 | Heading comment `(** * x *)` | A heading at that level |
 | Declaration with an attached doc | Doc prose, then the statement |
-| Declaration with no attached doc | Compact statement with no prose; these runs read quieter than documented items |
+| Declaration with no attached doc | The statement in the same pane as a documented item, with no prose |
 | `Proof. ... Qed.` | `<details>`, closed, labelled with its ending (`Qed`, `Defined`, `Admitted`) |
 | Other commands (`Import`, `Section`, `Instance`, ...) | Compact code; the file stays complete |
 | Comment attached to nothing | Prose in place |
