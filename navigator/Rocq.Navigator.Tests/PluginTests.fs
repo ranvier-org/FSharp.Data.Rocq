@@ -289,6 +289,29 @@ let private tests' =
                 let article = html.Substring (start, html.LastIndexOf "</article>" - start)
                 Expect.isFalse (article.Contains "<!--[r") "the article has no markers")
 
+        testCase "build: the server page is Family, with the look script before the stylesheet"
+        <| fun () ->
+            withRoot (fun root ->
+                buildAt root (siteWith (fixtureOptions ()))
+                |> ignore
+
+                let html = read root "Fixture.Guide.html"
+                Expect.stringContains html """<html lang="en" data-look="family">""" "the default look"
+
+                let script = html.IndexOf $"<head><script>{RocqReader.preloadScript}</script>"
+                let stylesheet = html.IndexOf """<link rel="stylesheet" """
+                Expect.isGreaterThanOrEqual script 0 "the look script opens the head"
+                Expect.isLessThan script stylesheet "the look script precedes the stylesheet"
+                Expect.stringContains html """<button type="button" aria-pressed="true">Family</button>""" "the switch is server HTML")
+
+        testCase "the look script catches storage failures and writes only known values"
+        <| fun () ->
+            Expect.stringContains RocqReader.preloadScript "try{" "storage is guarded"
+            Expect.stringContains RocqReader.preloadScript "catch(e){}" "a failure is silent"
+            Expect.stringContains RocqReader.preloadScript "\"family\",\"journal\"" "the looks"
+            Expect.stringContains RocqReader.preloadScript "\"system\",\"light\",\"dark\"" "the modes"
+            Expect.isFalse (RocqReader.preloadScript.Contains "</") "the script cannot close its element"
+
         testCase "the bundle decides the script tag and the warning"
         <| fun () ->
             withRoot (fun root ->
@@ -718,6 +741,8 @@ let private tests' =
             Expect.isError (RocqReader.fillHost "search" "x" "<html></html>") "a missing host"
             Expect.isError (RocqReader.unmarkHead "<html></html>") "a missing head"
             Expect.isError (RocqReader.insertInHead "x" "<html></html>") "a missing head"
+            Expect.isError (RocqReader.insertAtHeadStart "x" "<html></html>") "a missing head"
+            Expect.equal (RocqReader.insertAtHeadStart "x" "<head><title>") (Ok "<head>x<title>") "the start of the head"
             Expect.equal (RocqReader.withoutDoctype "<!DOCTYPE html><html>") "<html>" "the doctype"
             Expect.equal (RocqReader.withoutDoctype "<html>") "<html>" "nothing to remove"
     ]

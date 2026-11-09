@@ -391,6 +391,36 @@ let private guarantees =
         rule ".entry h4 a:hover" [ "color", "var(--link)" ]
     ]
 
+let private islands =
+    [
+        rule ".switch" [ "display", "flex"; "gap", "0.5rem"; "font", $"11.5px/1.5 {ui}" ]
+        rule
+            ".switch-group"
+            [
+                "display", "inline-flex"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "overflow", "hidden"
+            ]
+        rule
+            ".switch button"
+            [
+                "appearance", "none"
+                "border", "0"
+                "background", "transparent"
+                "color", "var(--dim)"
+                "font", "inherit"
+                "padding", "2px 8px"
+                "cursor", "pointer"
+            ]
+        rule ".switch button:hover" [ "color", "var(--ink)" ]
+        rule ".switch button[aria-pressed=\"true\"]" [ "background", "var(--selected)"; "color", "var(--ink)"; "font-weight", "600" ]
+        rule ".pane-item.in-view" [ "color", "var(--ink)"; "background", "var(--selected)" ]
+        rule ".xref:not(:empty)" [ "margin-top", "1rem" ]
+        rule ":root[data-client=\"ready\"] .page::after" [ "content", "\"\""; "display", "block"; "height", "calc(100vh - 9rem)" ]
+        Rule.media "(min-width: 901px)" [ rule ":root[data-lists=\"pane\"] .decl details.refs" [ "display", "none" ] ]
+    ]
+
 let private motion =
     [
         Rule.keyframes
@@ -456,6 +486,7 @@ let modules: CssModule list =
                 @ folds
                 @ badges
                 @ guarantees
+                @ islands
                 @ motion
                 @ narrow
         }

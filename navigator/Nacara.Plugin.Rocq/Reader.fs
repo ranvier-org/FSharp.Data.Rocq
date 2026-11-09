@@ -133,13 +133,39 @@ module internal RocqReader =
                     t.element<obj> (Representation.HtmlTag "div") [| t.Unsafe.html<obj>(fun markup -> markup) |] [||]
                 |])
 
-    let private islandMarkup (name: string) =
+    let private islandMarkup (name: string, island: Component<unit>) =
+        name,
         Server.render
             { serverOptions with
                 IdPrefix = Islands.idPrefix name
             }
-            Islands.stub
+            island
             ()
+
+    /// <summary>The inline head script that writes the saved look and mode to the root before the stylesheet applies.</summary>
+    /// <remarks>Storage that throws, or holds an unknown value, leaves the server's <c>data-look</c> in place.</remarks>
+    let preloadScript: string =
+        let known (values: string list) =
+            values
+            |> List.map (fun value -> $"\"{value}\"")
+            |> String.concat ","
+
+        String.concat
+            ""
+            [
+                "(function(){var r=document.documentElement;"
+                "function a(n,k,v){try{var s=localStorage.getItem(k);if(v.indexOf(s)>=0)r.setAttribute(n,s)}catch(e){}}"
+                $"""a("data-look","{Islands.lookKey}",[{known Islands.looks}]);"""
+                $"""a("data-mode","{Islands.modeKey}",[{known Islands.modes}])"""
+                "})()"
+            ]
+
+    /// <summary>Inserts text at the start of the head, before any stylesheet.</summary>
+    /// <returns><c>Error</c> when the document has no head.</returns>
+    let insertAtHeadStart (text: string) (html: string) : Result<string, string> =
+        match html.IndexOf ("<head>", StringComparison.Ordinal) with
+        | -1 -> Result.Error "The rendered document has no <head>."
+        | index -> Ok (html.Insert (index + "<head>".Length, text))
 
     let private orFail (result: Result<string, string>) =
         match result with
@@ -239,13 +265,11 @@ module internal RocqReader =
             Server.renderDocument serverOptions document (shell page.Title) (UnsafeHtml.Trust shellMarkup)
             |> unmarkHead
             |> Result.bind (insertInHead head)
+            |> Result.bind (insertAtHeadStart $"<script>{preloadScript}</script>")
 
-        Islands.names
-        |> List.fold
-            (fun html name ->
-                html
-                |> Result.bind (fillHost name (islandMarkup name)))
-            html
+        Islands.islands
+        |> List.map islandMarkup
+        |> List.fold (fun html (name, markup) -> html |> Result.bind (fillHost name markup)) html
         |> orFail
         |> withoutDoctype
         |> Html.rawText

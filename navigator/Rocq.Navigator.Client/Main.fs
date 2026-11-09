@@ -85,8 +85,11 @@ let private animateFolds (graph: Graph) =
 let start () =
     let graph = new Graph ()
 
-    for name in Islands.names do
-        hydrateIsland graph name Islands.stub ()
+    for name, island in Islands.islands do
+        try
+            hydrateIsland graph name island ()
+        with error ->
+            JS.console.warn ("Hydration", name, error)
 
     animateFolds graph
     document.documentElement.setAttribute ("data-client", "ready")

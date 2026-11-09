@@ -535,9 +535,9 @@ let private listHtml (items: RefItem[]) =
     + (items |> Array.map itemHtml |> String.concat "")
     + "</ul>"
 
-let private appendRefList (out: StringBuilder) (label: string) (items: RefItem[]) =
+let private appendRefList (out: StringBuilder) (list: string) (label: string) (items: RefItem[]) =
     if items.Length > 0 then
-        out.Append ($"""<div class="ref-list"><p>{label}</p>""")
+        out.Append ($"""<div class="ref-list" data-list="{list}"><p>{label}</p>""")
         |> ignore
 
         out.Append (listHtml (Array.truncate visibleCount items))
@@ -556,8 +556,8 @@ let private appendRefs (out: StringBuilder) (refs: RefLists) =
         out.Append """<details class="refs"><summary>References</summary>"""
         |> ignore
 
-        appendRefList out "Uses" refs.Uses
-        appendRefList out "Used by" refs.UsedBy
+        appendRefList out "uses" "Uses" refs.Uses
+        appendRefList out "used-by" "Used by" refs.UsedBy
         out.Append "</details>" |> ignore
 
 let private appendDeclaration
