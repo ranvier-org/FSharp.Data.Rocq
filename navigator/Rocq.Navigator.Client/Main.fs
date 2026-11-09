@@ -25,8 +25,10 @@ let private hydrateIsland (graph: Graph) (name: string) (definition: Component<'
         document.querySelector $"""[%s{Islands.hostAttribute}="%s{name}"]"""
         |> Option.ofObj
     with
-    | None -> ()
+    | None -> true
     | Some host ->
+        let hydrated = ref true
+
         let options =
             { Hydration.HydrationOptions.defaults with
                 IdPrefix = Islands.idPrefix name
@@ -35,10 +37,13 @@ let private hydrateIsland (graph: Graph) (name: string) (definition: Component<'
 
         let report (errors: exn list) =
             for error in errors do
+                hydrated.Value <- false
                 JS.console.warn ("Hydration", error)
 
         Hydration.hydrate graph None report options host definition props
         |> ignore
+
+        hydrated.Value
 
 let private clearFold (fold: HTMLElement) =
     fold.style.removeProperty "height" |> ignore
@@ -125,11 +130,16 @@ let private animateFolds (graph: Graph) =
 let start () =
     let graph = new Graph ()
 
-    for name, island in Islands.islands do
-        try
-            hydrateIsland graph name island ()
-        with error ->
-            JS.console.warn ("Hydration", name, error)
+    let hydrated =
+        Islands.islands
+        |> List.map (fun (name, island) ->
+            try
+                hydrateIsland graph name island ()
+            with error ->
+                JS.console.warn ("Hydration", name, error)
+                false)
 
     animateFolds graph
-    document.documentElement.setAttribute ("data-client", "ready")
+
+    if List.forall id hydrated then
+        document.documentElement.setAttribute ("data-client", "ready")

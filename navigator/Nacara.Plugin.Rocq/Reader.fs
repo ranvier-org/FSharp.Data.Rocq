@@ -164,7 +164,7 @@ module internal RocqReader =
                 "})()"
             ]
 
-    /// <summary>The inline head script of a page with a client: the lists' place on the root, and the Journal look's font request.</summary>
+    /// <summary>The inline head script of a page with a client: the lists' place on the root until a client fails to start, and the Journal look's font request.</summary>
     /// <param name="serifUrl">The site URL of the serif font.</param>
     let clientPreloadScript (serifUrl: string) : string =
         String.concat
@@ -172,6 +172,7 @@ module internal RocqReader =
             [
                 "(function(){var r=document.documentElement;"
                 """r.setAttribute("data-lists","pane");"""
+                """addEventListener("load",function(){if(r.getAttribute("data-client")!=="ready")r.removeAttribute("data-lists")});"""
                 """if(r.getAttribute("data-look")==="journal"){var l=document.createElement("link");"""
                 """l.rel="preload";l.as="font";l.type="font/woff2";l.crossOrigin="";"""
                 $"""l.href="{serifUrl}";document.head.appendChild(l)}}}}"""

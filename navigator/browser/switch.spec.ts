@@ -377,6 +377,12 @@ test.describe("with JavaScript off", () => {
     await expect(body.locator("> pre.statement")).toBeHidden();
   });
 
+  test("the controls that need a client stay hidden", async ({ page }) => {
+    await page.goto(MODULE_PAGE);
+    await expect(page.locator(".switch")).toBeHidden();
+    await expect(page.locator(".search-trigger")).toBeHidden();
+  });
+
   test("imports still open", async ({ page }) => {
     await page.goto(MODULE_PAGE);
     const imports = page.locator("article details.imports");
@@ -406,12 +412,72 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 700 
   });
 }
 
-test("the inline lists are hidden on wide screens before the client runs", async ({ page }) => {
-  await page.route("**/navigator.js", (route) => route.fulfill({ contentType: "text/javascript", body: "" }));
-  await page.goto(MODULE_PAGE);
+test("the inline lists are hidden on wide screens until a client that never starts restores them", async ({ page }) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+
+  await page.route("**/navigator.js", async (route) => {
+    await held;
+    await route.fulfill({ contentType: "text/javascript", body: "" });
+  });
+
+  await page.goto(MODULE_PAGE, { waitUntil: "commit" });
+  const lists = page.locator(".decl details.refs").first();
+  await lists.waitFor({ state: "attached" });
 
   expect(await rootAttribute(page, "data-lists")).toBe("pane");
-  await expect(page.locator(".decl details.refs").first()).toBeHidden();
+  await expect(lists).toBeHidden();
+
+  release();
+  await expect(lists).toBeVisible();
+  expect(await rootAttribute(page, "data-lists")).toBeNull();
+});
+
+test("the switch and the search trigger appear with a client and meet the target size", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  await expect(page.locator(".switch")).toBeVisible();
+  await expect(page.locator(".search-trigger")).toBeVisible();
+  const height = await page.locator(".switch button").first().evaluate((button) => button.getBoundingClientRect().height);
+  expect(height).toBeGreaterThanOrEqual(24);
+});
+
+test("a failed client hides the switch and the search trigger, and they keep their space", async ({ page }) => {
+  await page.route("**/navigator.js", (route) => route.fulfill({ contentType: "text/javascript", body: "" }));
+  await page.goto(MODULE_PAGE);
+  await page.waitForLoadState("load");
+
+  await expect(page.locator(".switch")).toBeHidden();
+  await expect(page.locator(".search-trigger")).toBeHidden();
+  expect((await page.locator(".switch").boundingBox())!.width).toBeGreaterThan(0);
+});
+
+test("at 375 px a deep hanging indent stays on the page and leaves the code text alone", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const before = await page.locator("article").textContent();
+
+  const measured = await page.evaluate(() => {
+    const lines = [...document.querySelectorAll<HTMLElement>(".l")];
+    for (const line of lines) line.style.setProperty("--i", "60");
+
+    return {
+      lines: lines.length,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      hangs: lines.map((line) => {
+        const style = getComputedStyle(line);
+        return parseFloat(style.paddingLeft) + parseFloat(style.textIndent);
+      }),
+    };
+  });
+
+  expect(measured.lines).toBeGreaterThan(0);
+  expect(measured.overflow).toBe(0);
+  expect(new Set(measured.hangs)).toEqual(new Set([0]));
+  expect(await page.locator("article").textContent()).toBe(before);
 });
 
 test("the default look's fonts are requested from the document head", async ({ page }) => {

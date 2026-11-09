@@ -53,6 +53,7 @@ const expectReadable = async (page: Page) => {
   const statement = article.locator("pre.statement").first();
   await expect(statement).toBeVisible();
   expect((await statement.innerText()).trim()).not.toBe("");
+  await expect(article.locator("details.refs").first(), "the references are visible").toBeVisible();
 };
 
 const expectFoldOpens = async (page: Page) => {

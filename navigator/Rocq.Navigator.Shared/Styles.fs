@@ -282,8 +282,9 @@ let private code =
             ".l"
             [
                 "display", "block"
-                "padding-left", "calc((var(--i, 0) + 4) * 1ch)"
-                "text-indent", "calc((var(--i, 0) + 4) * -1ch)"
+                "--hang", "min(calc((var(--i, 0) + 4) * 1ch), 30vw)"
+                "padding-left", "var(--hang)"
+                "text-indent", "calc(-1 * var(--hang))"
             ]
         rule ".kw" [ "color", "var(--keyword)"; "font-weight", "600" ]
         rule ".comment" [ "color", "var(--dim)" ]
@@ -485,10 +486,12 @@ let private islands =
                 "color", "var(--dim)"
                 "font", "inherit"
                 "padding", "2px 8px"
+                "min-height", "24px"
                 "cursor", "pointer"
             ]
         rule ".switch button:hover" [ "color", "var(--ink)" ]
         rule ".switch button[aria-pressed=\"true\"]" [ "background", "var(--selected)"; "color", "var(--ink)"; "font-weight", "600" ]
+        rule ":root:not([data-client=\"ready\"]) .switch, :root:not([data-client=\"ready\"]) .search-trigger" [ "visibility", "hidden" ]
         rule ".pane-item.in-view" [ "color", "var(--ink)"; "background", "var(--selected)" ]
         rule ".xref:not(:empty)" [ "margin-top", "1rem" ]
         rule ":root[data-client=\"ready\"] .page::after" [ "content", "\"\""; "display", "block"; "height", "calc(100vh - 9rem)" ]
