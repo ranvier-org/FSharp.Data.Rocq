@@ -304,6 +304,102 @@ let private tests' =
                 Expect.isLessThan script stylesheet "the look script precedes the stylesheet"
                 Expect.stringContains html """<button type="button" aria-pressed="true">Family</button>""" "the switch is server HTML")
 
+        testCase "build: settings triggers sit in the left pane and the Modules drawer, and the top bar has no switch"
+        <| fun () ->
+            withRoot (fun root ->
+                buildAt root (siteWith (fixtureOptions ()))
+                |> ignore
+
+                let html = read root "Fixture.Guide.html"
+
+                Expect.equal (Regex.Matches(html, Regex.Escape RocqReader.settingsTrigger).Count) 2 "one in the pane, one in the drawer"
+                Expect.stringContains html $"""<div class="pane-foot">{RocqReader.settingsTrigger}</div></nav>""" "the pane's footer"
+                Expect.stringContains html $"""<div class="drawer-foot">{RocqReader.settingsTrigger}</div></details>""" "the end of the drawer"
+
+                let topbarStart = html.IndexOf "<header"
+                let topbar = html.Substring (topbarStart, html.IndexOf "</header>" - topbarStart)
+                Expect.isFalse (topbar.Contains "aria-pressed") "the top bar has no switch"
+
+                let settings = html.IndexOf """<div data-island="settings">"""
+                let article = html.IndexOf "<article"
+                Expect.isTrue (html.LastIndexOf ("<nav", settings) < html.LastIndexOf ("</nav>", settings)) "the island is outside the pane"
+                Expect.isLessThan settings article "the island is outside the article")
+
+        testCase "build: a chip per definition with lists, outside its pre, and none on a definition with no lists"
+        <| fun () ->
+            withRoot (fun root ->
+                buildAt root (siteWith (fixtureOptions ()))
+                |> ignore
+
+                let html = read root "Fixture.Guide.html"
+
+                let sections =
+                    Regex.Matches (html, "<section class=\"decl.*?</section>", RegexOptions.Singleline)
+                    |> Seq.map _.Value
+                    |> List.ofSeq
+
+                let chip =
+                    Regex """<button type="button" class="refs-chip" aria-haspopup="dialog">uses (\d+) · used by (\d+)</button>"""
+
+                Expect.isNonEmpty sections "the page has declarations"
+
+                for section in sections do
+                    let found = chip.Match section
+                    Expect.equal found.Success (section.Contains "class=\"ref-list\"") section
+
+                    if found.Success then
+                        let count (list: string) =
+                            let items =
+                                Regex.Match (section, $"data-list=\"{list}\">(.*?)</div>", RegexOptions.Singleline)
+
+                            Regex.Matches(items.Groups[1].Value, "<li>").Count
+
+                        Expect.equal found.Groups[1].Value (string (count "uses")) section
+                        Expect.equal found.Groups[2].Value (string (count "used-by")) section
+
+                        for code in Regex.Matches (section, "<pre.*?</pre>", RegexOptions.Singleline) do
+                            Expect.isFalse (code.Value.Contains "refs-chip") "the chip is outside the pre")
+
+        testCase "build: a declaration whose anchor is not its name carries its name"
+        <| fun () ->
+            withRoot (fun root ->
+                buildAt root (siteWith (fixtureOptions ()))
+                |> ignore
+
+                let html = read root "Fixture.Guide.html"
+                Expect.stringContains html """id="shared~2" data-name="shared">""" "a repeated name"
+                Expect.isTrue (Regex.IsMatch (html, "id=\"d\\d+\" data-name=\"Notation ")) "a notation's first line"
+                Expect.stringContains html """id="shared">""" "a plain anchor has no attribute")
+
+        testCase "build: the site's collapse limit reaches the body, and no limit leaves the attribute out"
+        <| fun () ->
+            withRoot (fun root ->
+                let config = Path.Combine (AbsolutePath.value root, "navigator.json")
+                File.WriteAllText (config, """{ "collapseCodeOver": 3 }""")
+
+                buildAt root (siteWith (fixtureOptions () |> Rocq.config (Some config)))
+                |> ignore
+
+                Expect.stringContains (read root "Fixture.Guide.html") $"{Islands.collapseOverAttribute}=\"3\"" "the limit"
+                Expect.isFalse ((read root "index.html").Contains Islands.collapseOverAttribute) "Guarantees has no folds")
+
+        testCase "the head and fold scripts stay inside their elements and read each key"
+        <| fun () ->
+            let head = RocqReader.clientPreloadScript "font.woff2"
+            Expect.isFalse (head.Contains "</") "the head script"
+            Expect.isFalse (RocqReader.foldScript.Contains "</") "the fold script"
+            Expect.stringContains head Islands.referencesKey "the placement"
+
+            for key in
+                [
+                    Islands.proofsKey
+                    Islands.importsKey
+                    Islands.referencesOpenKey
+                    Islands.definitionsKey
+                    Islands.definitionsOverKey
+                ] do
+                Expect.stringContains RocqReader.foldScript key key
+
         testCase "the look script catches storage failures and writes only known values"
         <| fun () ->
             Expect.stringContains RocqReader.preloadScript "try{" "storage is guarded"

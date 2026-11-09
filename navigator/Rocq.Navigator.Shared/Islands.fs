@@ -40,19 +40,80 @@ let looks = [ defaultLook; "journal" ]
 /// The values `data-mode` accepts.
 let modes = [ defaultMode; "light"; "dark" ]
 
-/// The percentage of the viewport's height, from its top, above the line that decides the section in view.
+/// The `localStorage` key of the saved reference placement.
 [<Literal>]
-let private linePercent = 5
+let referencesKey = "rocq-navigator-references"
 
-/// The `scroll-margin-top` of a jump target. Its top lands just above the line at every viewport height.
-let landingMargin = $"calc({linePercent}vh - 4px)"
-
-/// The `IntersectionObserver` margin of the area above the line. A section's state changes whenever its top crosses the line.
-let private aboveLineMargin = $"0px 0px -{100 - linePercent}%% 0px"
-
-/// The share of the viewport's height, from its top, that holds the first section of a page.
+/// The `localStorage` key of whether reference folds under definitions start open.
 [<Literal>]
-let private bandShare = 0.4
+let referencesOpenKey = "rocq-navigator-references-open"
+
+/// The `localStorage` key of the saved definition fold state.
+[<Literal>]
+let definitionsKey = "rocq-navigator-definitions"
+
+/// The `localStorage` key of the line count above which "Close long ones" closes a definition.
+[<Literal>]
+let definitionsOverKey = "rocq-navigator-definitions-over"
+
+/// The `localStorage` key of the saved proof fold state.
+[<Literal>]
+let proofsKey = "rocq-navigator-proofs"
+
+/// The `localStorage` key of the saved imports fold state.
+[<Literal>]
+let importsKey = "rocq-navigator-imports"
+
+/// The placement with the lists in the right pane. Also its `data-lists` value.
+[<Literal>]
+let placementPane = "pane"
+
+/// The placement with a chip on each definition. Also its `data-lists` value.
+[<Literal>]
+let placementBadges = "badges"
+
+/// The placement with the lists in a fold under each definition. Its `data-lists` is absent.
+[<Literal>]
+let placementUnder = "under"
+
+/// A fold's saved state: open.
+[<Literal>]
+let foldOpen = "open"
+
+/// A fold's saved state: closed.
+[<Literal>]
+let foldClosed = "closed"
+
+/// The definition fold state that closes a definition longer than the saved line count.
+[<Literal>]
+let foldLong = "long"
+
+/// The line count "Close long ones" starts from.
+[<Literal>]
+let defaultDefinitionsOver = 40
+
+/// The attribute marking a button that opens the settings.
+[<Literal>]
+let settingsTriggerAttribute = "data-settings-open"
+
+/// The body attribute holding the site's `collapseCodeOver`, absent when the site has none.
+[<Literal>]
+let collapseOverAttribute = "data-collapse-over"
+
+/// The percentage of the viewport's height, from its top, where a jump lands its target.
+[<Literal>]
+let private landingPercent = 5
+
+/// The pixels a jump target lands above the landing percentage.
+[<Literal>]
+let private landingOffset = 4
+
+/// The `scroll-margin-top` of a jump target.
+let landingMargin = $"calc({landingPercent}vh - {landingOffset}px)"
+
+/// The distance in pixels from a jump's landing position that still counts as the jump's target.
+[<Literal>]
+let private landingTolerance = 6.0
 
 /// The element that holds every reference a card opens for.
 [<Literal>]
@@ -94,36 +155,80 @@ let private save (key: string) (value: string) =
         ()
 
 [<AllowNullLiteral>]
-type private SectionObserver =
+type private SizeObserver =
     abstract observe: Element -> unit
     abstract disconnect: unit -> unit
 
-[<Emit("new IntersectionObserver(() => $0(), { rootMargin: $1 })")>]
-let private sectionObserver (callback: unit -> unit) (rootMargin: string) : SectionObserver = jsNative
+[<Emit("new ResizeObserver(() => $0())")>]
+let private sizeObserver (callback: unit -> unit) : SizeObserver = jsNative
 
-/// The section in view: the last to start above the line or, with none above it, the first in the band.
-let private sectionInView (sections: Element array) : Element option =
-    let top (section: Element) =
-        section.getBoundingClientRect().top
+[<Emit("(() => { const h = () => $2(); $0.addEventListener($1, h, { passive: true }); return () => $0.removeEventListener($1, h) })()")>]
+let private listenPassive (target: obj) (name: string) (handler: unit -> unit) : (unit -> unit) = jsNative
 
-    let height = float document.documentElement.clientHeight
+[<Emit("window")>]
+let private windowObject () : obj = jsNative
 
-    let inBand =
-        sections
-        |> Array.filter (fun section -> top section < height * bandShare)
+[<Emit("document.documentElement.scrollTop")>]
+let private pageScrollTop () : float = jsNative
 
-    let aboveLine =
-        inBand
-        |> Array.filter (fun section -> top section <= height * float linePercent / 100.0)
+[<Emit("(() => { try { return decodeURIComponent(location.hash.slice(1)) } catch { return location.hash.slice(1) } })()")>]
+let private hashId () : string = jsNative
 
-    if inBand.Length = 0 then
-        None
-    elif aboveLine.Length > 0 then
-        Some (aboveLine |> Array.maxBy top)
-    else
-        Some (inBand |> Array.minBy top)
+[<Emit("$0.open = $1")>]
+let private setOpen (fold: Element) (value: bool) : unit = jsNative
 
-/// Scrolls an outline link's pane, and the pane alone, to bring the link inside the pane's visible rectangle.
+/// The element a location's hash names, if any.
+let private hashTarget () =
+    match hashId () with
+    | "" -> None
+    | id -> document.getElementById id |> Option.ofObj
+
+/// The section in view. The target of a jump holds while its top stays at the landing position. Otherwise the line runs from
+/// the viewport's top at the page's start to its bottom at the page's end: the last section to start at or above the line
+/// or, with none above it, the first to start inside the viewport.
+let private sectionInView (isSection: Element -> bool) (sections: Element array) : Element option =
+    let root = document.documentElement
+    let height = float root.clientHeight
+    let scrollable = float root.scrollHeight - height
+
+    let progress =
+        if scrollable <= 0.0 then
+            0.0
+        else
+            min 1.0 (pageScrollTop () / scrollable)
+
+    let line = height * progress
+
+    let landing =
+        height * float landingPercent / 100.0
+        - float landingOffset
+
+    let landed =
+        hashTarget ()
+        |> Option.filter (fun target ->
+            isSection target
+            && abs (target.getBoundingClientRect().top - landing)
+               <= landingTolerance)
+
+    match landed with
+    | Some _ -> landed
+    | None ->
+        let mutable above = None
+        let mutable inside = None
+
+        for section in sections do
+            let top = section.getBoundingClientRect().top
+
+            if top <= line then
+                above <- Some section
+            elif top >= 0.0 && top < height && inside.IsNone then
+                inside <- Some section
+
+        match above with
+        | Some _ -> above
+        | None -> inside
+
+/// Scrolls an outline link's pane, and the pane alone, to bring the link inside the pane's visible rectangle, above any pinned lists.
 let private keepInPane (link: Element) =
     match link.closest ".pane" with
     | null -> ()
@@ -131,14 +236,25 @@ let private keepInPane (link: Element) =
         let paneBox = pane.getBoundingClientRect ()
         let linkBox = link.getBoundingClientRect ()
 
+        let bottom =
+            match pane.querySelector ".pinned" with
+            | null -> paneBox.bottom
+            | pinned ->
+                let pinnedBox = pinned.getBoundingClientRect ()
+
+                if pinnedBox.height > 0.0 then
+                    pinnedBox.top
+                else
+                    paneBox.bottom
+
         if linkBox.top < paneBox.top then
             pane.scrollTop <-
                 pane.scrollTop
                 + int (linkBox.top - paneBox.top - markMargin)
-        elif linkBox.bottom > paneBox.bottom then
+        elif linkBox.bottom > bottom then
             pane.scrollTop <-
                 pane.scrollTop
-                + int (linkBox.bottom - paneBox.bottom + markMargin)
+                + int (linkBox.bottom - bottom + markMargin)
 
 /// Marks the outline links of a section in the pane and the drawer. A section with no outline link leaves the mark.
 let private markOutline (section: string) =
@@ -153,113 +269,165 @@ let private markOutline (section: string) =
             if link.getAttribute "href" = href then
                 link.classList.add "in-view"
                 link.setAttribute ("aria-current", "location")
-                keepInPane link
             else
                 link.classList.remove "in-view"
                 link.removeAttribute "aria-current"
 
-/// Copies a declaration's lists into the right pane's slots. The drawer's slots stay empty: below 900 px the lists stay inline.
-let private showLists (section: string) =
+/// Moves `.current-decl` to the named section. An empty name leaves no section marked.
+let private markSection (section: string) =
+    match document.querySelector ".current-decl" with
+    | null -> ()
+    | previous -> previous.classList.remove "current-decl"
+
     match document.getElementById section with
     | null -> ()
-    | target when target.matches ".decl" ->
-        for slot in all ".pane-right [data-slot]" do
-            let name = slot.getAttribute "data-slot"
+    | current -> current.classList.add "current-decl"
 
-            match target.querySelector $""".ref-list[data-list="%s{name}"]""" with
+/// The name a declaration shows beside its lists.
+let private declarationName (declaration: Element) =
+    match declaration.getAttribute "data-name" with
+    | null -> declaration.id
+    | name -> name
+
+/// Copies a declaration's lists into their named slots. A declaration lacking a list empties its slot.
+let private copyLists (declaration: Element option) (slots: Element array) =
+    for slot in slots do
+        let name = slot.getAttribute "data-slot"
+
+        match declaration with
+        | Some owner ->
+            match owner.querySelector $""".ref-list[data-list="%s{name}"]""" with
             | null -> replaceChildren slot [||]
             | list -> replaceChildren slot [| list.cloneNode true |]
+        | None -> replaceChildren slot [||]
+
+/// Writes the head of a list region: the declaration's name, and a quiet line for a declaration with no lists or none at all.
+let private writeListsHead (region: Element) (declaration: Element option) =
+    match region.querySelector ".lists-name", region.querySelector ".lists-empty" with
+    | null, _
+    | _, null -> ()
+    | name, empty ->
+        match declaration with
+        | Some owner ->
+            name.textContent <- declarationName owner
+
+            empty.textContent <-
+                if isNull (owner.querySelector ".ref-list") then
+                    "No uses or used-by entries."
+                else
+                    ""
+        | None ->
+            name.textContent <- ""
+            empty.textContent <- "No definition in view."
+
+/// The declaration whose lists a heading in view leaves showing: the one before it, while any of it is on screen.
+let private declarationBefore (heading: Element) =
+    let rec before (element: Element) =
+        match element.previousElementSibling with
+        | null -> None
+        | previous when previous.matches ".decl" -> Some previous
+        | previous -> before previous
+
+    before heading
+    |> Option.filter (fun declaration -> declaration.getBoundingClientRect().bottom > 0.0)
+
+/// Copies a declaration's lists into the right pane's pinned region. The drawer's slots stay empty: below 900 px the lists stay inline.
+let private showLists (section: string) =
+    match document.querySelector ".pane-right .pinned" with
+    | null -> ()
+    | pinned ->
+        let owner =
+            match document.getElementById section with
+            | null -> None
+            | target when target.matches ".decl" -> Some target
+            | target -> declarationBefore target
+
+        writeListsHead pinned owner
+        copyLists owner (all ".pane-right [data-slot]")
 
         match document.querySelector cardHost with
         | null -> ()
         | host -> dispatch host listsReplaced
-    | _ -> ()
+
+/// Opens every fold holding the location's hash target. A declaration's own definition fold opens with it.
+let private revealTarget () =
+    let rec openFolds (element: Element) =
+        match element.closest "details" with
+        | null -> ()
+        | fold ->
+            setOpen fold true
+
+            match fold.parentElement with
+            | null -> ()
+            | parent -> openFolds parent
+
+    match hashTarget () with
+    | None -> ()
+    | Some target ->
+        openFolds target
+
+        if target.matches ".decl" then
+            match target.querySelector ".panel > details.body" with
+            | null -> ()
+            | fold -> setOpen fold true
 #endif
-
-/// The state of the look and mode switch.
-type SwitchInstance =
-    {
-        Look: Signal<string>
-        Mode: Signal<string>
-    }
-
-let private createSwitch (_: Setup) () =
-#if FABLE_COMPILER
-    let look = Api.createSignal (rootAttribute "data-look" defaultLook)
-    let mode = Api.createSignal (rootAttribute "data-mode" defaultMode)
-    Api.createEffect (fun () -> document.documentElement.setAttribute ("data-look", look.Value))
-    Api.createEffect (fun () -> document.documentElement.setAttribute ("data-mode", mode.Value))
-#else
-    let look = Api.createSignal defaultLook
-    let mode = Api.createSignal defaultMode
-#endif
-    { Look = look; Mode = mode }
-
-let private choice (select: SwitchInstance -> Signal<string>) (key: string) (value: string) (label: string) =
-    button (
-        Attrs.attribute ("type", "button"),
-        Attrs.aria ("pressed", (fun (instance: SwitchInstance) -> Some (if (select instance).Value = value then "true" else "false"))),
-        Events.onClick (fun (instance: SwitchInstance) _ ->
-#if FABLE_COMPILER
-            save key value
-#endif
-            (select instance).Value <- value)
-    ) {
-        label
-    }
-
-/// The switch between the two looks and the three modes. Its choice applies to the root element and persists in `localStorage`.
-let lookSwitch: Component<unit> =
-    Component.template
-        createSwitch
-        (div (Attrs.className "switch") {
-            span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Look")) {
-                choice _.Look lookKey "family" "Family"
-                choice _.Look lookKey "journal" "Journal"
-            }
-
-            span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Mode")) {
-                choice _.Mode modeKey "system" "Auto"
-                choice _.Mode modeKey "light" "Light"
-                choice _.Mode modeKey "dark" "Dark"
-            }
-        })
 
 let private createMarker (_: Setup) () =
 #if FABLE_COMPILER
     let section = Api.createSignal ""
 
-    let sections =
-        Array.append
-            (all ".decl[id]")
-            (all """.pane-right .pane-item[href^="#"]"""
-             |> Array.choose (fun link ->
-                 document.getElementById ((link.getAttribute "href").Substring 1)
-                 |> Option.ofObj))
+    let outlined =
+        all """.pane-right .pane-item[href^="#"]"""
+        |> Array.map (fun link -> (link.getAttribute "href").Substring 1)
+        |> Set.ofArray
+
+    let isSection (element: Element) =
+        element.matches ".decl"
+        || outlined.Contains element.id
+
+    let sections = all "article.page [id]" |> Array.filter isSection
 
     let update () =
-        match sectionInView sections with
-        | Some current -> section.Value <- current.id
-        | None -> ()
+        section.Value <-
+            match sectionInView isSection sections with
+            | Some current -> current.id
+            | None -> ""
 
-    // A jump between two gaps can leave the area above the line unchanged. It moves sections across the viewport's edges.
-    for margin in [ aboveLineMargin; "0px" ] do
-        let observer = sectionObserver update margin
+    let onHash () =
+        revealTarget ()
+        update ()
 
-        for target in sections do
-            observer.observe target
+    for name, handler in [ "scroll", update; "resize", update; "hashchange", onHash ] do
+        Api.onCleanup (listenPassive (windowObject ()) name handler)
 
+    // A fold changing the page's height moves the line with no scroll event.
+    match document.querySelector "article.page" with
+    | null -> ()
+    | article ->
+        let observer = sizeObserver update
+        observer.observe article
         Api.onCleanup observer.disconnect
 
     Api.createEffect (fun () ->
-        if section.Value <> "" then
-            let current = section.Value
-            markOutline current
-            Api.untrack (fun () -> showLists current))
+        let current = section.Value
+
+        Api.untrack (fun () ->
+            markSection current
+
+            if current <> "" then
+                markOutline current
+
+            showLists current
+
+            // New lists can change the pinned region's height, so the mark's place follows them.
+            for mark in all ".pane-right .pane-item.in-view" do
+                keepInPane mark))
+
+    onHash ()
 #endif
     ()
 
-/// Marks the section in view in the outline, and shows the current declaration's lists in the right pane.
+/// Marks the section in view on the page and in the outline, and shows the current declaration's lists in the right pane.
 let sectionMarker: Component<unit> =
     Component.define createMarker (fun t -> t.fragment [||])
 
@@ -275,6 +443,10 @@ let private hoverDelay = 120
 [<Literal>]
 let private cardMargin = 6.0
 
+/// The id of the dialog a reference chip opens.
+[<Literal>]
+let private chipDialogId = "rocq-chip-dialog"
+
 /// What the card layer shows. `FromFile` is false for a card built from the reference alone, while the data file is
 /// loading or after it fails.
 type CardFace =
@@ -288,6 +460,8 @@ type CardLayerInstance =
         Hold: unit -> unit
         /// Closes the card after the delay, given the `pointerleave` event.
         Release: obj -> unit
+        /// True while a chip's dialog is open.
+        ChipOpen: unit -> bool
     }
 
 let private sameFace =
@@ -331,6 +505,24 @@ let private scrollY () : float = jsNative
 [<Emit("$0.pointerType === 'touch'")>]
 let private isTouch (event: obj) : bool = jsNative
 
+[<Emit("document.activeElement")>]
+let private activeElement () : obj = jsNative
+
+[<Emit("$0.contains($1)")>]
+let private elementContains (parent: Element) (child: obj) : bool = jsNative
+
+[<Emit("$0.focus({ preventScroll: true })")>]
+let private focus (element: Element) : unit = jsNative
+
+[<Emit("$0?.querySelector('a[href], summary')?.focus({ preventScroll: true })")>]
+let private focusFirstIn (parent: Element) : unit = jsNative
+
+[<Emit("$0.detail")>]
+let private clickDetail (event: obj) : int = jsNative
+
+[<Emit("($0.relatedTarget instanceof Node && $1?.contains($0.relatedTarget) === true)")>]
+let private focusMovesInto (event: obj) (parent: Element) : bool = jsNative
+
 /// A card holding what the reference itself carries.
 let private referenceFace (reference: Element) =
     let name = reference.textContent
@@ -353,18 +545,18 @@ let private referenceFace (reference: Element) =
         FromFile = false
     }
 
-/// Moves the card beside the reference: below it, else above it, else against the viewport's bottom, and always inside
-/// the viewport. Coordinates are in the document, so the card scrolls with the reference.
-let private placeCard (reference: Element) =
-    match document.getElementById cardId with
+/// Moves a layer beside its anchor: below it, else above it, else against the viewport's bottom, and always inside the
+/// viewport. Coordinates are in the document, so the layer scrolls with the anchor.
+let private placeLayer (id: string) (endsAtRight: bool) (anchor: Element) =
+    match document.getElementById id with
     | null -> ()
-    | card ->
-        let card = unbox<HTMLElement> card
-        let rect = reference.getBoundingClientRect ()
+    | layer ->
+        let layer = unbox<HTMLElement> layer
+        let rect = anchor.getBoundingClientRect ()
         let viewWidth = float document.documentElement.clientWidth
         let viewHeight = float document.documentElement.clientHeight
-        let width = float card.offsetWidth
-        let height = float card.offsetHeight
+        let width = float layer.offsetWidth
+        let height = float layer.offsetHeight
 
         let within (limit: float) (size: float) (value: float) =
             max cardMargin (min (limit - size - cardMargin) value)
@@ -377,8 +569,35 @@ let private placeCard (reference: Element) =
             elif above >= cardMargin then above
             else within viewHeight height below
 
-        card.style.setProperty ("left", $"%f{within viewWidth width rect.left + scrollX ()}px")
-        card.style.setProperty ("top", $"%f{top + scrollY ()}px")
+        let left = if endsAtRight then rect.right - width else rect.left
+        layer.style.setProperty ("left", $"%f{within viewWidth width left + scrollX ()}px")
+        layer.style.setProperty ("top", $"%f{top + scrollY ()}px")
+
+/// Moves the card beside the reference, starting from the reference's left edge.
+let private placeCard (reference: Element) =
+    placeLayer cardId false reference
+
+/// Moves a chip's dialog beside the chip, ending at the chip's right edge. The definition's caret lies further right.
+let private placeChipDialog (chip: Element) =
+    placeLayer chipDialogId true chip
+
+/// Shows a value after the hover delay, whenever the wanted value differs from the shown one.
+let private followAfterDelay (wanted: Signal<Element option>) (shown: Signal<Element option>) =
+    Api.createEffect (fun () ->
+        let next = wanted.Value
+
+        if next <> shown.Value then
+            let timer = setTimeout (fun () -> shown.Value <- next) hoverDelay
+            Api.onCleanup (fun () -> clearTimeout timer))
+
+/// Fills a chip's dialog with the name and lists of the chip's declaration.
+let private fillChipDialog (chip: Element) =
+    match document.getElementById chipDialogId with
+    | null -> ()
+    | dialog ->
+        let declaration = chip.closest ".decl" |> Option.ofObj
+        writeListsHead dialog declaration
+        copyLists declaration (all $"#{chipDialogId} [data-slot]")
 #endif
 
 let private createCards (_: Setup) () =
@@ -386,6 +605,8 @@ let private createCards (_: Setup) () =
     let file = Api.createSignal NotRequested
     let wanted = Api.createSignal (None: Element option)
     let shown = Api.createSignal (None: Element option)
+    let chipWanted = Api.createSignal (None: Element option)
+    let chipShown = Api.createSignal (None: Element option)
 
     let load () =
         match file.Value, document.body.getAttribute "data-symbols" with
@@ -431,12 +652,8 @@ let private createCards (_: Setup) () =
                     | None -> referenceFace reference
                 | _ -> referenceFace reference))
 
-    Api.createEffect (fun () ->
-        let next = wanted.Value
-
-        if next <> shown.Value then
-            let timer = setTimeout (fun () -> shown.Value <- next) hoverDelay
-            Api.onCleanup (fun () -> clearTimeout timer))
+    followAfterDelay wanted shown
+    followAfterDelay chipWanted chipShown
 
     Api.createEffect (fun () ->
         face.Value |> ignore
@@ -449,17 +666,64 @@ let private createCards (_: Setup) () =
         match shown.Value with
         | None -> ()
         | Some reference ->
-            let onKey: EventListener =
-                unbox (fun (event: KeyboardEvent) ->
-                    if event.key = "Escape" then
-                        close ())
-
             reference.setAttribute ("aria-describedby", cardId)
-            document.addEventListener ("keydown", onKey)
+            Api.onCleanup (fun () -> reference.removeAttribute "aria-describedby"))
+
+    let chipDialog () =
+        document.getElementById chipDialogId
+
+    let focusInChipDialog () =
+        match chipDialog () with
+        | null -> false
+        | dialog -> elementContains dialog (activeElement ())
+
+    // Focus moves back first: the chip's own `focusin` would otherwise reopen the dialog.
+    let closeChip () =
+        match chipShown.Value with
+        | Some chip when focusInChipDialog () -> focus chip
+        | _ -> ()
+
+        chipShown.Value <- None
+        chipWanted.Value <- None
+
+    let openChip (chip: Element) =
+        chipShown.Value <- Some chip
+        chipWanted.Value <- Some chip
+
+    Api.createEffect (fun () ->
+        match chipShown.Value with
+        | None -> ()
+        | Some chip ->
+            Api.untrack (fun () -> fillChipDialog chip)
+            chip.setAttribute ("aria-expanded", "true")
+            afterFlush (fun () -> placeChipDialog chip)
+            let stopListening = listenPassive (windowObject ()) "resize" closeChip
 
             Api.onCleanup (fun () ->
-                reference.removeAttribute "aria-describedby"
-                document.removeEventListener ("keydown", onKey)))
+                stopListening ()
+                chip.removeAttribute "aria-expanded"))
+
+    // One Esc closes the top layer: a card over a chip's dialog closes first.
+    Api.createEffect (fun () ->
+        if shown.Value.IsSome || chipShown.Value.IsSome then
+            let onKey: EventListener =
+                unbox (fun (event: KeyboardEvent) ->
+                    match event.key with
+                    | "Escape" when shown.Value.IsSome -> close ()
+                    | "Escape" -> closeChip ()
+                    | "Tab" when focusInChipDialog () ->
+                        // A Tab past the dialog's last link returns to the chip, so the reader keeps their place in the article.
+                        setTimeout
+                            (fun () ->
+                                if not (focusInChipDialog ()) then
+                                    chipShown.Value |> Option.iter focus
+                                    closeChip ())
+                            0
+                        |> ignore
+                    | _ -> ())
+
+            document.addEventListener ("keydown", onKey)
+            Api.onCleanup (fun () -> document.removeEventListener ("keydown", onKey)))
 
     // A link inside the card's doc is the card's own content, not a reference to open.
     let referenceOf (event: Event) =
@@ -501,10 +765,66 @@ let private createCards (_: Setup) () =
             close ()
         | _ -> ()
 
+    let chipOf (event: Event) =
+        (unbox<Element> event.target).closest ".refs-chip"
+        |> Option.ofObj
+
+    // The dialog and any card over it hold the dialog open.
+    let inChipLayer (event: Event) =
+        let target = unbox<Element> event.target
+
+        not (isNull (target.closest ".chip-dialog"))
+        || not (isNull (target.closest ".card"))
+
+    let onChipEvent (event: Event) =
+        match event.``type``, chipOf event with
+        | "pointerover", Some chip when not (isTouch event) -> chipWanted.Value <- Some chip
+        | "pointerover", None when
+            chipShown.Value.IsSome
+            && inChipLayer event
+            && not (isTouch event)
+            ->
+            chipWanted.Value <- chipShown.Value
+        | "pointerout", chip when
+            not (isTouch event)
+            && (chip.IsSome || inChipLayer event)
+            && not (focusInChipDialog ())
+            ->
+            chipWanted.Value <- None
+        | "focusin", Some chip when (unbox<Element> event.target).matches ":focus-visible" -> openChip chip
+        | "focusout", Some _ when not (focusMovesInto event (chipDialog ())) -> chipWanted.Value <- None
+        | "click", Some chip ->
+            if isTouch event && chipShown.Value = Some chip then
+                closeChip ()
+            else
+                openChip chip
+
+                // A keyboard's click has no pointer position, and the dialog's links come next.
+                if clickDetail event = 0 then
+                    setTimeout (fun () -> chipDialog () |> focusFirstIn) 0
+                    |> ignore
+        | "click", None when chipShown.Value.IsSome ->
+            let target = unbox<Element> event.target
+
+            if
+                isNull (target.closest ".chip-dialog")
+                && isNull (target.closest ".card")
+            then
+                closeChip ()
+            elif
+                not event.defaultPrevented
+                && not (isNull (target.closest ".chip-dialog a[href]"))
+            then
+                closeChip ()
+        | _ -> ()
+
     match document.querySelector cardHost with
     | null -> ()
     | host ->
-        let listener: EventListener = unbox onEvent
+        let listener: EventListener =
+            unbox (fun (event: Event) ->
+                onEvent event
+                onChipEvent event)
 
         let events =
             [ "pointerover"; "pointerout"; "focusin"; "focusout"; "click"; listsReplaced ]
@@ -523,12 +843,14 @@ let private createCards (_: Setup) () =
             fun event ->
                 if not (isTouch event) then
                     wanted.Value <- None
+        ChipOpen = fun () -> chipShown.Value.IsSome
     }
 #else
     {
         Face = Api.createMemoWithComparer sameFace (fun _ -> None)
         Hold = ignore
         Release = ignore
+        ChipOpen = fun () -> false
     }
 #endif
 
@@ -588,61 +910,81 @@ let private metaOf (face: CardFace) =
         else
             place
 
-/// The hover card: one element in the server's HTML, hidden until a reference in the article opens it. Name and signature
-/// are text. The doc is HTML the build rendered with raw HTML disabled.
+/// The hover card, and the dialog a reference chip opens: each one element in the server's HTML, hidden until opened. A card's
+/// name and signature are text, and its doc is HTML the build rendered with raw HTML disabled.
 let cardLayer: Component<unit> =
     Component.define createCards (fun t ->
-        div (
-            Attrs.className "card",
-            Attrs.attribute ("id", cardId),
-            Attrs.attribute ("role", "tooltip"),
-            shownWhen (fun _ -> true),
-            Events.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
-            Events.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
-        ) {
-            p (Attrs.className "card-head") {
-                a (
-                    Attrs.className "card-name",
-                    Attrs.attribute ("href", (fun (instance: CardLayerInstance) -> instance.Face.Value |> Option.bind _.Card.Href))
+        fragment
+            [|
+                div (
+                    Attrs.className "card",
+                    Attrs.attribute ("id", cardId),
+                    Attrs.attribute ("role", "tooltip"),
+                    shownWhen (fun _ -> true),
+                    Events.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
+                    Events.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
                 ) {
-                    cardText nameOf
+                    p (Attrs.className "card-head") {
+                        a (
+                            Attrs.className "card-name",
+                            Attrs.attribute ("href", (fun (instance: CardLayerInstance) -> instance.Face.Value |> Option.bind _.Card.Href))
+                        ) {
+                            cardText nameOf
+                        }
+
+                        span (
+                            Attrs.attribute ("class", (fun (instance: CardLayerInstance) -> Some (cardText badgeClass instance))),
+                            shownWhen _.Card.Badge.IsSome
+                        ) {
+                            cardText badgeText
+                        }
+                    }
+
+                    pre (Attrs.className "card-signature", shownWhen (fun face -> signatureOf face <> "")) { cardText signatureOf }
+
+                    div (
+                        Attrs.className "card-doc",
+                        shownWhen _.Card.DocHtml.IsSome,
+                        t.Unsafe.html (fun (instance: CardLayerInstance) ->
+                            instance.Face.Value
+                            |> Option.bind _.Card.DocHtml
+                            |> Option.defaultValue ""
+                            |> UnsafeHtml.Trust)
+                    ) {
+                        ()
+                    }
+
+                    p (
+                        Attrs.className "card-quiet",
+                        shownWhen (fun face ->
+                            face.FromFile
+                            && face.Card.DocHtml.IsNone
+                            && not face.Card.External
+                            && not (isBinder face))
+                    ) {
+                        "No documentation"
+                    }
+
+                    p (Attrs.className "card-meta", shownWhen _.FromFile) { cardText metaOf }
                 }
 
-                span (
-                    Attrs.attribute ("class", (fun (instance: CardLayerInstance) -> Some (cardText badgeClass instance))),
-                    shownWhen _.Card.Badge.IsSome
+                div (
+                    Attrs.className "chip-dialog",
+                    Attrs.attribute ("id", chipDialogId),
+                    Attrs.attribute ("role", "dialog"),
+                    Attrs.aria ("label", "References"),
+                    Attrs.attribute ("hidden", (fun (instance: CardLayerInstance) -> if instance.ChipOpen () then None else Some ""))
                 ) {
-                    cardText badgeText
+                    div (Attrs.className "lists-head") {
+                        small () { "This definition" }
+                        span (Attrs.className "lists-name") { () }
+                    }
+
+                    p (Attrs.className "lists-empty") { () }
+                    div (Attrs.className "xref", Attrs.attribute ("data-slot", "uses")) { () }
+                    div (Attrs.className "xref", Attrs.attribute ("data-slot", "used-by")) { () }
                 }
-            }
-
-            pre (Attrs.className "card-signature", shownWhen (fun face -> signatureOf face <> "")) { cardText signatureOf }
-
-            div (
-                Attrs.className "card-doc",
-                shownWhen _.Card.DocHtml.IsSome,
-                t.Unsafe.html (fun (instance: CardLayerInstance) ->
-                    instance.Face.Value
-                    |> Option.bind _.Card.DocHtml
-                    |> Option.defaultValue ""
-                    |> UnsafeHtml.Trust)
-            ) {
-                ()
-            }
-
-            p (
-                Attrs.className "card-quiet",
-                shownWhen (fun face ->
-                    face.FromFile
-                    && face.Card.DocHtml.IsNone
-                    && not face.Card.External
-                    && not (isBinder face))
-            ) {
-                "No documentation"
-            }
-
-            p (Attrs.className "card-meta", shownWhen _.FromFile) { cardText metaOf }
-        })
+            |])
 #if FABLE_COMPILER
 [<Emit("$0.target.value")>]
 let private inputValue (event: obj) : string = jsNative
@@ -664,9 +1006,6 @@ let private typedInField (event: obj) : bool = jsNative
 
 [<Emit("($0.target === $0.currentTarget || ($0.target instanceof Element && $0.target.closest('a.hit') !== null))")>]
 let private dismissesDialog (event: obj) : bool = jsNative
-
-[<Emit("document.activeElement")>]
-let private activeElement () : obj = jsNative
 
 [<Emit("(($0 != null) && $0.isConnected && $0.focus())")>]
 let private refocus (element: obj) : unit = jsNative
@@ -970,11 +1309,466 @@ let search: Component<unit> =
                 }
             |])
 
+/// The state and handlers of the settings surface.
+type SettingsInstance =
+    {
+        Look: Signal<string>
+        Mode: Signal<string>
+        References: Signal<string>
+        ReferencesOpen: Signal<string>
+        /// Empty while the site's own fold state stands.
+        Definitions: Signal<string>
+        DefinitionsOver: Signal<int>
+        Proofs: Signal<string>
+        Imports: Signal<string>
+        /// The surface of the current opening: `popover`, `panel` or `dialog`.
+        Surface: Signal<string>
+        Attach: obj -> (unit -> unit)
+        Close: unit -> unit
+        OnClosed: unit -> unit
+        OnDialogClick: obj -> unit
+        OnOver: obj -> unit
+        Reset: unit -> unit
+    }
+
+[<Literal>]
+let private surfacePopover = "popover"
+
+[<Literal>]
+let private surfacePanel = "panel"
+
+[<Literal>]
+let private surfaceDialog = "dialog"
+
+#if FABLE_COMPILER
+[<Emit("localStorage.getItem($0)")>]
+let private getStored (key: string) : string = jsNative
+
+[<Emit("localStorage.removeItem($0)")>]
+let private removeStored (key: string) : unit = jsNative
+
+[<Emit("matchMedia($0).matches")>]
+let private mediaMatches (query: string) : bool = jsNative
+
+[<Emit("$0.show()")>]
+let private showDialog (dialog: obj) : unit = jsNative
+
+[<Emit("$0.target === $0.currentTarget")>]
+let private targetIsCurrent (event: obj) : bool = jsNative
+
+[<Emit("$0.value = $1")>]
+let private setInputValue (input: Element) (value: string) : unit = jsNative
+
+[<Emit("$0.value")>]
+let private inputText (input: Element) : string = jsNative
+
+[<Emit("(/^[1-9][0-9]{0,5}$/.test($0))")>]
+let private isLineCount (text: string) : bool = jsNative
+
+[<Emit("parseInt($0, 10)")>]
+let private parseCount (text: string) : int = jsNative
+
+let private stored (key: string) =
+    try
+        getStored key |> Option.ofObj
+    with _ ->
+        None
+
+let private forget (key: string) =
+    try
+        removeStored key
+    with _ ->
+        ()
+
+/// A saved value when it is one of the known values, else the fallback.
+let private storedChoice (key: string) (known: string list) (fallback: string) =
+    match stored key with
+    | Some value when List.contains value known -> value
+    | _ -> fallback
+
+let private storedOver () =
+    match stored definitionsOverKey with
+    | Some value when isLineCount value -> parseCount value
+    | _ -> defaultDefinitionsOver
+
+let private setFolds (selector: string) (value: string) =
+    for fold in all selector do
+        setOpen fold (value = foldOpen)
+
+/// The line count of a definition's fold.
+let private foldLines (fold: Element) =
+    match fold.querySelector "summary" with
+    | null -> 0
+    | summary -> parseCount (summary.getAttribute "data-lines")
+
+/// Writes the definition folds' state. An empty state restores the server's, which closes a fold longer than the site's limit.
+let private setDefinitions (state: string) (over: int) =
+    let serverLimit =
+        match document.body.getAttribute collapseOverAttribute with
+        | null -> None
+        | limit -> Some (parseCount limit)
+
+    for fold in all "article details.body" do
+        setOpen
+            fold
+            (match state with
+             | state when state = foldOpen -> true
+             | state when state = foldClosed -> false
+             | state when state = foldLong -> foldLines fold <= over
+             | _ ->
+                 serverLimit
+                 |> Option.forall (fun limit -> foldLines fold <= limit))
+
+let private surfaceNow () =
+    if mediaMatches "(max-width: 600px)" then surfaceDialog
+    elif mediaMatches "(pointer: coarse)" then surfacePanel
+    elif mediaMatches "(min-width: 901px)" then surfacePopover
+    else surfaceDialog
+#endif
+
+let private createSettings (_: Setup) () : SettingsInstance =
+#if FABLE_COMPILER
+    let look = Api.createSignal (rootAttribute "data-look" defaultLook)
+    let mode = Api.createSignal (rootAttribute "data-mode" defaultMode)
+    let references = Api.createSignal (rootAttribute "data-lists" placementUnder)
+    let foldStates = [ foldOpen; foldClosed ]
+
+    let referencesOpen =
+        Api.createSignal (storedChoice referencesOpenKey foldStates foldClosed)
+
+    let definitions =
+        Api.createSignal (storedChoice definitionsKey [ foldOpen; foldClosed; foldLong ] "")
+
+    let definitionsOver = Api.createSignal (storedOver ())
+    let proofs = Api.createSignal (storedChoice proofsKey foldStates foldClosed)
+    let imports = Api.createSignal (storedChoice importsKey foldStates foldClosed)
+    let surface = Api.createSignal surfacePopover
+    let isOpen = Api.createSignal false
+    let dialog = ref null
+    let opener = ref null
+
+    Api.createEffect (fun () -> document.documentElement.setAttribute ("data-look", look.Value))
+    Api.createEffect (fun () -> document.documentElement.setAttribute ("data-mode", mode.Value))
+
+    Api.createEffect (fun () ->
+        if references.Value = placementUnder then
+            document.documentElement.removeAttribute "data-lists"
+        else
+            document.documentElement.setAttribute ("data-lists", references.Value))
+
+    // The inline script after the article wrote the saved states. A first run would close a fold the reader or a jump has opened.
+    let onChange (read: unit -> 'T) (apply: 'T -> unit) =
+        let first = ref true
+
+        Api.createEffectOn read (fun value -> if first.Value then first.Value <- false else apply value)
+
+    onChange (fun () -> proofs.Value) (setFolds "article details.proof")
+    onChange (fun () -> imports.Value) (setFolds "article details.imports")
+    onChange (fun () -> referencesOpen.Value) (setFolds "article details.refs")
+    onChange (fun () -> definitions.Value, definitionsOver.Value) (fun (state, over) -> setDefinitions state over)
+
+    let numberInput () =
+        if isNull dialog.Value then
+            None
+        else
+            (unbox<Element> dialog.Value).querySelector "input"
+            |> Option.ofObj
+
+    // A typed value leaves the attribute behind, so the property carries Reset.
+    Api.createEffectOn (fun () -> definitionsOver.Value) (fun over ->
+        numberInput ()
+        |> Option.iter (fun input ->
+            if parseCount (inputText input) <> over then
+                setInputValue input (string over)))
+
+    let present () =
+        let next = surfaceNow ()
+        surface.Value <- next
+
+        if next = surfacePopover then
+            showDialog dialog.Value
+        else
+            showModal dialog.Value
+
+    Api.createEffectOn (fun () -> isOpen.Value) (fun wanted ->
+        if not (isNull dialog.Value) then
+            if wanted then
+                if not (dialogIsOpen dialog.Value) then
+                    present ()
+            else
+                if dialogIsOpen dialog.Value then
+                    closeDialog dialog.Value
+
+                refocus opener.Value)
+
+    // A rotation or resize can change the surface, and each surface opens differently.
+    Api.createEffect (fun () ->
+        if isOpen.Value then
+            let onResize () =
+                if
+                    surfaceNow () <> surface.Value
+                    && dialogIsOpen dialog.Value
+                then
+                    closeDialog dialog.Value
+                    present ()
+
+            let onKey: EventListener =
+                unbox (fun (event: KeyboardEvent) ->
+                    if event.key = "Escape" then
+                        isOpen.Value <- false)
+
+            let stopListening = listenPassive (windowObject ()) "resize" onResize
+            document.addEventListener ("keydown", onKey)
+
+            Api.onCleanup (fun () ->
+                stopListening ()
+                document.removeEventListener ("keydown", onKey)))
+
+    let onClick (event: Event) =
+        let target = unbox<Element> event.target
+
+        match target.closest $"[{settingsTriggerAttribute}]" with
+        | null ->
+            if
+                isOpen.Value
+                && surface.Value = surfacePopover
+                && isNull (target.closest ".settings")
+            then
+                isOpen.Value <- false
+        | trigger ->
+            if isOpen.Value then
+                isOpen.Value <- false
+            else
+                opener.Value <- box trigger
+                isOpen.Value <- true
+
+    let listener: EventListener = unbox onClick
+    document.addEventListener ("click", listener)
+    Api.onCleanup (fun () -> document.removeEventListener ("click", listener))
+
+    {
+        Look = look
+        Mode = mode
+        References = references
+        ReferencesOpen = referencesOpen
+        Definitions = definitions
+        DefinitionsOver = definitionsOver
+        Proofs = proofs
+        Imports = imports
+        Surface = surface
+        Attach =
+            fun element ->
+                dialog.Value <- element
+                fun () -> dialog.Value <- null
+        Close = fun () -> isOpen.Value <- false
+        OnClosed =
+            fun () ->
+                if
+                    isNull dialog.Value
+                    || not (dialogIsOpen dialog.Value)
+                then
+                    isOpen.Value <- false
+        OnDialogClick =
+            fun event ->
+                if targetIsCurrent event then
+                    isOpen.Value <- false
+        OnOver =
+            fun event ->
+                let text = inputValue event
+
+                if isLineCount text then
+                    save definitionsOverKey text
+                    definitionsOver.Value <- parseCount text
+        Reset =
+            fun () ->
+                for key in
+                    [
+                        lookKey
+                        modeKey
+                        referencesKey
+                        referencesOpenKey
+                        definitionsKey
+                        definitionsOverKey
+                        proofsKey
+                        importsKey
+                    ] do
+                    forget key
+
+                look.Value <- defaultLook
+                mode.Value <- defaultMode
+                references.Value <- placementPane
+                referencesOpen.Value <- foldClosed
+                definitions.Value <- ""
+                definitionsOver.Value <- defaultDefinitionsOver
+                proofs.Value <- foldClosed
+                imports.Value <- foldClosed
+                // A fold the reader opened by hand changes no signal.
+                setFolds "article details.proof" foldClosed
+                setFolds "article details.imports" foldClosed
+                setFolds "article details.refs" foldClosed
+                setDefinitions "" defaultDefinitionsOver
+    }
+#else
+    {
+        Look = Api.createSignal defaultLook
+        Mode = Api.createSignal defaultMode
+        References = Api.createSignal placementPane
+        ReferencesOpen = Api.createSignal foldClosed
+        Definitions = Api.createSignal ""
+        DefinitionsOver = Api.createSignal defaultDefinitionsOver
+        Proofs = Api.createSignal foldClosed
+        Imports = Api.createSignal foldClosed
+        Surface = Api.createSignal surfacePopover
+        Attach = fun _ -> ignore
+        Close = ignore
+        OnClosed = ignore
+        OnDialogClick = ignore
+        OnOver = ignore
+        Reset = ignore
+    }
+#endif
+
+let private choice (select: SettingsInstance -> Signal<string>) (key: string) (value: string) (label: string) =
+    button (
+        Attrs.attribute ("type", "button"),
+        Attrs.aria ("pressed", (fun (instance: SettingsInstance) -> Some (if (select instance).Value = value then "true" else "false"))),
+        Events.onClick (fun (instance: SettingsInstance) _ ->
+#if FABLE_COMPILER
+            save key value
+#endif
+            (select instance).Value <- value)
+    ) {
+        label
+    }
+
+/// The reading settings: one dialog whose surface follows the viewport at each opening, and whose controls apply live and persist in `localStorage`.
+let settings: Component<unit> =
+    Component.template
+        createSettings
+        (dialog (
+            Attrs.className "settings",
+            Attrs.aria ("label", "Reading settings"),
+            Attrs.attribute ("data-surface", (fun (instance: SettingsInstance) -> Some instance.Surface.Value)),
+            Hooks.mounted (fun (instance: SettingsInstance) element -> instance.Attach (box element)),
+            Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
+            Events.onClose (fun instance _ -> instance.OnClosed ())
+        ) {
+            div (Attrs.className "settings-body") {
+                div (Attrs.className "settings-head") {
+                    h2 () { "Reading settings" }
+
+                    button (
+                        Attrs.attribute ("type", "button"),
+                        Attrs.className "settings-close",
+                        Attrs.aria ("label", "Close settings"),
+                        Events.onClick (fun (instance: SettingsInstance) _ -> instance.Close ())
+                    ) {
+                        "✕"
+                    }
+                }
+
+                div (Attrs.className "switch") {
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Look" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Look")) {
+                            choice _.Look lookKey "family" "Family"
+                            choice _.Look lookKey "journal" "Journal"
+                        }
+                    }
+
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Mode" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Mode")) {
+                            choice _.Mode modeKey "system" "Auto"
+                            choice _.Mode modeKey "light" "Light"
+                            choice _.Mode modeKey "dark" "Dark"
+                        }
+                    }
+
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Definitions" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Definitions")) {
+                            choice _.Definitions definitionsKey foldOpen "Open"
+                            choice _.Definitions definitionsKey foldClosed "Closed"
+                            choice _.Definitions definitionsKey foldLong "Close long ones"
+                        }
+
+                        input (
+                            Attrs.attribute ("type", "number"),
+                            Attrs.attribute ("min", "1"),
+                            Attrs.className "setting-lines",
+                            Attrs.aria ("label", "Close definitions longer than this many lines"),
+                            Attrs.attribute ("value", (fun (instance: SettingsInstance) -> Some (string instance.DefinitionsOver.Value))),
+                            Attrs.attribute (
+                                "hidden",
+                                (fun (instance: SettingsInstance) ->
+                                    if instance.Definitions.Value = foldLong then
+                                        None
+                                    else
+                                        Some "")
+                            ),
+                            Events.onInput (fun instance event -> instance.OnOver (box event))
+                        )
+                    }
+
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Proofs" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Proofs")) {
+                            choice _.Proofs proofsKey foldClosed "Closed"
+                            choice _.Proofs proofsKey foldOpen "Open"
+                        }
+                    }
+
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Imports" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Imports")) {
+                            choice _.Imports importsKey foldClosed "Closed"
+                            choice _.Imports importsKey foldOpen "Open"
+                        }
+                    }
+
+                    div (Attrs.className "setting setting-references") {
+                        p (Attrs.className "setting-label") { "References" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "References")) {
+                            choice _.References referencesKey placementPane "Pinned"
+                            choice _.References referencesKey placementBadges "Badges"
+                            choice _.References referencesKey placementUnder "Under definitions"
+                        }
+                    }
+
+                    div (Attrs.className "setting setting-references-open") {
+                        p (Attrs.className "setting-label") { "References open" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "References open")) {
+                            choice _.ReferencesOpen referencesOpenKey foldClosed "Closed"
+                            choice _.ReferencesOpen referencesOpenKey foldOpen "Open"
+                        }
+                    }
+                }
+
+                button (
+                    Attrs.attribute ("type", "button"),
+                    Attrs.className "settings-reset",
+                    Events.onClick (fun (instance: SettingsInstance) _ -> instance.Reset ())
+                ) {
+                    "Reset to the site's defaults"
+                }
+
+                p (Attrs.className "settings-note") { "Saved in this browser." }
+            }
+        })
+
 /// The islands on a page and their components, in document order.
 let islands =
     [
         "search", search
-        "switch", lookSwitch
+        "settings", settings
         "section", sectionMarker
         "cards", cardLayer
     ]

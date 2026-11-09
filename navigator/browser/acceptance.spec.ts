@@ -143,7 +143,8 @@ for (const [look, lookLabel] of LOOKS) {
       test("the switch persists across every kind of page", async ({ page }) => {
         await page.goto(url(OTHER));
         await clientReady(page);
-        const island = page.locator('[data-island="switch"]');
+        const island = page.locator('[data-island="settings"]');
+        await page.locator(".pane-left [data-settings-open]").click();
         await island.getByRole("button", { name: lookLabel, exact: true }).click();
         await island.getByRole("button", { name: modeLabel, exact: true }).click();
 
@@ -153,7 +154,8 @@ for (const [look, lookLabel] of LOOKS) {
           const root = await page.evaluate(() => ({ ...document.documentElement.dataset }));
           expect(root.look).toBe(look);
           expect(root.mode).toBe(mode);
-          await expect(page.locator('[data-island="switch"]').getByRole("button", { name: lookLabel, exact: true }))
+          await page.locator(".pane-left [data-settings-open]").click();
+          await expect(page.locator('[data-island="settings"]').getByRole("button", { name: lookLabel, exact: true }))
             .toHaveAttribute("aria-pressed", "true");
         }
       });
@@ -307,7 +309,7 @@ test("a link to a primed or repeated name lands on its declaration", async ({ pa
       const top = await page.evaluate(() => document.querySelector(":target")!.getBoundingClientRect().top);
       expect(top, anchor).toBeGreaterThanOrEqual(0);
       expect(top, anchor).toBeLessThan(page.viewportSize()!.height);
-      await expect(page.locator(`section.decl[id="${anchor}"] pre.statement`)).toContainText(anchor.split("~")[0]);
+      await expect(page.locator(`section.decl[id="${anchor}"] pre.statement`).first()).toContainText(anchor.split("~")[0]);
       checked += 1;
     }
   }

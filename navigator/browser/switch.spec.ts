@@ -10,7 +10,13 @@ const rootAttribute = (page: Page, name: string) =>
 const pageBackground = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 const choice = (page: Page, label: string) =>
-  page.locator('[data-island="switch"]').getByRole("button", { name: label, exact: true });
+  page.locator('[data-island="settings"]').getByRole("button", { name: label, exact: true });
+
+/** Opens the settings, where the switch lives. */
+const openSettings = async (page: Page) => {
+  await page.locator(".pane-left [data-settings-open]").click();
+  await expect(page.locator("dialog.settings")).toBeVisible();
+};
 
 const throwingStorage = () =>
   Object.defineProperty(window, "localStorage", {
@@ -22,6 +28,7 @@ const throwingStorage = () =>
 test("nothing stored lands on Family, following the system mode", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await clientReady(page);
+  await openSettings(page);
 
   expect(await rootAttribute(page, "data-look")).toBe("family");
   await expect(choice(page, "Family")).toHaveAttribute("aria-pressed", "true");
@@ -31,8 +38,10 @@ test("nothing stored lands on Family, following the system mode", async ({ page 
 
 test("assistive technology reads each set of choices as a named group", async ({ page }) => {
   await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  await openSettings(page);
 
-  const island = page.locator('[data-island="switch"]');
+  const island = page.locator('[data-island="settings"]');
   await expect(island.getByRole("group", { name: "Look" }).getByRole("button")).toHaveCount(2);
   await expect(island.getByRole("group", { name: "Mode" }).getByRole("button")).toHaveCount(3);
 });
@@ -41,6 +50,7 @@ test("a stored value outside the known set lands on Family", async ({ page }) =>
   await page.addInitScript((key) => localStorage.setItem(key, "<img>"), LOOK_KEY);
   await page.goto(MODULE_PAGE);
   await clientReady(page);
+  await openSettings(page);
 
   expect(await rootAttribute(page, "data-look")).toBe("family");
   await expect(choice(page, "Family")).toHaveAttribute("aria-pressed", "true");
@@ -49,6 +59,7 @@ test("a stored value outside the known set lands on Family", async ({ page }) =>
 test("the switch persists across pages in both looks and modes", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await clientReady(page);
+  await openSettings(page);
 
   const backgrounds = new Set<string>();
 
@@ -75,6 +86,7 @@ test("the switch persists across pages in both looks and modes", async ({ page }
         expect(await rootAttribute(page, "data-look")).toBe(look);
         expect(await rootAttribute(page, "data-mode")).toBe(mode);
         expect(await pageBackground(page)).toBe(background);
+        await openSettings(page);
         await expect(choice(page, lookLabel)).toHaveAttribute("aria-pressed", "true");
         await expect(choice(page, modeLabel)).toHaveAttribute("aria-pressed", "true");
       }
@@ -90,6 +102,7 @@ test("Auto follows the system after an override", async ({ page }) => {
   await clientReady(page);
   const dark = await pageBackground(page);
 
+  await openSettings(page);
   await choice(page, "Light").click();
   expect(await pageBackground(page)).not.toBe(dark);
 
@@ -146,6 +159,7 @@ test("with localStorage throwing, the page lands on Family", async ({ page }) =>
   await page.addInitScript(throwingStorage);
   await page.goto(MODULE_PAGE);
   await clientReady(page);
+  await openSettings(page);
 
   expect(await rootAttribute(page, "data-look")).toBe("family");
   await expect(choice(page, "Family")).toHaveAttribute("aria-pressed", "true");
@@ -155,6 +169,7 @@ test("with localStorage throwing, the switch still changes this page and no erro
   await page.addInitScript(throwingStorage);
   await page.goto(MODULE_PAGE);
   await clientReady(page);
+  await openSettings(page);
 
   await choice(page, "Journal").click();
   await choice(page, "Dark").click();
@@ -176,6 +191,7 @@ test("no hydration mismatch is reported and the console has no errors", async ({
   for (const next of [MODULE_PAGE, OTHER_PAGE, GUARANTEES_PAGE]) {
     await page.goto(next);
     await clientReady(page);
+    await openSettings(page);
     await expect(choice(page, "Journal")).toHaveAttribute("aria-pressed", "true");
   }
 });
@@ -379,7 +395,7 @@ test.describe("with JavaScript off", () => {
 
   test("the controls that need a client stay hidden", async ({ page }) => {
     await page.goto(MODULE_PAGE);
-    await expect(page.locator(".switch")).toBeHidden();
+    await expect(page.locator(".pane-left [data-settings-open]")).toBeHidden();
     await expect(page.locator(".search-trigger")).toBeHidden();
   });
 
@@ -433,24 +449,25 @@ test("the inline lists are hidden on wide screens until a client that never star
   expect(await rootAttribute(page, "data-lists")).toBeNull();
 });
 
-test("the switch and the search trigger appear with a client and meet the target size", async ({ page }) => {
+test("the settings and search triggers appear with a client, and the switch meets the target size", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await clientReady(page);
 
-  await expect(page.locator(".switch")).toBeVisible();
+  await expect(page.locator(".pane-left [data-settings-open]")).toBeVisible();
   await expect(page.locator(".search-trigger")).toBeVisible();
+  await openSettings(page);
   const height = await page.locator(".switch button").first().evaluate((button) => button.getBoundingClientRect().height);
   expect(height).toBeGreaterThanOrEqual(24);
 });
 
-test("a failed client hides the switch and the search trigger, and they keep their space", async ({ page }) => {
+test("a failed client hides the settings and search triggers, and they keep their space", async ({ page }) => {
   await page.route("**/navigator.js", (route) => route.fulfill({ contentType: "text/javascript", body: "" }));
   await page.goto(MODULE_PAGE);
   await page.waitForLoadState("load");
 
-  await expect(page.locator(".switch")).toBeHidden();
+  await expect(page.locator(".pane-left [data-settings-open]")).toBeHidden();
   await expect(page.locator(".search-trigger")).toBeHidden();
-  expect((await page.locator(".switch").boundingBox())!.width).toBeGreaterThan(0);
+  expect((await page.locator(".pane-left [data-settings-open]").boundingBox())!.width).toBeGreaterThan(0);
 });
 
 test("at 375 px a deep hanging indent stays on the page and leaves the code text alone", async ({ page }) => {

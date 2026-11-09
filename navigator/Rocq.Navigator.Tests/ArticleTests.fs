@@ -356,7 +356,7 @@ let tests =
                     let source = Encoding.UTF8.GetBytes "Import A.\nDefinition x := 1.\n  Import B.\n"
                     File.WriteAllText (Path.Combine (root, "_CoqProject"), "-Q . T\nM.v\n")
                     File.WriteAllBytes (Path.Combine (root, "M.v"), source)
-                    let digest = (Convert.ToHexString (MD5.HashData source)).ToLowerInvariant ()
+                    let digest = (Convert.ToHexString (MD5.HashData source)).ToLowerInvariant()
                     File.WriteAllText (Path.Combine (root, "M.glob"), $"DIGEST {digest}\nFT.M\n")
 
                     match load (Path.Combine (root, "_CoqProject")) with

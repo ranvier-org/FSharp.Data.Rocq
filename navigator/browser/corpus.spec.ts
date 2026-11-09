@@ -2,9 +2,6 @@ import { readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { BASE, clientReady, expect, test } from "./support";
 
-/** The marker line's distance from the top of the viewport, as a share of the viewport's height. */
-const LINE_SHARE = 0.05;
-
 const site = resolve(process.env.NAVIGATOR_SITE ?? "../Rocq.Navigator.Site/output");
 
 /** The module pages, largest first. */
@@ -26,7 +23,7 @@ for (const file of modulePages.slice(0, 3)) {
         await clientReady(page);
 
         const result = await page.evaluate(
-          async ({ share, foldsOpen }) => {
+          async ({ foldsOpen }) => {
             if (foldsOpen) {
               for (const details of document.querySelectorAll("article details")) (details as HTMLDetailsElement).open = true;
             }
@@ -47,7 +44,8 @@ for (const file of modulePages.slice(0, 3)) {
               ]),
             ].filter((section): section is Element => section !== null);
 
-            const line = share * document.documentElement.clientHeight;
+            const view = document.documentElement.clientHeight;
+            const scrollEnd = () => document.documentElement.scrollHeight - view;
             const links = new Set([...document.querySelectorAll('.pane-right .pane-item[href^="#"]')].map((link) => link.getAttribute("href")));
             const tallest = Math.max(...sections.map((section) => section.getBoundingClientRect().height));
 
@@ -58,6 +56,7 @@ for (const file of modulePages.slice(0, 3)) {
               window.scrollTo(0, position);
               await frames();
 
+              const line = view * (document.documentElement.scrollTop / scrollEnd());
               const tops = sections.map((section) => section.getBoundingClientRect().top);
               if (tops.some((value) => Math.abs(value - line) < 1)) return;
 
@@ -84,6 +83,14 @@ for (const file of modulePages.slice(0, 3)) {
                   if (inline !== shown) problems.push(`y=${Math.round(scrollY)}: ${name} of ${href} differs`);
                 }
               }
+
+              // The mark and the lists sit inside the pane's visible rectangle.
+              const pane = document.querySelector(".pane-right")!.getBoundingClientRect();
+              const pinned = document.querySelector(".pane-right .pinned")!.getBoundingClientRect();
+              const mark = document.querySelector(".pane-right .in-view")?.getBoundingClientRect();
+
+              if (pinned.top < pane.top || pinned.bottom > pane.bottom + 1 || pinned.height === 0) problems.push(`y=${Math.round(scrollY)}: the lists are out of the pane`);
+              if (mark && (mark.top < pane.top || mark.bottom > pinned.top + 1)) problems.push(`y=${Math.round(scrollY)}: the mark is out of the pane`);
             };
 
             // A stride through the page, then each section's own top region and its middle.
@@ -92,12 +99,12 @@ for (const file of modulePages.slice(0, 3)) {
 
             for (const section of sections.filter((_, index) => index % 5 === 0)) {
               const box = section.getBoundingClientRect();
-              await check(box.top + scrollY + box.height / 2 - line);
+              await check((box.top + scrollY + box.height / 2) * (scrollEnd() / (scrollEnd() + view)));
             }
 
             return { problems, positions, sections: sections.length, tallest: Math.round(tallest) };
           },
-          { share: LINE_SHARE, foldsOpen },
+          { foldsOpen },
         );
 
         console.log(`${file} ${height} ${state}: ${result.sections} sections, ${result.positions} positions, tallest ${result.tallest} px`);

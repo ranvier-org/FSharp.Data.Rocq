@@ -22,6 +22,8 @@ type RocqPage =
         /// <c>None</c> for the Guarantees page.
         Module: string option
         Description: string option
+        /// The site's <c>collapseCodeOver</c>, from which the client restores the server's fold state.
+        CollapseOver: int option
     }
 
 /// <summary>Options of the Rocq plugin.</summary>
@@ -164,20 +166,45 @@ module internal RocqReader =
                 "})()"
             ]
 
-    /// <summary>The inline head script of a page with a client: the lists' place on the root until a client fails to start, and the Journal look's font request.</summary>
+    /// <summary>The inline head script of a page with a client: the lists' saved place on the root until a client fails to start, and the Journal look's font request.</summary>
+    /// <remarks>Blocked storage or an unknown value leaves the lists pinned. Under definitions, <c>data-lists</c> is absent.</remarks>
     /// <param name="serifUrl">The site URL of the serif font.</param>
     let clientPreloadScript (serifUrl: string) : string =
         String.concat
             ""
             [
-                "(function(){var r=document.documentElement;"
-                """r.setAttribute("data-lists","pane");"""
+                "(function(){var r=document.documentElement,p=null;"
+                $"""try{{p=localStorage.getItem("{Islands.referencesKey}")}}catch(e){{}}"""
+                $"""if(p!=="{Islands.placementUnder}")r.setAttribute("data-lists",p==="{Islands.placementBadges}"?p:"{Islands.placementPane}");"""
                 """addEventListener("load",function(){if(r.getAttribute("data-client")!=="ready")r.removeAttribute("data-lists")});"""
                 """if(r.getAttribute("data-look")==="journal"){var l=document.createElement("link");"""
                 """l.rel="preload";l.as="font";l.type="font/woff2";l.crossOrigin="";"""
                 $"""l.href="{serifUrl}";document.head.appendChild(l)}}}}"""
                 ")()"
             ]
+
+    /// <summary>The inline script after the article: applies each saved fold state to the article's folds before first paint.</summary>
+    /// <remarks>A key with nothing saved, or an unknown value, leaves the server's state.</remarks>
+    let foldScript: string =
+        String.concat
+            ""
+            [
+                "(function(){"
+                "function g(k){try{return localStorage.getItem(k)}catch(e){return null}}"
+                """function e(q,f){document.querySelectorAll("article "+q).forEach(function(d){d.open=f(d)})}"""
+                $"""function s(q,k){{var v=g(k);if(v==="{Islands.foldOpen}"||v==="{Islands.foldClosed}")e(q,function(){{return v==="{Islands.foldOpen}"}})}}"""
+                $"""s("details.proof","{Islands.proofsKey}");"""
+                $"""s("details.imports","{Islands.importsKey}");"""
+                $"""s("details.refs","{Islands.referencesOpenKey}");"""
+                $"""var d=g("{Islands.definitionsKey}"),o=g("{Islands.definitionsOverKey}"),n=/^[1-9][0-9]{{0,5}}$/.test(o)?parseInt(o,10):{Islands.defaultDefinitionsOver};"""
+                $"""if(d==="{Islands.foldOpen}"||d==="{Islands.foldClosed}"||d==="{Islands.foldLong}")e("details.body",function(b){{"""
+                $"""return d==="{Islands.foldLong}"?parseInt(b.querySelector("summary").getAttribute("data-lines"),10)<=n:d==="{Islands.foldOpen}"}})"""
+                "})()"
+            ]
+
+    /// <summary>The button that opens the settings. The client listens on a common ancestor, so the pane and the drawer share its markup.</summary>
+    let settingsTrigger: string =
+        $"""<button type="button" class="settings-trigger" {Islands.settingsTriggerAttribute} aria-haspopup="dialog">⚙ Settings</button>"""
 
     /// <summary>The fonts of the default look, requested before the stylesheet's rules apply.</summary>
     let fontPreloads (urlOf: string -> string) : string =
@@ -247,22 +274,28 @@ module internal RocqReader =
             | Some name -> encode name
             | None -> "Guarantees"
 
+        let foldState =
+            match bundle.Value with
+            | Some _ -> $"<script>{foldScript}</script>"
+            | None -> ""
+
         let shellMarkup =
             String.concat
                 ""
                 [
                     """<div class="shell">"""
-                    $"""<nav class="pane pane-left" aria-label="Modules">{brand}{left}</nav>"""
+                    $"""<nav class="pane pane-left" aria-label="Modules">{brand}{left}<div class="pane-foot">{settingsTrigger}</div></nav>"""
                     """<div class="center"><header class="topbar">"""
                     $"""<p class="crumb">{crumb}</p>"""
                     hostOf "search"
-                    hostOf "switch"
                     "</header>"
+                    hostOf "settings"
                     hostOf "section"
                     hostOf "cards"
-                    $"""<details class="drawer"><summary>Modules</summary>{brand}{left}</details>"""
+                    $"""<details class="drawer"><summary>Modules</summary>{brand}{left}<div class="drawer-foot">{settingsTrigger}</div></details>"""
                     $"""<details class="drawer"><summary>On this page</summary>{right}</details>"""
                     $"""<article class="page"><h1 class="page-title">{(encode page.Title).Replace(".", ".<wbr>")}</h1>{context.Content}</article>"""
+                    foldState
                     "</div>"
                     $"""<aside class="pane pane-right" aria-label="On this page">{right}</aside>"""
                     "</div>"
@@ -276,6 +309,10 @@ module internal RocqReader =
                     [
                         "data-symbols", site.UrlOfAsset (dataPath options.Root (symbolsFile page))
                         "data-search", site.UrlOfAsset (dataPath options.Root "search.json")
+
+                        match page.CollapseOver with
+                        | Some limit -> Islands.collapseOverAttribute, string limit
+                        | None -> ()
                     ]
                 Stylesheets = stylesheets
                 Scripts =
@@ -381,7 +418,7 @@ module internal RocqReader =
 
     let private unnamedAnchor = Regex @"^d\d+$"
 
-    /// <summary>The right pane of a module page: its outline, and the empty slots of the cross-reference lists.</summary>
+    /// <summary>The right pane of a module page: its outline, and the pinned region with the empty slots of the cross-reference lists.</summary>
     let rightPane (blocks: Block[]) : string =
         let out = StringBuilder ()
 
@@ -399,7 +436,8 @@ module internal RocqReader =
             | Quiet (_, anchor, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-quiet" anchor anchor
             | _ -> ()
 
-        out.Append """<div class="xref" data-slot="uses"></div><div class="xref" data-slot="used-by"></div>"""
+        out.Append
+            """<div class="pinned" role="region" aria-label="This definition's references"><div class="lists-head"><small>This definition</small><span class="lists-name"></span></div><p class="lists-empty"></p><div class="xref" data-slot="uses"></div><div class="xref" data-slot="used-by"></div></div>"""
         |> ignore
 
         out.ToString ()

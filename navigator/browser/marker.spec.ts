@@ -1,11 +1,16 @@
 import type { Page } from "@playwright/test";
-import { clientReady, expect, GUARANTEES_PAGE, LONG_PAGE, MODULE_PAGE, test } from "./support";
+import { clientReady, expect, GUARANTEES_PAGE, LONG_PAGE, MODULE_PAGE, OTHER_PAGE, test } from "./support";
 
-/** The marker line's distance from the top of the viewport, as a share of the viewport's height. */
-const LINE_SHARE = 0.05;
+/** Where a jump lands its target, as a share of the viewport's height from its top. */
+const LANDING_SHARE = 0.05;
 
+/** A jump to a section, which holds it in view until the reader scrolls away. */
 const scrollTo = (page: Page, id: string) =>
-  page.evaluate((target) => document.getElementById(target)!.scrollIntoView({ block: "start" }), id);
+  page.evaluate((target) => {
+    location.hash = encodeURIComponent(target);
+  }, id);
+
+const currentSection = (page: Page) => page.locator(".current-decl");
 
 const outline = (page: Page, copy: string, id: string) => page.locator(`${copy} a.pane-item[href="#${id}"]`);
 
@@ -60,7 +65,7 @@ for (const height of [500, 700, 1300, 1600]) {
       }, id);
 
       expect(landed.top).toBeGreaterThan(0);
-      expect(landed.top).toBeLessThanOrEqual(LINE_SHARE * height);
+      expect(landed.top).toBeLessThanOrEqual(LANDING_SHARE * height);
       expect(landed.uses[1]).toBe(landed.uses[0]);
       expect(landed.usedBy[1]).toBe(landed.usedBy[0]);
     };
@@ -101,11 +106,13 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
     await clientReady(page);
     await page.addStyleTag({ content: `.decl { min-height: ${minHeight}px; }` });
 
-    const result = await page.evaluate(async (share) => {
+    const result = await page.evaluate(async () => {
       const frames = async () => {
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
       };
+
+      await frames();
 
       const sections = [
         ...new Set([
@@ -116,17 +123,17 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
         ]),
       ].filter((section): section is Element => section !== null);
 
-      const line = share * document.documentElement.clientHeight;
       const top = (section: Element) => section.getBoundingClientRect().top;
       const declarations = sections.filter((section) => section.matches(".decl"));
-      const scrollEnd = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const view = document.documentElement.clientHeight;
+      const scrollEnd = document.documentElement.scrollHeight - view;
       const steps = Array.from({ length: Math.ceil(scrollEnd / 37) }, (_, index) => index * 37);
 
-      // Each position puts the line inside the gap after a declaration, and the visits run from gap to gap.
+      // Each position puts the line inside the gap after a declaration. The line moves with the scroll position.
       const gaps = declarations.slice(0, -1).map((declaration, index) => {
         const bottom = declaration.getBoundingClientRect().bottom + scrollY;
         const next = declarations[index + 1].getBoundingClientRect().top + scrollY;
-        return (bottom + next) / 2 - line;
+        return ((bottom + next) / 2) * (scrollEnd / (scrollEnd + view));
       });
 
       const problems: string[] = [];
@@ -136,6 +143,7 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
         window.scrollTo(0, position);
         await frames();
 
+        const line = view * (document.documentElement.scrollTop / scrollEnd);
         const tops = sections.map(top);
 
         // A top within a pixel of the line can land on either side of it.
@@ -148,6 +156,8 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
         const expected = above.reduce((best, section) => (top(section) >= top(best) ? section : best));
         const href = `#${expected.id}`;
         const links = [...document.querySelectorAll('.pane-right .pane-item[href^="#"]')];
+
+        if (document.querySelector(".current-decl")?.id !== expected.id) problems.push(`y=${Math.round(scrollY)}: not on ${expected.id}`);
 
         if (links.some((link) => link.getAttribute("href") === href)) {
           const marked = document.querySelector(".pane-right .in-view")?.getAttribute("href");
@@ -167,13 +177,88 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
       for (const position of gaps) await check(position, true);
 
       return { problems, positions: steps.length, inGaps };
-    }, LINE_SHARE);
+    });
 
     expect(result.positions).toBeGreaterThan(50);
     expect(result.inGaps).toBeGreaterThan(5);
     expect(result.problems).toEqual([]);
   });
 }
+
+test.describe("the reading position runs from the view's top to its bottom", () => {
+  test("at the start the first section is marked, with another starting just below the top", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+    await page.addStyleTag({ content: ".page-title, .topbar, .doc, .prose { display: none; } .decl { margin: 2px 0; }" });
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    const sections = page.locator("article .decl[id], article h2[id], article h3[id]");
+    await expect(currentSection(page)).toHaveAttribute("id", (await sections.first().getAttribute("id"))!);
+    expect((await sections.nth(1).boundingBox())!.y, "another section starts in view").toBeLessThan(200);
+  });
+
+  test("halfway, the marked section holds the viewport's middle", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    await page.evaluate(() => {
+      const root = document.documentElement;
+      window.scrollTo(0, (root.scrollHeight - root.clientHeight) / 2);
+    });
+
+    await expect
+      .poll(async () => {
+        const middle = await page.evaluate(() => document.documentElement.clientHeight / 2);
+        const marked = (await currentSection(page).boundingBox())!;
+        const next = await currentSection(page).evaluate((section) => section.nextElementSibling?.getBoundingClientRect().top ?? Infinity);
+        return marked.y <= middle + 1 && next > middle - 1;
+      })
+      .toBe(true);
+  });
+
+  test("at the end the last section is marked", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    const last = await page.evaluate(() => [...document.querySelectorAll(".decl[id]")].pop()!.id);
+    await expect(currentSection(page)).toHaveAttribute("id", last);
+  });
+
+  test("a jump to a short mid-page section marks it, and it stays marked with no further scroll", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+    await scrollTo(page, "long_15");
+
+    await expect(currentSection(page)).toHaveAttribute("id", "long_15");
+    await page.waitForTimeout(200);
+    await expect(currentSection(page)).toHaveAttribute("id", "long_15");
+    await expect(outline(page, ".pane-right", "long_15")).toHaveClass(/in-view/);
+  });
+
+  test("scrolling away after a jump moves the mark", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+    await scrollTo(page, "long_15");
+    await expect(currentSection(page)).toHaveAttribute("id", "long_15");
+
+    await page.evaluate(() => window.scrollBy(0, 240));
+    await expect(currentSection(page)).not.toHaveAttribute("id", "long_15");
+  });
+
+  test("a page with no scroll marks its first section", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 3000 });
+    await page.goto(OTHER_PAGE);
+    await clientReady(page);
+    await page.addStyleTag({ content: ":root .page::after { display: none !important; } .center { padding-bottom: 0 !important; }" });
+
+    const fits = await page.evaluate(() => document.documentElement.scrollHeight === document.documentElement.clientHeight);
+    expect(fits).toBe(true);
+
+    const first = await page.locator("article .decl[id], article h1[id], article h2[id], article h3[id]").first().getAttribute("id");
+    await expect(currentSection(page)).toHaveAttribute("id", first!);
+  });
+});
 
 test("the pane scrolls the mark into view, and the page holds its position", async ({ page }) => {
   await page.goto(LONG_PAGE);
@@ -191,11 +276,35 @@ test("the pane scrolls the mark into view, and the page holds its position", asy
     const inside = await page.evaluate((target) => {
       const pane = document.querySelector(".pane-right")!.getBoundingClientRect();
       const mark = document.querySelector(`.pane-right a.pane-item[href="#${target}"]`)!.getBoundingClientRect();
-      return mark.top >= pane.top && mark.bottom <= pane.bottom;
+      const pinned = document.querySelector(".pane-right .pinned")!.getBoundingClientRect();
+      return mark.top >= pane.top && mark.bottom <= pinned.top;
     }, id);
 
-    expect(inside, `${id} sits inside the pane's visible rectangle`).toBe(true);
+    expect(inside, `${id} sits in the pane, above the pinned lists`).toBe(true);
     expect(await page.evaluate(() => window.scrollY)).toBe(position);
+  }
+});
+
+test("the mark stays above the pinned lists when new lists change their height", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  await page.addStyleTag({ content: '.pinned [data-slot="used-by"]:not(:empty) { min-height: 150px; }' });
+
+  const ids = await page.locator('.pane-right a.pane-item[href^="#"]').evaluateAll((links) => links.map((link) => link.getAttribute("href")!.slice(1)));
+  expect(ids.length).toBeGreaterThan(10);
+
+  for (const id of ids) {
+    await scrollTo(page, id);
+    await expect(outline(page, ".pane-right", id)).toHaveClass(/in-view/);
+
+    const placed = await page.evaluate(() => ({
+      pane: document.querySelector(".pane-right")!.getBoundingClientRect().top,
+      mark: document.querySelector(".pane-right .in-view")!.getBoundingClientRect().toJSON(),
+      pinned: document.querySelector(".pane-right .pinned")!.getBoundingClientRect().top,
+    }));
+
+    expect(placed.mark.top, `${id} below the pane's top`).toBeGreaterThanOrEqual(placed.pane);
+    expect(placed.mark.bottom, `${id} above the lists`).toBeLessThanOrEqual(placed.pinned + 1);
   }
 });
 

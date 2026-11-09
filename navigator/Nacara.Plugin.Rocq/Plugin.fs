@@ -148,7 +148,12 @@ module Rocq =
             | Some name -> $"module: {quoted name}\n"
             | None -> ""
 
-        $"---\ntitle: {quoted page.Title}\n{moduleLine}{description}---\n"
+        let collapseOver =
+            match page.CollapseOver with
+            | Some limit -> $"collapseOver: {limit}\n"
+            | None -> ""
+
+        $"---\ntitle: {quoted page.Title}\n{moduleLine}{description}{collapseOver}---\n"
 
     let private document (path: string) (page: RocqPage) (left: string) (right: string) (article: string) =
         GeneratedContent.create
@@ -184,6 +189,7 @@ module Rocq =
                     Title = "Guarantees"
                     Module = None
                     Description = Some "What the proofs promise, grouped by module."
+                    CollapseOver = None
                 }
                 (RocqReader.leftPane links project indexUrl None)
                 (RocqReader.guaranteesPane guarantees)
@@ -206,6 +212,7 @@ module Rocq =
                         Title = file.Module
                         Module = Some file.Module
                         Description = None
+                        CollapseOver = config.CollapseCodeOver
                     }
                     (RocqReader.leftPane links project indexUrl (Some file.Module))
                     (RocqReader.rightPane blocks)
@@ -397,7 +404,7 @@ module Rocq =
             context.Diagnostics.Add (
                 Diagnostic.error
                     "hydration-markers-stripped"
-                    $"{stripped.Length} written pages, the first {first}, have no hydration root comments. Cards, search, the look switch and the right pane's lists require them."
+                    $"{stripped.Length} written pages, the first {first}, have no hydration root comments. Cards, search, the settings and the right pane's lists require them."
                 |> Diagnostic.withHint "Keep the comments: Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false)"
             )
 
@@ -581,6 +588,7 @@ The project and navigator.json come from the plugin's options. The project must 
                 Title = get.Required.Field "title" Decode.string
                 Module = get.Optional.Field "module" Decode.string
                 Description = get.Optional.Field "description" Decode.string
+                CollapseOver = get.Optional.Field "collapseOver" Decode.int
             })
 
     /// <summary>A collection whose pages are the project's modules and its Guarantees page.</summary>

@@ -201,6 +201,85 @@ let private panes =
                 "font-family", ui
             ]
         rule ".drawer > summary" [ "font", $"600 13px/2 {ui}"; "color", "var(--soft)"; "cursor", "pointer" ]
+        rule ".pane-left, .pane-right" [ "display", "flex"; "flex-direction", "column" ]
+        rule ".pane-left > *, .pane-right > *" [ "flex", "none" ]
+        rule
+            ".pane-foot"
+            [
+                "position", "sticky"
+                "bottom", "-2rem"
+                "margin", "auto -12px -2rem"
+                "padding", "8px 12px"
+                "background", "var(--side)"
+                "border-top", "1px solid var(--line)"
+            ]
+        rule ".drawer-foot" [ "margin", "0.5rem 0" ]
+        rule
+            ".settings-trigger"
+            [
+                "appearance", "none"
+                "display", "block"
+                "width", "100%"
+                "min-height", "24px"
+                "border", "0"
+                "border-radius", "5px"
+                "background", "transparent"
+                "color", "var(--soft)"
+                "font", $"12.5px/1.8 {ui}"
+                "text-align", "start"
+                "padding", "0 7px"
+                "cursor", "pointer"
+            ]
+        rule ".settings-trigger:hover" [ "color", "var(--ink)"; "background", "var(--selected)" ]
+        rule ".pinned" [ "display", "none" ]
+        rule
+            ".lists-head"
+            [
+                "padding", "0 0 6px 8px"
+                "border-left", "3px solid var(--link)"
+                "margin-bottom", "8px"
+                "font", $"600 12.5px/1.4 {mono}"
+                "color", "var(--ink)"
+                "overflow-wrap", "anywhere"
+            ]
+        rule
+            ".lists-head small"
+            [
+                "display", "block"
+                "font", $"600 10px/1.6 {ui}"
+                "letter-spacing", "0.09em"
+                "text-transform", "uppercase"
+                "color", "var(--dim)"
+            ]
+        rule
+            ".lists-empty"
+            [
+                "margin", "0"
+                "padding-left", "8px"
+                "font", $"12px/1.5 {ui}"
+                "color", "var(--dim)"
+            ]
+        rule ".lists-empty:empty" [ "display", "none" ]
+        Rule.media
+            "(min-width: 901px)"
+            [
+                rule
+                    ":root[data-lists=\"pane\"] .pane-right .pinned"
+                    [
+                        "display", "block"
+                        "position", "sticky"
+                        "bottom", "-2rem"
+                        "margin", "auto -12px -2rem"
+                        "padding", "10px 12px 12px"
+                        "background", "var(--bg)"
+                        "border-top", "1px solid var(--line)"
+                        "max-height", "46vh"
+                        "overflow-y", "auto"
+                        "overscroll-behavior", "contain"
+                        "box-shadow", "0 -8px 14px -10px rgba(0, 0, 0, 0.25)"
+                    ]
+                rule ":root[data-lists=\"pane\"] .current-decl > .panel" [ "box-shadow", "inset 3px 0 0 var(--link)" ]
+            ]
     ]
 
 let private prose =
@@ -316,6 +395,7 @@ let private code =
                 "border", "1px solid var(--line)"
                 "border-radius", "var(--radius)"
                 "margin", "0 0 8px"
+                "position", "relative"
             ]
         rule
             ".page .panel pre"
@@ -462,17 +542,119 @@ let private guarantees =
 let private islands =
     [
         rule
+            ".settings"
+            [
+                "width", "21rem"
+                "max-width", "calc(100vw - 1rem)"
+                "padding", "0"
+                "overflow", "auto"
+                "background", "var(--bg)"
+                "color", "var(--ink)"
+                "border", "1px solid var(--line)"
+                "border-radius", "8px"
+                "box-shadow", "0 10px 30px rgba(0, 0, 0, 0.2)"
+                "font", $"13px/1.5 {ui}"
+            ]
+        rule
+            ".settings[data-surface=\"popover\"]"
+            [
+                "position", "fixed"
+                "z-index", "50"
+                "inset", "auto auto 3rem 0.5rem"
+                "margin", "0"
+                "max-height", "calc(100vh - 4rem)"
+            ]
+        rule
+            ".settings[data-surface=\"panel\"]"
+            [
+                "position", "fixed"
+                "inset-block", "0"
+                "inset-inline", "auto 0"
+                "margin", "0"
+                "width", "min(22rem, 90vw)"
+                "height", "100dvh"
+                "max-height", "none"
+                "border-width", "0"
+                "border-inline-start-width", "1px"
+                "border-radius", "0"
+            ]
+        rule ".settings[data-surface=\"panel\"]::backdrop" [ "background", "rgba(0, 0, 0, 0.15)" ]
+        rule
+            ".settings[data-surface=\"dialog\"]"
+            [
+                "margin", "auto"
+                "width", "min(26rem, calc(100vw - 2rem))"
+                "max-width", "none"
+                "max-height", "calc(100vh - 2rem)"
+            ]
+        rule ".settings[data-surface=\"dialog\"]::backdrop" [ "background", "rgba(0, 0, 0, 0.4)" ]
+        rule ".settings-body" [ "padding", "14px 16px" ]
+        rule
+            ".settings-head"
+            [
+                "display", "flex"
+                "justify-content", "space-between"
+                "align-items", "center"
+                "margin-bottom", "10px"
+            ]
+        rule ".settings-head h2" [ "margin", "0"; "font", $"600 14px/1.4 {ui}" ]
+        rule
+            ".settings-close"
+            [
+                "appearance", "none"
+                "border", "0"
+                "background", "transparent"
+                "color", "var(--dim)"
+                "font", $"13px/1 {ui}"
+                "min-width", "24px"
+                "min-height", "24px"
+                "cursor", "pointer"
+            ]
+        rule ".settings-close:hover" [ "color", "var(--ink)" ]
+        rule ".setting-label" [ "margin", "0 0 4px"; "font", $"600 12px/1.4 {ui}" ]
+        rule
+            ".setting-lines"
+            [
+                "width", "4.5em"
+                "min-height", "24px"
+                "margin-left", "8px"
+                "padding", "1px 4px"
+                "background", "transparent"
+                "color", "inherit"
+                "border", "1px solid var(--line)"
+                "border-radius", "4px"
+                "font", $"12px/1.4 {ui}"
+                "vertical-align", "top"
+            ]
+        rule
+            ".settings-reset"
+            [
+                "appearance", "none"
+                "min-height", "24px"
+                "margin-top", "2px"
+                "padding", "0"
+                "border", "0"
+                "background", "transparent"
+                "color", "var(--link)"
+                "font", $"12px/1.5 {ui}"
+                "cursor", "pointer"
+            ]
+        rule ".settings-reset:hover" [ "text-decoration", "underline" ]
+        rule ".settings-note" [ "margin", "6px 0 0"; "color", "var(--dim)"; "font", $"11px/1.5 {ui}" ]
+        rule
             ".switch"
             [
                 "display", "flex"
-                "flex-wrap", "wrap"
-                "gap", "0.5rem"
-                "font", $"11.5px/1.5 {ui}"
+                "flex-direction", "column"
+                "gap", "12px"
+                "margin-bottom", "12px"
+                "font", $"12px/1.5 {ui}"
             ]
         rule
             ".switch-group"
             [
                 "display", "inline-flex"
+                "max-width", "100%"
                 "border", "1px solid var(--line)"
                 "border-radius", "var(--radius)"
                 "overflow", "hidden"
@@ -490,12 +672,61 @@ let private islands =
                 "cursor", "pointer"
             ]
         rule ".switch button:hover" [ "color", "var(--ink)" ]
-        rule ".switch button[aria-pressed=\"true\"]" [ "background", "var(--selected)"; "color", "var(--ink)"; "font-weight", "600" ]
-        rule ":root:not([data-client=\"ready\"]) .switch, :root:not([data-client=\"ready\"]) .search-trigger" [ "visibility", "hidden" ]
+        rule ".switch button[aria-pressed=\"true\"]" [ "background", "var(--link)"; "color", "var(--bg)"; "font-weight", "600" ]
+        rule
+            $":root:not([data-client=\"ready\"]) [{Islands.settingsTriggerAttribute}], :root:not([data-client=\"ready\"]) .search-trigger"
+            [ "visibility", "hidden" ]
         rule ".pane-item.in-view" [ "color", "var(--ink)"; "background", "var(--selected)" ]
-        rule ".xref:not(:empty)" [ "margin-top", "1rem" ]
+        rule ".xref:not(:empty)" [ "margin-top", "0.6rem" ]
         rule ":root[data-client=\"ready\"] .page::after" [ "content", "\"\""; "display", "block"; "height", "calc(100vh - 9rem)" ]
-        Rule.media "(min-width: 901px)" [ rule ":root[data-lists=\"pane\"] .decl details.refs" [ "display", "none" ] ]
+        rule
+            ".refs-chip"
+            [
+                "display", "none"
+                "appearance", "none"
+                "position", "absolute"
+                "right", "6rem"
+                "top", "-8px"
+                "z-index", "2"
+                "height", "16px"
+                "padding", "0 6px"
+                "font", $"10px/14px {ui}"
+                "white-space", "nowrap"
+                "background", "var(--side)"
+                "border", "1px solid var(--line)"
+                "border-radius", "8px"
+                "color", "var(--dim)"
+                "cursor", "pointer"
+            ]
+        // The chip stays compact, and its pointer target reaches 24 px.
+        rule ".refs-chip::after" [ "content", "\"\""; "position", "absolute"; "inset", "-4px 0" ]
+        rule ".refs-chip:hover, .refs-chip:focus-visible" [ "color", "var(--ink)"; "border-color", "var(--link)" ]
+        rule
+            ".chip-dialog"
+            [
+                "position", "absolute"
+                "z-index", "30"
+                "width", "min(24rem, calc(100vw - 12px))"
+                "max-height", "min(50vh, 24rem)"
+                "overflow", "auto"
+                "padding", "10px 12px"
+                "background", "var(--bg)"
+                "color", "var(--ink)"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "box-shadow", "0 10px 30px rgba(0, 0, 0, 0.2)"
+                "font", $"12px/1.5 {ui}"
+            ]
+        Rule.media
+            "(min-width: 901px)"
+            [
+                rule ":root[data-lists] .decl details.refs" [ "display", "none" ]
+                rule ":root[data-lists=\"badges\"] .refs-chip" [ "display", "inline-block" ]
+                rule ":root[data-lists=\"badges\"] .decl" [ "margin", "2.4rem 0" ]
+                rule ":root[data-lists=\"badges\"] .decl.quiet" [ "margin", "1rem 0" ]
+                rule ":root[data-lists] .setting-references-open" [ "display", "none" ]
+            ]
+        Rule.media "(max-width: 900px)" [ rule ".setting-references" [ "display", "none" ] ]
         rule
             ".card"
             [

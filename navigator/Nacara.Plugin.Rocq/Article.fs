@@ -681,6 +681,27 @@ let private leadEnd (blocks: Block[]) =
 
     find 0 false
 
+let private generatedAnchor = Regex @"^d\d+$"
+let private repeatSuffix = Regex @"~\d+$"
+
+/// The name a declaration shows beside its lists. A notation's anchor is generated, so it shows its first source line.
+let private displayName (anchor: string) (statement: string) =
+    if generatedAnchor.IsMatch anchor then
+        Source.lines statement
+        |> Array.map (fun line -> (Source.stripTags line).Trim())
+        |> Array.tryFind (fun line -> line <> "")
+        |> Option.defaultValue anchor
+    else
+        repeatSuffix.Replace (anchor, "")
+
+/// A chip is outside the statement's `pre`, so the statement's bytes stay exact.
+let private appendChip (out: StringBuilder) (refs: RefLists) =
+    if refs.Uses.Length + refs.UsedBy.Length > 0 then
+        out.Append (
+            $"""<button type="button" class="refs-chip" aria-haspopup="dialog">uses {refs.Uses.Length} · used by {refs.UsedBy.Length}</button>"""
+        )
+        |> ignore
+
 let private appendDeclaration
     (out: StringBuilder)
     (config: Config)
@@ -692,10 +713,16 @@ let private appendDeclaration
     (proofs: ProofBlock[])
     (refs: RefLists)
     =
-    out.Append ($"""<section class="decl {className}" id="{encode anchor}">{badge}{doc}<div class="panel">""")
+    let name =
+        match displayName anchor statement with
+        | same when same = anchor -> ""
+        | other -> " data-name=\"" + encode other + "\""
+
+    out.Append ($"""<section class="decl {className}" id="{encode anchor}"{name}>{badge}{doc}<div class="panel">""")
     |> ignore
 
     appendStatement out config statement
+    appendChip out refs
 
     for proof in proofs do
         appendProof out proof
