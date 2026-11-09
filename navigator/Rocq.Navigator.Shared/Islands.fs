@@ -39,13 +39,15 @@ let looks = [ defaultLook; "journal" ]
 /// The values `data-mode` accepts.
 let modes = [ defaultMode; "light"; "dark" ]
 
-/// The share of the viewport's height, from its top, above the line that decides the section in view.
+/// The percentage of the viewport's height, from its top, above the line that decides the section in view.
 [<Literal>]
-let private lineShare = 0.05
+let private linePercent = 5
+
+/// The `scroll-margin-top` of a jump target. Its top lands just above the line at every viewport height.
+let landingMargin = $"calc({linePercent}vh - 4px)"
 
 /// The `IntersectionObserver` margin of the area above the line. A section's state changes whenever its top crosses the line.
-[<Literal>]
-let private aboveLineMargin = "0px 0px -95% 0px"
+let private aboveLineMargin = $"0px 0px -{100 - linePercent}%% 0px"
 
 /// The share of the viewport's height, from its top, that holds the first section of a page.
 [<Literal>]
@@ -96,7 +98,7 @@ let private sectionInView (sections: Element array) : Element option =
 
     let aboveLine =
         inBand
-        |> Array.filter (fun section -> top section <= height * lineShare)
+        |> Array.filter (fun section -> top section <= height * float linePercent / 100.0)
 
     if inBand.Length = 0 then
         None

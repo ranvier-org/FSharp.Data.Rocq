@@ -221,7 +221,7 @@ let private prose =
                 "font-weight", "var(--title-weight)"
                 "line-height", "1.3"
                 "color", "var(--ink)"
-                "scroll-margin-top", "1rem"
+                "scroll-margin-top", Islands.landingMargin
             ]
         rule ".page h1:not(.page-title)" [ "font-size", "1.4rem"; "margin", "2.5rem 0 0.75rem" ]
         rule
@@ -280,7 +280,7 @@ let private code =
                 "border-bottom", "1px dotted var(--link)"
             ]
         rule "pre a[data-ref]:hover" [ "border-bottom-style", "solid" ]
-        rule ".decl" [ "margin", "1.9rem 0"; "scroll-margin-top", "1rem" ]
+        rule ".decl" [ "margin", "1.9rem 0"; "scroll-margin-top", Islands.landingMargin ]
         rule ".decl.quiet" [ "margin", "0.2rem 0" ]
         rule
             ".decl.quiet pre.statement, .page pre.command"

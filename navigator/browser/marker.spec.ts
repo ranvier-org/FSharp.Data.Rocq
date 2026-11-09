@@ -39,6 +39,46 @@ test("the marker follows the section in view in the outline", async ({ page }) =
   await expect(page.locator(".pane-right a.in-view")).toHaveCount(1);
 });
 
+for (const height of [500, 700, 1300, 1600]) {
+  test(`a jump in a ${height} px window marks a tightly packed target and shows its lists`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height });
+
+    const expectTarget = async (id: string) => {
+      await expect(outline(page, ".pane-right", id)).toHaveClass(/in-view/);
+      await expect(page.locator(".pane-right a.in-view")).toHaveCount(1);
+
+      const landed = await page.evaluate((target) => {
+        const section = document.getElementById(target)!;
+        const lists = (root: Element | null | undefined, name: string, inner: string) =>
+          root?.querySelector(inner.replace("NAME", name))?.textContent ?? "";
+
+        return {
+          top: section.getBoundingClientRect().top,
+          uses: [lists(section, "uses", '.ref-list[data-list="NAME"]'), lists(document, "uses", '.pane-right [data-slot="NAME"]')],
+          usedBy: [lists(section, "used-by", '.ref-list[data-list="NAME"]'), lists(document, "used-by", '.pane-right [data-slot="NAME"]')],
+        };
+      }, id);
+
+      expect(landed.top).toBeGreaterThan(0);
+      expect(landed.top).toBeLessThanOrEqual(LINE_SHARE * height);
+      expect(landed.uses[1]).toBe(landed.uses[0]);
+      expect(landed.usedBy[1]).toBe(landed.usedBy[0]);
+    };
+
+    // Each of these has a next section close below it.
+    for (const id of ["shared", "shared~2", "sum_refl'"]) {
+      await page.goto(`${MODULE_PAGE}#${id}`);
+      await clientReady(page);
+      await expectTarget(id);
+    }
+
+    await outline(page, ".pane-right", "first_use").click();
+    await expectTarget("first_use");
+    await outline(page, ".pane-right", "shared").click();
+    await expectTarget("shared");
+  });
+}
+
 test("a jump marks its target", async ({ page }) => {
   await page.goto(`${MODULE_PAGE}#sum_zero`);
   await clientReady(page);
