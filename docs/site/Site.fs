@@ -40,6 +40,19 @@ let private styles =
 .prose-arguments dt { font-weight: 600; }
 .prose-arguments dd { margin: 0 0 var(--nacara-space-2) var(--nacara-space-4); }
 .rocq-frame { display: block; width: 100%; height: 34rem; margin-block: var(--nacara-space-4); border: 1px solid var(--nacara-border); border-radius: var(--nacara-radius); }
+.rocq-hero { padding-block: var(--nacara-space-8); text-align: center; }
+.rocq-hero__title { margin: 0; font-size: clamp(2.25rem, 7vw, 3.5rem); overflow-wrap: anywhere; }
+.rocq-hero__line { max-width: 40rem; margin: var(--nacara-space-4) auto 0; font-size: var(--nacara-font-size-lg); color: var(--nacara-text-muted); }
+.rocq-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--nacara-space-2); margin-top: var(--nacara-space-8); }
+.rocq-button { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--nacara-space-4); border: 1px solid var(--nacara-border); border-radius: var(--nacara-radius); background: var(--nacara-bg-raised); color: var(--nacara-text); font-weight: 600; text-decoration: none; }
+.rocq-button:hover { border-color: var(--nacara-primary); color: var(--nacara-text); text-decoration: none; }
+.rocq-button--primary, .rocq-button--primary:hover { border-color: var(--nacara-primary); background: var(--nacara-primary); color: var(--nacara-primary-contrast); }
+.rocq-button--primary:hover { filter: brightness(1.1); }
+.rocq-packages { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--nacara-space-4); margin-block: var(--nacara-space-8); }
+.rocq-package { display: block; padding: var(--nacara-space-4); border: 1px solid var(--nacara-border); border-radius: var(--nacara-radius); background: var(--nacara-bg-subtle); color: var(--nacara-text); text-decoration: none; }
+.rocq-package:hover { border-color: var(--nacara-primary); color: var(--nacara-text); text-decoration: none; }
+.rocq-package__name { font-size: var(--nacara-font-size-lg); font-weight: 600; background: none; border: 0; padding: 0; }
+.rocq-package p { margin: var(--nacara-space-2) 0 0; }
 """
 
 let private theme =
