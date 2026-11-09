@@ -17,4 +17,5 @@ let main args =
                 GuaranteesTests.tests
                 PluginTests.tests
                 TokenTests.tests
+                RankingTests.tests
             ])

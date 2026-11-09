@@ -19,6 +19,7 @@
         <Compile Include="GuaranteesTests.fs" />
         <Compile Include="PluginTests.fs" />
         <Compile Include="TokenTests.fs" />
+        <Compile Include="RankingTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 
