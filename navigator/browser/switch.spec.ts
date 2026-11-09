@@ -29,6 +29,14 @@ test("nothing stored lands on Family, following the system mode", async ({ page 
   await expect(choice(page, "Auto")).toHaveAttribute("aria-pressed", "true");
 });
 
+test("assistive technology reads each set of choices as a named group", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+
+  const island = page.locator('[data-island="switch"]');
+  await expect(island.getByRole("group", { name: "Look" }).getByRole("button")).toHaveCount(2);
+  await expect(island.getByRole("group", { name: "Mode" }).getByRole("button")).toHaveCount(3);
+});
+
 test("a stored value outside the known set lands on Family", async ({ page }) => {
   await page.addInitScript((key) => localStorage.setItem(key, "<img>"), LOOK_KEY);
   await page.goto(MODULE_PAGE);

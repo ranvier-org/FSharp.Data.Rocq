@@ -1,6 +1,9 @@
 import type { Page } from "@playwright/test";
 import { clientReady, expect, GUARANTEES_PAGE, MODULE_PAGE, test } from "./support";
 
+/** The marker line's distance from the top of the viewport, as a share of the viewport's height. */
+const LINE_SHARE = 0.05;
+
 const scrollTo = (page: Page, id: string) =>
   page.evaluate((target) => document.getElementById(target)!.scrollIntoView({ block: "start" }), id);
 
@@ -50,6 +53,87 @@ test("the marker follows the Guarantees page", async ({ page }) => {
   await scrollTo(page, "group-falsified");
   await expect(outline(page, ".pane-right", "group-falsified")).toHaveClass(/in-view/);
 });
+
+for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700]]) {
+  test(`declarations ${minHeight} px tall in a ${height} px viewport keep the marker and the lists on the section at the line`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await page.addStyleTag({ content: `.decl { min-height: ${minHeight}px; }` });
+
+    const result = await page.evaluate(async (share) => {
+      const frames = async () => {
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      };
+
+      const sections = [
+        ...new Set([
+          ...document.querySelectorAll(".decl[id]"),
+          ...[...document.querySelectorAll('.pane-right .pane-item[href^="#"]')].map((link) =>
+            document.getElementById(link.getAttribute("href")!.slice(1)),
+          ),
+        ]),
+      ].filter((section): section is Element => section !== null);
+
+      const line = share * document.documentElement.clientHeight;
+      const top = (section: Element) => section.getBoundingClientRect().top;
+      const declarations = sections.filter((section) => section.matches(".decl"));
+      const scrollEnd = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const steps = Array.from({ length: Math.ceil(scrollEnd / 37) }, (_, index) => index * 37);
+
+      // Each position puts the line inside the gap after a declaration, and the visits run from gap to gap.
+      const gaps = declarations.slice(0, -1).map((declaration, index) => {
+        const bottom = declaration.getBoundingClientRect().bottom + scrollY;
+        const next = declarations[index + 1].getBoundingClientRect().top + scrollY;
+        return (bottom + next) / 2 - line;
+      });
+
+      const problems: string[] = [];
+      let inGaps = 0;
+
+      const check = async (position: number, isGap: boolean) => {
+        window.scrollTo(0, position);
+        await frames();
+
+        const tops = sections.map(top);
+
+        // A top within a pixel of the line can land on either side of it.
+        if (tops.some((value) => Math.abs(value - line) < 1)) return;
+
+        const above = sections.filter((_, index) => tops[index] <= line);
+        if (above.length === 0) return;
+        if (isGap) inGaps++;
+
+        const expected = above.reduce((best, section) => (top(section) >= top(best) ? section : best));
+        const href = `#${expected.id}`;
+        const links = [...document.querySelectorAll('.pane-right .pane-item[href^="#"]')];
+
+        if (links.some((link) => link.getAttribute("href") === href)) {
+          const marked = document.querySelector(".pane-right .in-view")?.getAttribute("href");
+          if (marked !== href) problems.push(`y=${Math.round(scrollY)}: ${marked} marked at ${href}`);
+        }
+
+        if (expected.matches(".decl")) {
+          for (const name of ["uses", "used-by"]) {
+            const inline = expected.querySelector(`.ref-list[data-list="${name}"]`)?.textContent ?? "";
+            const shown = document.querySelector(`.pane-right [data-slot="${name}"]`)?.textContent ?? "";
+            if (inline !== shown) problems.push(`y=${Math.round(scrollY)}: ${name} of ${href} shows "${shown}"`);
+          }
+        }
+      };
+
+      for (const position of steps) await check(position, false);
+      for (const position of gaps) await check(position, true);
+
+      return { problems, positions: steps.length, inGaps };
+    }, LINE_SHARE);
+
+    expect(result.positions).toBeGreaterThan(50);
+    expect(result.inGaps).toBeGreaterThan(5);
+    expect(result.problems).toEqual([]);
+  });
+}
 
 test("the last declaration can reach the marker", async ({ page }) => {
   await page.goto(MODULE_PAGE);
