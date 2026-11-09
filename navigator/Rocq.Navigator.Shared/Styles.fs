@@ -773,7 +773,6 @@ let private islands =
             [ "visibility", "hidden" ]
         rule ".pane-item.in-view" [ "color", "var(--ink)"; "background", "var(--selected)" ]
         rule ".xref:not(:empty)" [ "margin-top", "0.6rem" ]
-        rule ":root[data-client=\"ready\"] .page::after" [ "content", "\"\""; "display", "block"; "height", "calc(100vh - 9rem)" ]
         rule
             ".refs-chip"
             [

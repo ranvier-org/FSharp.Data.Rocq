@@ -59,13 +59,14 @@ for (const height of [500, 700, 1300, 1600]) {
 
         return {
           top: section.getBoundingClientRect().top,
+          atEnd: scrollY + document.documentElement.clientHeight >= document.documentElement.scrollHeight - 1,
           uses: [lists(section, "uses", '.ref-list[data-list="NAME"]'), lists(document, "uses", '.pane-right [data-slot="NAME"]')],
           usedBy: [lists(section, "used-by", '.ref-list[data-list="NAME"]'), lists(document, "used-by", '.pane-right [data-slot="NAME"]')],
         };
       }, id);
 
       expect(landed.top).toBeGreaterThan(0);
-      expect(landed.top).toBeLessThanOrEqual(LANDING_SHARE * height);
+      expect(landed.top).toBeLessThanOrEqual(landed.atEnd ? height : LANDING_SHARE * height);
       expect(landed.uses[1]).toBe(landed.uses[0]);
       expect(landed.usedBy[1]).toBe(landed.usedBy[0]);
     };
@@ -236,6 +237,57 @@ test.describe("the reading position runs from the view's top to its bottom", () 
     await expect(outline(page, ".pane-right", "long_15")).toHaveClass(/in-view/);
   });
 
+  test("the page ends with its own padding, and no space a viewport tall", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    const gap = await page.evaluate(() => {
+      const last = [...document.querySelectorAll("article .decl")].at(-1)!.getBoundingClientRect();
+      return document.documentElement.scrollHeight - (last.bottom + scrollY);
+    });
+
+    expect(gap).toBeLessThan(150);
+  });
+
+  test("a jump to a section too near the end to reach the landing position marks it", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    const ids = await page.evaluate(() => [...document.querySelectorAll(".decl[id]")].map((section) => section.id));
+
+    for (const id of ids.slice(-3, -1)) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await scrollTo(page, id);
+      await expect(currentSection(page)).toHaveAttribute("id", id);
+    }
+  });
+
+  test("a jump on a page with no scroll marks its target", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 3000 });
+    await page.goto(OTHER_PAGE);
+    await clientReady(page);
+
+    const fits = await page.evaluate(() => document.documentElement.scrollHeight === document.documentElement.clientHeight);
+    expect(fits).toBe(true);
+
+    const ids = await page.locator("article .decl[id]").evaluateAll((sections) => sections.map((section) => section.id));
+    const target = ids[ids.length - 2];
+    await scrollTo(page, target);
+    await expect(currentSection(page)).toHaveAttribute("id", target);
+  });
+
+  test("scrolling away from a jump at the page's end releases it", async ({ page }) => {
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    const id = await page.evaluate(() => [...document.querySelectorAll(".decl[id]")].at(-2)!.id);
+    await scrollTo(page, id);
+    await expect(currentSection(page)).toHaveAttribute("id", id);
+
+    await page.evaluate(() => window.scrollBy(0, -320));
+    await expect(currentSection(page)).not.toHaveAttribute("id", id);
+  });
+
   test("scrolling away after a jump moves the mark", async ({ page }) => {
     await page.goto(LONG_PAGE);
     await clientReady(page);
@@ -250,7 +302,7 @@ test.describe("the reading position runs from the view's top to its bottom", () 
     await page.setViewportSize({ width: 1280, height: 3000 });
     await page.goto(OTHER_PAGE);
     await clientReady(page);
-    await page.addStyleTag({ content: ":root .page::after { display: none !important; } .center { padding-bottom: 0 !important; }" });
+    await page.addStyleTag({ content: ".center { padding-bottom: 0 !important; }" });
 
     const fits = await page.evaluate(() => document.documentElement.scrollHeight === document.documentElement.clientHeight);
     expect(fits).toBe(true);
