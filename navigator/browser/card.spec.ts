@@ -517,8 +517,12 @@ test("a card closes on the next pointer move after its reference left the page",
 test("a card stays open under the pointer after its reference left the page", async ({ page }) => {
   const reference = await hoverPaneReference(page);
   const card = cardOf(page);
+  // A hover retried on a moving card scrolls it into view, and scrolling the page replaces the lists.
+  await expect(card).toHaveCSS("opacity", "1");
+  const top = await page.evaluate(() => scrollY);
 
   await card.locator(".card-name").hover();
+  expect(await page.evaluate(() => scrollY)).toBe(top);
   await reference.evaluate((element) => element.remove());
   await card.locator(".card-meta").hover();
   await page.waitForTimeout(250);
