@@ -6,7 +6,8 @@ navigator="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 client="$navigator/Rocq.Navigator.Client"
 
 dotnet tool restore
-dotnet fickl "$client" --outDir "$client/generated" --noCache
+# CI type-checks package sources on every build, instead of reusing Fickl's package cache.
+dotnet fickl "$client" --outDir "$client/generated" --noCache ${CI:+--noPackageCache}
 
 cd "$client"
 npm ci --no-audit --no-fund
