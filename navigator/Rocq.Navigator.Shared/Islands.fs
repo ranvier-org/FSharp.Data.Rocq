@@ -230,7 +230,7 @@ let sectionMarker: Component<unit> =
 
 /// The element that holds every reference a card opens for.
 [<Literal>]
-let private cardHost = "article.page"
+let private cardHost = ".shell"
 
 /// The id of the card element, which an open reference names in `aria-describedby`.
 [<Literal>]
@@ -439,12 +439,12 @@ let private createCards (_: Setup) () =
         | "pointerover", Some reference when not (isTouch event) -> hover reference
         | "pointerout", Some _ when not (isTouch event) -> wanted.Value <- None
         | "focusin", Some reference when (unbox<Element> event.target).matches ":focus-visible" -> openNow reference
-        | "focusout", Some _ -> wanted.Value <- None
+        | "focusout", Some _ when isNull (document.querySelector ".card:hover") -> wanted.Value <- None
         | "click", Some reference when isTouch event ->
             if shown.Value <> Some reference then
                 event.preventDefault ()
                 openNow reference
-        | "click", None when isTouch event -> close ()
+        | "click", None when isTouch event && isNull ((unbox<Element> event.target).closest ".card") -> close ()
         | _ -> ()
 
     match document.querySelector cardHost with

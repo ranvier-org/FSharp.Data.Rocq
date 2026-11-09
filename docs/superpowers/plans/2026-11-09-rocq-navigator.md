@@ -19,7 +19,9 @@
 | State | Why the core cannot hold it |
 |---|---|
 | DOM nodes of the server-rendered article | DOM state; the article is static HTML |
-| The one delegated `pointerover`/`focusin` listener on the article | Event delegation |
+| The one delegated card listener on `.shell` (`pointerover`, `pointerout`, `focusin`, `focusout`, touch `click`), and a `keydown` listener on the document while a card is open | Event delegation (owner's agreement, 2026-11-09) |
+| The stateless `click` listener on the article for fold motion | Event delegation (owner's agreement, 2026-11-09) |
+| The stateless `keydown` listener on the document for Ctrl+K and `/` | Event delegation (owner's agreement, 2026-11-09) |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
 | Server HTML | Written by the build |
 

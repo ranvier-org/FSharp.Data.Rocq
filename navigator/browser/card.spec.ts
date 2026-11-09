@@ -246,6 +246,15 @@ test.describe("at 375 px", () => {
     await expect(card).toBeVisible();
     expect(page.url()).toBe(url);
 
+    await card.locator(".card-meta").tap();
+    await page.waitForTimeout(150);
+    await expect(card).toBeVisible();
+
+    await page.locator(".topbar .crumb").tap();
+    await expect(card).toBeHidden();
+
+    await reference.tap();
+    await expect(card).toBeVisible();
     await page.locator("article h1.page-title").tap();
     await expect(card).toBeHidden();
 
@@ -382,7 +391,7 @@ test("the data file is fetched once, on first hover, under the base URL", async 
   expect(requests).toEqual([`${BASE}${DATA_FILE}`]);
 });
 
-test("a reference list copied to the right pane stays an ordinary link", async ({ page }) => {
+test("a reference list copied to the right pane opens the same card", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 800 });
   await open(page);
   const card = cardOf(page);
@@ -396,7 +405,16 @@ test("a reference list copied to the right pane stays an ordinary link", async (
   const copy = page.locator(".pane-right [data-slot] [data-ref]").first();
   await expect(copy).toBeVisible();
   await copy.hover();
-  await page.waitForTimeout(300);
+  await expect(card).toBeVisible();
+  await expect(card.locator(".card-meta")).not.toBeEmpty();
+
+  const box = await card.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+
+  await page.mouse.move(5, 5);
   await expect(card).toBeHidden();
 });
 
