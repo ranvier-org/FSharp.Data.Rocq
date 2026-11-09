@@ -1,0 +1,233 @@
+module Rocq.Navigator.Tests.DocsTests
+
+open Expecto
+open FSharp.Data.Rocq.Structure
+open Markdig
+open Markdig.Extensions.EmphasisExtras
+open Nacara.Plugins
+
+let private plain = Docs.pipeline []
+
+let private noResolve =
+    {
+        Code = fun _ -> None
+        Link = fun _ -> None
+    }
+
+let private resolver =
+    {
+        Code =
+            function
+            | "add_comm" -> Some ("Arith.add_comm", "/Arith.html#add_comm")
+            | _ -> None
+        Link =
+            fun url ->
+                if url.StartsWith "Arith.html" then
+                    Some ("/site/" + url)
+                else
+                    None
+    }
+
+let tests =
+    testList
+        "docs"
+        [
+            testCase "a code span inside a link stays code, under the written link"
+            <| fun () ->
+                for body in [ "[`add_comm`](Arith.html#other)"; "[**`add_comm`**](Arith.html#other)" ] do
+                    let html = Docs.render plain resolver CommentFormat.Markdown body
+                    Expect.equal (html.Split "<a ").Length 2 $"one anchor in {html}"
+                    Expect.stringContains html "href=\"/site/Arith.html#other\"" "the written link"
+                    Expect.stringContains html "<code>add_comm</code>" "the code"
+
+            testCase "a markdown comment renders headings, paragraphs, links and code"
+            <| fun () ->
+                let html =
+                    Docs.render plain noResolve CommentFormat.Markdown "# Title\n\nSome *words* with `code` and [a link](https://example.org/x)."
+
+                Expect.stringContains html "<h1>Title</h1>" "heading"
+                Expect.stringContains html "<p>Some <em>words</em>" "paragraph"
+                Expect.stringContains html "<code>code</code>" "code"
+                Expect.stringContains html """<a href="https://example.org/x">a link</a>""" "link"
+
+            testCase "a coqdoc comment renders headings, [code] and paragraphs"
+            <| fun () ->
+                let html =
+                    Docs.render plain noResolve CommentFormat.Doc "** Section\n\nFirst [x + 0] line\ncontinues.\n\nSecond."
+
+                Expect.stringContains html "<h2>Section</h2>" "heading"
+                Expect.stringContains html "<p>First <code>x + 0</code> line\ncontinues.</p>" "paragraph with code"
+                Expect.stringContains html "<p>Second.</p>" "second paragraph"
+
+            testCase "angle brackets and ampersands in prose display literally"
+            <| fun () ->
+                let html =
+                    Docs.render plain noResolve CommentFormat.Markdown "s < fuel & <script>alert(1)</script>"
+
+                Expect.isFalse (html.Contains "<script") "no live script"
+                Expect.stringContains html "s &lt; fuel &amp;" "literal text"
+
+                let doc =
+                    Docs.render plain noResolve CommentFormat.Doc "s < fuel & <script>alert(1)</script>"
+
+                Expect.isFalse (doc.Contains "<script") "no live script in coqdoc"
+                Expect.stringContains doc "s &lt; fuel &amp;" "literal text in coqdoc"
+
+            testCase "code naming a symbol in scope becomes a reference, with data-ref and href"
+            <| fun () ->
+                let md = Docs.render plain resolver CommentFormat.Markdown "See `add_comm`."
+
+                let expected =
+                    """<a class="ref" data-ref="Arith.add_comm" href="/Arith.html#add_comm"><code>add_comm</code></a>"""
+
+                Expect.stringContains md expected "markdown"
+                let doc = Docs.render plain resolver CommentFormat.Doc "See [add_comm]."
+                Expect.stringContains doc expected "coqdoc"
+
+            testCase "code naming nothing stays plain code"
+            <| fun () ->
+                let html = Docs.render plain resolver CommentFormat.Markdown "See `other`."
+                Expect.stringContains html "<code>other</code>" "plain code"
+                Expect.isFalse (html.Contains "data-ref") "no reference"
+
+            testCase "a relative link to a project module becomes its site URL, keeping the anchor"
+            <| fun () ->
+                let html =
+                    Docs.render plain resolver CommentFormat.Markdown "[lemma](Arith.html#add_comm)"
+
+                Expect.stringContains html "href=\"/site/Arith.html#add_comm\"" "rewritten"
+
+            testCase "an external link and a link to an unknown page stay as written"
+            <| fun () ->
+                let html =
+                    Docs.render plain resolver CommentFormat.Markdown "[a](https://example.org) [b](Other.html#x)"
+
+                Expect.stringContains html "href=\"https://example.org\"" "external"
+                Expect.stringContains html "href=\"Other.html#x\"" "unknown"
+
+            testCase "a javascript link renders as plain text"
+            <| fun () ->
+                for source, text in
+                    [
+                        "[click](javascript:alert(1))", "click"
+                        "[click](JaVaScRiPt:alert(1))", "click"
+                        "[click](java&#9;script:alert(1))", "click"
+                        "[click](data:text/html,x)", "click"
+                        "[click][r]\n\n[r]: javascript:alert(1)", "click"
+                        "<javascript:alert(1)>", "javascript:alert(1)"
+                        "![pic](javascript:alert(1))", "pic"
+                    ] do
+                    let html = Docs.render plain resolver CommentFormat.Markdown source
+                    Expect.isFalse (html.Contains "href") $"{source} has no link: {html}"
+                    Expect.isFalse (html.Contains "src") $"{source} has no image: {html}"
+                    Expect.stringContains html text $"{source} keeps its text"
+
+            testCase "http, https, mailto, relative and anchor links stay links"
+            <| fun () ->
+                for url in
+                    [
+                        "http://example.org/a"
+                        "https://example.org/a"
+                        "mailto:a@example.org"
+                        "page.html?a=b:c"
+                        "#section"
+                    ] do
+                    let html = Docs.render plain noResolve CommentFormat.Markdown $"[x]({url})"
+                    Expect.stringContains html $"""<a href="{url}">x</a>""" url
+
+            testCase "an extension the site registered is applied"
+            <| fun () ->
+                let strike = EmphasisExtraExtension EmphasisExtraOptions.Strikethrough
+
+                let html =
+                    Docs.render (Docs.pipeline [ strike ]) noResolve CommentFormat.Markdown "~~gone~~"
+
+                Expect.stringContains html "<del>gone</del>" "extension applied"
+                let without = Docs.render plain noResolve CommentFormat.Markdown "~~gone~~"
+                Expect.isFalse (without.Contains "<del>") "absent without the extension"
+
+            testCase "firstBoldLine reads the opening bold line and returns None without one"
+            <| fun () ->
+                Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "\n**Adds zero.**\n\nMore.") (Some "Adds zero.") "bold"
+                Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "Plain first.\n**Later.**") None "not opening"
+                Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "") None "empty"
+
+            testCase "splitArguments takes an entry and its continuation out of the body, in both formats"
+            <| fun () ->
+                let entries: ArgumentEntry[] =
+                    [|
+                        { Name = "s"; Text = "the state read." }
+                        {
+                            Name = "n'"
+                            Text = "the node tested,\nacross lines."
+                        }
+                    |]
+
+                for format in [ CommentFormat.Doc; CommentFormat.Markdown ] do
+                    Expect.equal
+                        (Docs.splitArguments
+                            format
+                            4
+                            "Whether it holds.\n    - [s:] the state read.\n    - [n':] the node tested,\n      across lines. ")
+                        (entries, "Whether it holds.")
+                        "the entries and the rest"
+
+            testCase "splitArguments pairs a fence with its own closer"
+            <| fun () ->
+                let names (format: CommentFormat) (body: string) =
+                    fst (Docs.splitArguments format 0 body)
+                    |> Array.map _.Name
+
+                for format, body, expected in
+                    [
+                        CommentFormat.Markdown, "````\n```\n- [x:] a\n````\n- [y:] b", [| "y" |]
+                        CommentFormat.Markdown, "```\n~~~\n- [x:] a\n```\n- [y:] b", [| "y" |]
+                        CommentFormat.Doc, ">> stray\n- [x:] a", [| "x" |]
+                        CommentFormat.Doc, "<<x>>\n- [y:] b", [| "y" |]
+                        CommentFormat.Doc, "<<\n- [x:] a\n>>\n- [y:] b", [| "y" |]
+                    ] do
+                    Expect.equal (names format body) expected body
+
+            testCase "splitArguments ends a continuation at a blank line, or at a line not past the dash"
+            <| fun () ->
+                let at (expected: string) (body: string) =
+                    Expect.equal (snd (Docs.splitArguments CommentFormat.Doc 4 body)) expected body
+
+                at "\n    After." "- [a:] left.\n\n    After."
+                at "    After." "- [a:] left.\n    After."
+                let entries, _ = Docs.splitArguments CommentFormat.Doc 4 "- [a:] left\n      more."
+                Expect.equal entries[0].Text "left\nmore." "past the dash"
+
+            testCase "splitArguments returns a body with no entries unchanged, and leaves a normal list alone"
+            <| fun () ->
+                let body = "First.\r\n- a plain item\r\n- [not an entry] x\r\n- [also not]: y\r\n"
+                Expect.equal (Docs.splitArguments CommentFormat.Markdown 0 body) ([||], body) "markdown"
+                Expect.equal (Docs.splitArguments CommentFormat.Doc 0 body) ([||], body) "coqdoc"
+
+                let entries, rest =
+                    Docs.splitArguments CommentFormat.Markdown 0 "Intro.\n\n- plain item\n- [x:] entry\n- other item"
+
+                Expect.equal (entries |> Array.map _.Name) [| "x" |] "the entry"
+                Expect.equal rest "Intro.\n\n- plain item\n- other item" "the list stays"
+
+            testCase "splitArguments leaves fenced and verbatim text alone"
+            <| fun () ->
+                let markdown = "```\n- [y:] shown\n```\n"
+                Expect.equal (fst (Docs.splitArguments CommentFormat.Markdown 0 markdown)) [||] "a fence"
+                let coqdoc = "<<\n- [y:] shown\n>>\n"
+                Expect.equal (fst (Docs.splitArguments CommentFormat.Doc 0 coqdoc)) [||] "verbatim text"
+
+            testCase "renderArgument renders inline, with references in both formats"
+            <| fun () ->
+                let doc = Docs.renderArgument plain resolver CommentFormat.Doc "See [add_comm] < 2."
+                Expect.stringContains doc """data-ref="Arith.add_comm" """ "coqdoc reference"
+                Expect.isFalse (doc.Contains "<p>") "coqdoc is inline"
+                Expect.stringContains doc "&lt; 2." "text is encoded"
+
+                let md =
+                    Docs.renderArgument plain resolver CommentFormat.Markdown "See `add_comm` *now*."
+
+                Expect.stringContains md """data-ref="Arith.add_comm" """ "markdown reference"
+                Expect.stringContains md "<em>now</em>" "markdown inline"
+                Expect.isFalse (md.Contains "<p>") "markdown is inline"
+        ]

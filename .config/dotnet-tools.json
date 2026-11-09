@@ -8,6 +8,13 @@
         "fantomas"
       ],
       "rollForward": false
+    },
+    "fickl": {
+      "version": "0.8.0",
+      "commands": [
+        "fickl"
+      ],
+      "rollForward": false
     }
   }
 }

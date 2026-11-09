@@ -1,0 +1,286 @@
+namespace Nacara.Plugins
+
+open System.Net
+open System.Text
+open System.Text.RegularExpressions
+open FSharp.Data.Rocq.Structure
+open Markdig
+open Markdig.Syntax
+open Markdig.Syntax.Inlines
+
+/// <summary>Lookups that turn names in a comment into links.</summary>
+type Resolve =
+    {
+        /// Maps the text of an inline code span to a reference key and the URL of its page.
+        Code: string -> (string * string) option
+        /// Maps a relative link written as <c>Module.html#name</c> to the site URL of a project module.
+        Link: string -> string option
+    }
+
+/// <summary>An argument entry of a doc comment, written <c>- [name:] text</c>.</summary>
+type ArgumentEntry =
+    {
+        Name: string
+        /// The entry's text in the comment's markup. Continuation lines are joined by a newline.
+        Text: string
+    }
+
+/// <summary>Renders comment bodies to HTML. Raw HTML in a body is displayed as text.</summary>
+[<RequireQualifiedAccess>]
+module Docs =
+
+    /// <summary>A Markdig pipeline with raw HTML disabled and the given extensions applied.</summary>
+    let pipeline (extensions: IMarkdownExtension list) : MarkdownPipeline =
+        let builder = MarkdownPipelineBuilder().DisableHtml()
+
+        for extension in extensions do
+            builder.Extensions.AddIfNotAlready extension
+            |> ignore
+
+        builder.Build ()
+
+    let private encode (text: string) =
+        Rocq.Navigator.Source.encode text
+
+    let private referenceHtml (text: string) (key: string) (href: string) =
+        $"""<a class="ref" data-ref="%s{encode key}" href="%s{encode href}"><code>%s{encode text}</code></a>"""
+
+    let private scheme = Regex @"^([a-zA-Z][a-zA-Z0-9+.\-]*):"
+
+    /// Browsers drop control characters and spaces from a URL before reading its scheme.
+    let private isSafeUrl (url: string) =
+        let compact =
+            url
+            |> String.filter (fun c -> c > ' ' && c <> '\u007f')
+
+        let m = scheme.Match compact
+
+        not m.Success
+        || List.contains (m.Groups[1].Value.ToLowerInvariant()) [ "http"; "https"; "mailto" ]
+
+    let private unwrap (link: LinkInline) =
+        for child in link |> Seq.toArray do
+            child.Remove ()
+            link.InsertBefore child
+
+        link.Remove ()
+
+    let rec private insideLink (node: Inline) =
+        match node.Parent with
+        | null -> false
+        | :? LinkInline -> true
+        | parent -> insideLink parent
+
+    let private rewrite (resolve: Resolve) (document: MarkdownDocument) =
+        // The tree is edited during the walk, so the nodes are collected first.
+        for node in document.Descendants<Inline>() |> Seq.toArray do
+            match node with
+            | :? CodeInline as code when not (insideLink code) ->
+                match resolve.Code code.Content with
+                | Some (key, href) ->
+                    code.ReplaceBy (HtmlInline (referenceHtml code.Content key href))
+                    |> ignore
+                | None -> ()
+            | :? LinkInline as link when not (isNull link.Url) && not (isSafeUrl link.Url) -> unwrap link
+            | :? LinkInline as link when not link.IsImage && not (isNull link.Url) ->
+                match resolve.Link link.Url with
+                | Some url -> link.Url <- url
+                | None -> ()
+            | :? AutolinkInline as link when not link.IsEmail && not (isSafeUrl link.Url) -> link.ReplaceBy (LiteralInline link.Url) |> ignore
+            | _ -> ()
+
+    let private escapedPrimeInHref = Regex "href=\"[^\"]*%27[^\"]*\""
+
+    /// Markdig writes a prime in a URL as %27, which differs from the anchor as written.
+    let private renderMarkdown (pipeline: MarkdownPipeline) (resolve: Resolve) (body: string) =
+        let document = Markdown.Parse (body, pipeline)
+        rewrite resolve document
+
+        escapedPrimeInHref.Replace (document.ToHtml pipeline, (fun m -> m.Value.Replace ("%27", "'")))
+
+    let private starHeading = Regex (@"^\s*(\*{1,4})\s+(.*?)\s*$")
+    let private codeSpan = Regex @"\[([^\[\]]+)\]"
+
+    let private coqdocInline (resolve: Resolve) (text: string) =
+        let sb = StringBuilder ()
+        let mutable last = 0
+
+        for m in codeSpan.Matches text do
+            sb.Append (encode (text.Substring (last, m.Index - last)))
+            |> ignore
+
+            let code = m.Groups[1].Value
+
+            match resolve.Code code with
+            | Some (key, href) -> sb.Append (referenceHtml code key href) |> ignore
+            | None ->
+                sb.Append ($"<code>%s{encode code}</code>")
+                |> ignore
+
+            last <- m.Index + m.Length
+
+        sb.Append (encode (text.Substring last)) |> ignore
+        sb.ToString ()
+
+    let private renderCoqdoc (resolve: Resolve) (body: string) =
+        let out = StringBuilder ()
+        let paragraph = ResizeArray<string>()
+
+        let flush () =
+            if paragraph.Count > 0 then
+                out.Append("<p>").Append(coqdocInline resolve (System.String.Join ("\n", paragraph))).Append("</p>\n")
+                |> ignore
+
+                paragraph.Clear ()
+
+        for line in body.Replace("\r\n", "\n").Split '\n' do
+            if System.String.IsNullOrWhiteSpace line then
+                flush ()
+            else
+                let heading = starHeading.Match line
+
+                if heading.Success then
+                    flush ()
+                    let level = heading.Groups[1].Length
+
+                    out.Append($"<h%d{level}>").Append(coqdocInline resolve heading.Groups[2].Value).Append($"</h%d{level}>\n")
+                    |> ignore
+                else
+                    paragraph.Add (line.Trim ())
+
+        flush ()
+        out.ToString ()
+
+    /// <summary>Renders a comment body to HTML according to its format.</summary>
+    /// <param name="pipeline">The Markdown pipeline for Markdown comments.</param>
+    /// <param name="resolve">Turns code spans and relative links into references.</param>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="body">The comment's text.</param>
+    let render (pipeline: MarkdownPipeline) (resolve: Resolve) (format: CommentFormat) (body: string) : string =
+        match format with
+        | CommentFormat.Markdown -> renderMarkdown pipeline resolve body
+        | CommentFormat.Doc
+        | CommentFormat.Plain -> renderCoqdoc resolve body
+
+    let private wholeParagraph = Regex (@"^<p>(.*)</p>\s*$", RegexOptions.Singleline)
+
+    /// <summary>Renders an argument entry's text to inline HTML according to its format.</summary>
+    /// <param name="pipeline">The Markdown pipeline for Markdown comments.</param>
+    /// <param name="resolve">Turns code spans and relative links into references.</param>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="text">The entry's text.</param>
+    let renderArgument (pipeline: MarkdownPipeline) (resolve: Resolve) (format: CommentFormat) (text: string) : string =
+        match format with
+        | CommentFormat.Markdown ->
+            let html = renderMarkdown pipeline resolve text
+            let m = wholeParagraph.Match html
+            if m.Success then m.Groups[1].Value else html
+        | CommentFormat.Doc
+        | CommentFormat.Plain -> coqdocInline resolve text
+
+    let private argumentLine = Regex @"^(\s*)-\s+\[([^\s\[\]:]+):\]\s*(.*)$"
+
+    let private markdownFence = Regex @"^\s*(`{3,}|~{3,})(.*)$"
+
+    /// The open fence's marker after a line, given the marker before it.
+    let private fenceAfter (format: CommentFormat) (fence: string option) (line: string) =
+        let text = line.TrimStart ()
+
+        match format with
+        | CommentFormat.Markdown ->
+            let m = markdownFence.Match line
+            let marker = m.Groups[1].Value
+
+            match fence with
+            | _ when not m.Success -> fence
+            | None -> Some marker
+            | Some opening when
+                marker[0] = opening[0]
+                && marker.Length >= opening.Length
+                && System.String.IsNullOrWhiteSpace m.Groups[2].Value
+                ->
+                None
+            | _ -> fence
+        | CommentFormat.Doc
+        | CommentFormat.Plain ->
+            match fence with
+            | None when
+                text.StartsWith ("<<", System.StringComparison.Ordinal)
+                && not (text.Contains ">>")
+                ->
+                Some "<<"
+            | Some _ when text.StartsWith (">>", System.StringComparison.Ordinal) -> None
+            | _ -> fence
+
+    /// <summary>The argument entries of a comment body, and the body without them. A body with no entries returns unchanged.</summary>
+    /// <remarks>An entry continues over the following non-blank lines indented past its dash. Fenced or verbatim text holds no entries.</remarks>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="firstColumn">The source column of the body's first line.</param>
+    /// <param name="body">The comment's text.</param>
+    let splitArguments (format: CommentFormat) (firstColumn: int) (body: string) : ArgumentEntry[] * string =
+        let entries = ResizeArray<ArgumentEntry>()
+        let rest = ResizeArray<string>()
+        let text = ResizeArray<string>()
+        let mutable fence: string option = None
+        let mutable dash = -1
+        let mutable name = ""
+
+        let flush () =
+            if dash >= 0 then
+                entries.Add
+                    {
+                        Name = name
+                        Text = String.concat "\n" text
+                    }
+
+                text.Clear ()
+                dash <- -1
+
+        for index, line in Array.indexed (body.Replace("\r\n", "\n").Split '\n') do
+            let m = argumentLine.Match line
+
+            let next = fenceAfter format fence line
+
+            if next <> fence then
+                flush ()
+                fence <- next
+                rest.Add line
+            elif fence.IsSome then
+                rest.Add line
+            elif m.Success then
+                flush ()
+
+                dash <-
+                    m.Groups[1].Length
+                    + (if index = 0 then firstColumn else 0)
+
+                name <- m.Groups[2].Value
+                text.Add (m.Groups[3].Value.TrimEnd())
+            elif
+                dash >= 0
+                && not (System.String.IsNullOrWhiteSpace line)
+                && line.Length - line.TrimStart().Length > dash
+            then
+                text.Add (line.Trim ())
+            else
+                flush ()
+                rest.Add line
+
+        flush ()
+
+        if entries.Count = 0 then
+            [||], body
+        else
+            entries.ToArray (), (String.concat "\n" rest).TrimEnd()
+
+    let private boldLine = Regex (@"^\s*\*\*(.+?)\*\*\s*$")
+
+    /// <summary>The text of the opening line when the body starts with a line wholly in bold.</summary>
+    let firstBoldLine (format: CommentFormat) (body: string) : string option =
+        ignore format
+
+        body.Replace("\r\n", "\n").Split '\n'
+        |> Array.tryFind (System.String.IsNullOrWhiteSpace >> not)
+        |> Option.bind (fun line ->
+            let m = boldLine.Match line
+            if m.Success then Some m.Groups[1].Value else None)

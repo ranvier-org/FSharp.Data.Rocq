@@ -1,0 +1,13 @@
+{
+  "name": "rocq-navigator-browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "site": "node build-site.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.10.1"
+  }
+}

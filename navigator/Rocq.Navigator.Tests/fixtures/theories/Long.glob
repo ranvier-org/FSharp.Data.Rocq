@@ -1,0 +1,35 @@
+DIGEST 59283ce7875991a33f7eec4beecb8900
+FFixture.Long
+def 106:112 <> wrapped
+def 132:143 <> uses_wrapped
+R148:154 Fixture.Long <> wrapped def
+def 169:175 <> long_01
+def 194:200 <> long_02
+def 219:225 <> long_03
+def 244:250 <> long_04
+def 269:275 <> long_05
+def 294:300 <> long_06
+def 319:325 <> long_07
+def 344:350 <> long_08
+def 369:375 <> long_09
+def 394:400 <> long_10
+def 420:426 <> long_11
+def 446:452 <> long_12
+def 472:478 <> long_13
+def 498:504 <> long_14
+def 524:530 <> long_15
+def 550:556 <> long_16
+def 576:582 <> long_17
+def 602:608 <> long_18
+def 628:634 <> long_19
+def 654:660 <> long_20
+def 680:686 <> long_21
+def 706:712 <> long_22
+def 732:738 <> long_23
+def 758:764 <> long_24
+def 784:790 <> long_25
+def 810:816 <> long_26
+def 836:842 <> long_27
+def 862:868 <> long_28
+def 888:894 <> long_29
+def 914:920 <> long_30

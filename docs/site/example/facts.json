@@ -1,0 +1,146 @@
+{
+  "rocqVersion": "9.1.0",
+  "digests": {
+    "theories/Core.v": "9ebb8b3ee52a6dfc8589a5e887011937",
+    "theories/Laws.v": "4274b0003688c7d6be41bd99ed5c9658",
+    "theories/Prose.v": "b168bd751d5310b48becb2b83ef3b954"
+  },
+  "symbols": {
+    "Tally.Core.append": {
+      "type": "tally -> tally -> tally",
+      "binders": {}
+    },
+    "Tally.Core.cons": {
+      "type": "nat -> tally -> tally",
+      "binders": {}
+    },
+    "Tally.Core.empty": {
+      "type": "tally",
+      "binders": {}
+    },
+    "Tally.Core.size": {
+      "type": "tally -> nat",
+      "binders": {}
+    },
+    "Tally.Core.tally": {
+      "type": "Set",
+      "binders": {}
+    },
+    "Tally.Core.tally_ind": {
+      "type": "forall P : tally -> Prop,\nP empty ->\n(forall (n : nat) (t : tally), P t -> P (n :: t)) ->\nforall t : tally, P t",
+      "binders": {
+        "P": "tally -> Prop"
+      }
+    },
+    "Tally.Core.tally_rec": {
+      "type": "forall P : tally -> Set,\nP empty ->\n(forall (n : nat) (t : tally), P t -> P (n :: t)) ->\nforall t : tally, P t",
+      "binders": {
+        "P": "tally -> Set"
+      }
+    },
+    "Tally.Core.tally_rect": {
+      "type": "forall P : tally -> Type,\nP empty ->\n(forall (n : nat) (t : tally), P t -> P (n :: t)) ->\nforall t : tally, P t",
+      "binders": {
+        "P": "tally -> Type"
+      }
+    },
+    "Tally.Core.tally_sind": {
+      "type": "forall P : tally -> SProp,\nP empty ->\n(forall (n : nat) (t : tally), P t -> P (n :: t)) ->\nforall t : tally, P t",
+      "binders": {
+        "P": "tally -> SProp"
+      }
+    },
+    "Tally.Core.total": {
+      "type": "tally -> nat",
+      "binders": {}
+    },
+    "Tally.Laws.add_regroup": {
+      "type": "forall a b c : nat, a + b + c = a + (b + c)",
+      "binders": {
+        "a": "nat",
+        "b": "nat",
+        "c": "nat"
+      },
+      "assumptions": "closed"
+    },
+    "Tally.Laws.counts_are_small": {
+      "type": "forall t : tally, size t = size t",
+      "binders": {
+        "t": "tally"
+      }
+    },
+    "Tally.Laws.generated_sum": {
+      "type": "total (1 :: 2 :: empty) = 3",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Tally.Laws.size_append": {
+      "type": "forall a b : tally, size (append a b) = size a + size b",
+      "binders": {
+        "a": "tally",
+        "b": "tally"
+      },
+      "assumptions": [
+        "Laws.size_append"
+      ]
+    },
+    "Tally.Laws.size_stable": {
+      "type": "forall t : tally, size t = size t",
+      "binders": {
+        "t": "tally"
+      },
+      "assumptions": [
+        "Laws.counts_are_small"
+      ]
+    },
+    "Tally.Laws.total_append": {
+      "type": "forall a b : tally, total (append a b) = total a + total b",
+      "binders": {
+        "a": "tally",
+        "b": "tally"
+      },
+      "assumptions": "closed"
+    },
+    "Tally.Laws.total_append_empty": {
+      "type": "forall a : tally, total (append a empty) = total a + 0",
+      "binders": {
+        "a": "tally"
+      },
+      "assumptions": "closed"
+    },
+    "Tally.Laws.totals_differ_falsified": {
+      "type": "total (1 :: empty) <> total (2 :: empty)",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Tally.Prose.doc_no_lists": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Tally.Prose.doc_paragraphs": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Tally.Prose.is_empty": {
+      "type": "tally -> bool",
+      "binders": {}
+    },
+    "Tally.Prose.markdown_forms": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Tally.Prose.push": {
+      "type": "nat -> tally -> tally",
+      "binders": {}
+    },
+    "Tally.Prose.titled_theorem": {
+      "type": "total empty = 0",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Tally.Prose.with_plain_comment": {
+      "type": "nat",
+      "binders": {}
+    }
+  }
+}

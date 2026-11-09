@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
+
+    <Import Project="..\Packages.props" />
+
+    <ItemGroup>
+        <Compile Include="Config.fs" />
+        <Compile Include="Facts.fs" />
+        <Compile Include="Source.fs" />
+        <Compile Include="Docs.fs" />
+        <Compile Include="Anchors.fs" />
+        <Compile Include="Article.fs" />
+        <Compile Include="Guarantees.fs" />
+        <Compile Include="Cards.fs" />
+        <Compile Include="Reader.fs" />
+        <Compile Include="Plugin.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Rocq.Navigator.Tests" />
+        <InternalsVisibleTo Include="Rocq.Docs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource
+            Include="assets\navigator.js"
+            LogicalName="Nacara.Plugin.Rocq.assets.navigator.js"
+            Condition="Exists('assets\navigator.js')" />
+        <EmbeddedResource Include="assets\fonts\*" LogicalName="Nacara.Plugin.Rocq.assets.fonts.%(Filename)%(Extension)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Rocq.Navigator.Shared\Rocq.Navigator.Shared.fsproj" />
+        <ProjectReference Include="..\..\src\FSharp.Data.Rocq\FSharp.Data.Rocq.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nacara.Core" Version="$(NacaraCoreVersion)" />
+        <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
+    </ItemGroup>
+
+</Project>

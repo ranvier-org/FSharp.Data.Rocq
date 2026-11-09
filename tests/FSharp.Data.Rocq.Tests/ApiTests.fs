@@ -120,7 +120,7 @@ let tests =
                     whoUses p "base_id"
                     |> Array.choose (fun e ->
                         match e.Owner with
-                        | DeclarationOwner d -> Some p.Declarations[d].Declaration.Name
+                        | DeclarationOwner d -> p.Declarations[d].Declaration.Name
                         | FileOwner _ -> None)
 
                 Expect.contains owners "base_id_eq" "the lemma about it"
@@ -193,5 +193,63 @@ let tests =
 
                     Expect.sequenceEqual (ints xref "byFrom") p.CrossReferences.ByFrom "owner lookup"
                     Expect.equal files.Length p.Files.Length "files"
+                }
+
+                test $"absent fields of the {name} are None in the model, and -1 or null in the JSON" {
+                    let p = loaded project
+                    let out = tempDir ()
+                    Expect.equal (run (options project out)).ExitCode 0 "ran"
+                    let index, _, files = loadOutput project out
+
+                    let optionalIndex (i: int) =
+                        if i >= 0 then Some i else None
+
+                    Expect.sequenceEqual
+                        (strs (index.GetProperty "declarations") "name"
+                         |> Array.map Option.ofObj)
+                        (p.Declarations |> Array.map _.Declaration.Name)
+                        "declaration names"
+
+                    Array.iter2
+                        (fun (f: RocqFile) (json: Loaded) ->
+                            let sentences = json.Outline.GetProperty "sentences"
+                            let keywords = strs sentences "keywords"
+
+                            Expect.sequenceEqual
+                                (ints sentences "decl" |> Array.map optionalIndex)
+                                (f.Model.Sentences |> Array.map _.Decl)
+                                $"{f.Path}: sentence declarations"
+
+                            Expect.sequenceEqual
+                                (ints sentences "keyword"
+                                 |> Array.map (fun k -> if k >= 0 then Some keywords[k] else None))
+                                (f.Model.Sentences |> Array.map _.Keyword)
+                                $"{f.Path}: sentence keywords"
+
+                            Expect.sequenceEqual
+                                (ints (json.Outline.GetProperty "symbols") "decl"
+                                 |> Array.map optionalIndex)
+                                (f.Model.Symbols |> Array.map _.Decl)
+                                $"{f.Path}: symbol declarations"
+
+                            Expect.sequenceEqual
+                                (ints (json.Outline.GetProperty "uses") "owner"
+                                 |> Array.map optionalIndex)
+                                (f.Model.Uses |> Array.map _.Owner)
+                                $"{f.Path}: use owners"
+
+                            let targets = json.Refs.GetProperty "targets"
+
+                            Expect.sequenceEqual
+                                (ints targets "binder" |> Array.map optionalIndex)
+                                (f.Model.Targets |> Array.map _.Binder)
+                                $"{f.Path}: target binders"
+
+                            Expect.sequenceEqual
+                                (ints targets "symbol" |> Array.map optionalIndex)
+                                (f.Model.Targets |> Array.map _.Symbol)
+                                $"{f.Path}: target symbols")
+                        p.Files
+                        files
                 }
         ]

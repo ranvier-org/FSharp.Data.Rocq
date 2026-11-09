@@ -1,0 +1,80 @@
+DIGEST 09323013ff454748c21009beccf4dc63
+FFixture.Args
+def 31:35 <> state
+R40:42 Corelib.Init.Datatypes <> nat ind
+def 174:186 <> self_dirtying
+R193:197 Fixture.Args <> state def
+binder 189:189 <> s:1
+R205:207 Corelib.Init.Datatypes <> nat ind
+binder 201:201 <> n:2
+R221:223 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R220:220 Fixture.Args <> s:1 var
+R224:224 Fixture.Args <> n:2 var
+prf 381:389 <> sum_three
+R407:409 Corelib.Init.Datatypes <> nat ind
+binder 401:401 <> a:3
+binder 403:403 <> b:4
+binder 412:412 <> c:5
+R424:426 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R420:422 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R416:418 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R415:415 Fixture.Args <> a:3 var
+R419:419 Fixture.Args <> b:4 var
+R423:423 Fixture.Args <> c:5 var
+R432:434 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R428:430 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R427:427 Fixture.Args <> a:3 var
+R431:431 Fixture.Args <> b:4 var
+R435:435 Fixture.Args <> c:5 var
+prf 533:542 <> same_named
+R549:551 Corelib.Init.Datatypes <> nat ind
+binder 545:545 <> n:6
+R557:559 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R556:556 Fixture.Args <> n:6 var
+R560:560 Fixture.Args <> n:6 var
+R587:590 Corelib.Init.Datatypes <> bool ind
+binder 583:583 <> n:7
+R598:600 Corelib.Init.Datatypes <> nat ind
+binder 594:594 <> m:8
+R606:612 Corelib.Init.Logic <> eq_refl constr
+R614:614 Fixture.Args <> m:8 var
+R617:620 Corelib.Init.Datatypes <> true constr
+R587:590 Corelib.Init.Datatypes <> bool ind
+binder 583:583 <> n:9
+R598:600 Corelib.Init.Datatypes <> nat ind
+binder 594:594 <> m:10
+R606:612 Corelib.Init.Logic <> eq_refl constr
+R614:614 Fixture.Args <> m:10 var
+R617:620 Corelib.Init.Datatypes <> true constr
+def 775:784 <> apply_once
+R794:797 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R791:793 Corelib.Init.Datatypes <> nat ind
+R798:800 Corelib.Init.Datatypes <> nat ind
+binder 787:787 <> f:11
+R808:810 Corelib.Init.Datatypes <> nat ind
+binder 804:804 <> x:12
+R815:817 Corelib.Init.Datatypes <> nat ind
+R833:835 Corelib.Init.Datatypes <> nat ind
+binder 829:829 <> x:13
+R840:840 Fixture.Args <> f:11 var
+R842:842 Fixture.Args <> x:13 var
+R845:845 Fixture.Args <> x:12 var
+def 917:928 <> entries_only
+R935:937 Corelib.Init.Datatypes <> nat ind
+binder 931:931 <> m:14
+R942:944 Corelib.Init.Datatypes <> nat ind
+R949:949 Fixture.Args <> m:14 var
+def 964:973 <> after_args
+R978:989 Fixture.Args <> entries_only def
+prf 1091:1098 <> shadowed
+R1116:1119 Corelib.Init.Datatypes <> bool ind
+binder 1112:1112 <> n:15
+R1123:1125 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1122:1122 Fixture.Args <> n:15 var
+R1126:1126 Fixture.Args <> n:15 var
+binder 1101:1101 <> H:16
+R1134:1136 Corelib.Init.Datatypes <> nat ind
+binder 1130:1130 <> n:17
+R1142:1144 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1141:1141 Fixture.Args <> n:17 var
+R1145:1145 Fixture.Args <> n:17 var

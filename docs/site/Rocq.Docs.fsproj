@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Examples.fs" />
+        <Compile Include="Weave.fs" />
+        <Compile Include="Site.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\navigator\Nacara.Plugin.Rocq\Nacara.Plugin.Rocq.fsproj" />
+        <!-- Builds the command line beside the site, where the examples run it. -->
+        <ProjectReference Include="..\..\src\FSharp.Data.Rocq.Cli\FSharp.Data.Rocq.Cli.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Partas.Nacara.Theme asks for FSharp.Core 11. -->
+        <PackageReference Include="FSharp.Core" Version="11.0.101-rc1.26425.128" />
+        <PackageReference Include="Nacara.Core" Version="2.0.0-beta.6" />
+        <PackageReference Include="Nacara.Plugin.Markdown" Version="1.0.0-beta.2" />
+        <PackageReference Include="Nacara.Plugin.FSharpApi" Version="1.0.0-beta.5" />
+        <PackageReference Include="Nacara.Plugin.Highlight.TreeSitter" Version="1.0.0-beta.3" />
+        <PackageReference Include="Nacara.Plugin.LinkValidator" Version="1.0.0-beta.2" />
+        <PackageReference Include="Partas.Nacara.Theme" Version="0.3.0" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,47 @@
+DIGEST 9ebb8b3ee52a6dfc8589a5e887011937
+FTally.Core
+ind 233:237 <> tally
+constr 253:257 <> empty
+constr 271:274 <> cons
+R261:265 Tally.Core <> tally:1 ind
+R281:284 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R278:280 Corelib.Init.Datatypes <> nat ind
+R290:293 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R285:289 Tally.Core <> tally:1 ind
+R294:298 Tally.Core <> tally:1 ind
+scheme 233:237 <> tally_rect
+scheme 233:237 <> tally_ind
+scheme 233:237 <> tally_rec
+scheme 233:237 <> tally_sind
+R381:384 Tally.Core <> cons constr
+not 373:373 <> ::tally_scope:x_'::'_x
+def 541:545 <> total
+R552:556 Tally.Core <> tally ind
+binder 548:548 <> t:3
+R561:563 Corelib.Init.Datatypes <> nat ind
+R576:576 Tally.Core <> t:3 var
+R587:591 Tally.Core <> empty constr
+R603:606 Tally.Core <> ::tally_scope:x_'::'_x not
+R616:618 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R619:623 Tally.Core <> total:4 def
+def 776:781 <> append
+R790:794 Tally.Core <> tally ind
+binder 784:784 <> a:6
+binder 786:786 <> b:7
+R799:803 Tally.Core <> tally ind
+R816:816 Tally.Core <> a:6 var
+R827:831 Tally.Core <> empty constr
+R836:836 Tally.Core <> b:7 var
+R843:846 Tally.Core <> ::tally_scope:x_'::'_x not
+R856:859 Tally.Core <> ::tally_scope:x_'::'_x not
+R860:865 Tally.Core <> append:8 def
+R872:872 Tally.Core <> b:7 var
+def 960:963 <> size
+R970:974 Tally.Core <> tally ind
+binder 966:966 <> t:10
+R979:981 Corelib.Init.Datatypes <> nat ind
+R994:994 Tally.Core <> t:10 var
+R1005:1009 Tally.Core <> empty constr
+R1021:1024 Tally.Core <> ::tally_scope:x_'::'_x not
+R1033:1033 Corelib.Init.Datatypes <> S constr
+R1036:1039 Tally.Core <> size:11 def

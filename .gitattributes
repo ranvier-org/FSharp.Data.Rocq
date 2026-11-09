@@ -1,2 +1,4 @@
 # A fixture's .glob holds the MD5 of its .v and byte offsets into it, so its bytes must not change.
 tests/FSharp.Data.Rocq.Tests/fixtures/** -text -whitespace
+navigator/Rocq.Navigator.Tests/fixtures/** -text -whitespace
+docs/site/example/** -text -whitespace

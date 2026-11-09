@@ -258,13 +258,13 @@ let useTargets (m: FileModel) : Target[] * int[] =
                 let t = m.Targets[u.Target]
 
                 targets.Add (
-                    if t.Symbol >= 0 then
+                    match t.Symbol with
+                    | Some symbol ->
                         { t with
-                            Path = m.Symbols[t.Symbol].Path
-                            Name = m.Symbols[t.Symbol].Name
+                            Path = m.Symbols[symbol].Path
+                            Name = m.Symbols[symbol].Name
                         }
-                    else
-                        t
+                    | None -> t
                 )
 
                 remap[u.Target] <- i
@@ -345,7 +345,7 @@ let private build (files: RocqFile[]) : RocqProject =
                     Index = symbols.Count
                     File = fi
                     Local = local
-                    Declaration = if s.Decl >= 0 then Some (declOffset[fi] + s.Decl) else None
+                    Declaration = s.Decl |> Option.map (fun d -> declOffset[fi] + d)
                     Symbol = s
                 })
 
@@ -403,7 +403,11 @@ let private build (files: RocqFile[]) : RocqProject =
 
         f.Model.Uses
         |> Array.iteri (fun i u ->
-            let from = if u.Owner >= 0 then declOffset[fi] + u.Owner else ~~~fi
+            let from =
+                match u.Owner with
+                | Some owner -> declOffset[fi] + owner
+                | None -> ~~~fi
+
             edges.Add (struct (nodes[targetColumn[i]], from, u.Where, u.Count)))
 
     let externalOrder =

@@ -1,0 +1,96 @@
+<style>
+.nv{--bg:#14161c;--pane:#1a1d25;--line:#2b303b;--ink:#e6e8ee;--dim:#98a0b0;--accent:#7cc4ff;--ok:#7fd8a6;--kw:#c6a0f6;--ty:#f0c674;
+  background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;font:13px/1.5 Inter,system-ui,sans-serif;padding:14px 16px;margin-top:8px;text-align:left;clear:both}
+.nv *{box-sizing:border-box}
+.nv-t{font-size:15px;font-weight:600;margin:0 0 4px}
+.nv-d{color:#c4c9d4;margin:0 0 8px}
+.nv pre{font:12px/1.6 "JetBrains Mono",Consolas,monospace;background:var(--pane);border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin:0 0 8px;white-space:pre-wrap;color:var(--ink)}
+.nv-k{color:var(--kw)}.nv-m{color:var(--dim)}
+.b{position:relative;color:var(--ty);border-bottom:1px dotted var(--ty);cursor:help}
+.h{position:relative;color:var(--accent);border-bottom:1px dotted var(--accent);cursor:help}
+.hc{display:none;position:absolute;left:0;top:1.6em;z-index:30;width:340px;background:#232733;border:1px solid #414a5c;border-radius:8px;padding:9px 11px;box-shadow:0 10px 28px #0009;font:12.5px/1.45 Inter,system-ui,sans-serif;color:var(--ink);white-space:normal}
+.b:hover .hc,.h:hover .hc{display:block}
+.hc code{font:11.5px "JetBrains Mono",Consolas,monospace;color:var(--ty);display:block;margin-bottom:5px;white-space:pre-wrap}
+.hc small{display:block;color:var(--dim);margin-top:6px}
+.badge{display:inline-block;font-size:11px;border:1px solid #356b50;background:#17291f;color:var(--ok);border-radius:10px;padding:1px 9px;margin:0 0 8px}
+.st{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px}
+.tac{display:block;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;color:var(--dim);font:12px/1.5 "JetBrains Mono",Consolas,monospace;padding:3px 8px;cursor:pointer;border-radius:0 4px 4px 0}
+.tac:hover{color:var(--ink);background:#20242e}
+.tac.on{color:var(--ink);background:#25304a;border-left-color:var(--accent)}
+.goalbar{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-bottom:4px}
+.rule{border:0;border-top:1px solid var(--dim);margin:5px 0}
+.done{color:var(--ok)}
+.other{color:var(--dim);font-size:11.5px;margin-top:6px}
+.note{color:var(--dim);font-size:12px;margin:2px 0 0}
+.opt-stack .option{display:block}
+.opt-stack .option .letter{float:left;margin:0 10px 8px 0}
+.opt-stack .option h3{margin-bottom:2px}
+</style>
+
+<h2>What would you want on the page from Rocq itself?</h2>
+<p class="subtitle">This output is real, captured from your compiled proofs with Rocq 9.1.0. A public page can't run Rocq, so these would be captured when the site is built: they'd feel live to a reader but be fixed for each build. Pick any you want.</p>
+
+<div class="options opt-stack" data-multiselect>
+
+<div class="option" data-choice="types" onclick="toggleSelect(this)">
+  <div class="letter">1</div>
+  <div class="content"><h3>Inferred types</h3><p>The source says <code>mark_monotone fuel n r s s' m d</code> with no types. Hover a binder, shown in yellow, to see the type Rocq worked out. Cards also gain real types for every definition. Measured cost: about 2.2 s for 1,018 symbols.</p></div>
+  <div class="nv" onclick="event.stopPropagation()">
+    <p class="nv-t">Marks only raise freshness.</p>
+<pre><span class="nv-k">Theorem</span> mark_monotone <span class="b">fuel<span class="hc"><code>fuel : nat</code></span></span> <span class="b">n<span class="hc"><code>n : node_id</code></span></span> <span class="b">r<span class="hc"><code>r : option node_id</code></span></span> <span class="b">s<span class="hc"><code>s : State.state</code></span></span> <span class="b">s'<span class="hc"><code>s' : State.state</code></span></span> <span class="b">m<span class="hc"><code>m : node_id</code></span></span> <span class="b">d<span class="hc"><code>d : State.node</code></span></span> :
+  <span class="h">any_mark<span class="hc"><code>any_mark : nat -&gt; node_id -&gt; option node_id -&gt; State.state -&gt; State.state -&gt; Prop</code>Any of the five marking operations, from <b>s</b> to <b>s'</b>.<small>Pure.Marking · mentioned by 4</small></span></span> fuel n r s s' -&gt;
+  g_nodes s !! m = Some d -&gt;
+  exists d', g_nodes s' !! m = Some d' /\ <span class="h">freshness_le<span class="hc"><code>freshness_le : freshness -&gt; freshness -&gt; Prop</code>Order <b>Clean &lt;= Check &lt;= Dirty</b>.<small>Base.Prelude · mentioned by 27</small></span></span> (n_freshness d) (n_freshness d').</pre>
+  </div>
+</div>
+
+<div class="option" data-choice="assumptions" onclick="toggleSelect(this)">
+  <div class="letter">2</div>
+  <div class="content"><h3>What each theorem rests on</h3><p>A badge from <code>Print Assumptions</code>. For <code>mark_monotone</code> Rocq reports no axioms at all, and a theorem that does rest on one would name it. Measured cost: about 18 s for 234 theorems.</p></div>
+  <div class="nv" onclick="event.stopPropagation()">
+    <span class="badge">✓ No axioms: closed under the global context</span>
+    <p class="nv-t">Marks only raise freshness.</p>
+    <p class="nv-d">After any of the five marking operations, each existing node still exists, and its freshness has stayed or risen in the order <code>Clean</code>, <code>Check</code>, <code>Dirty</code>.</p>
+  </div>
+</div>
+
+<div class="option" data-choice="goals" onclick="toggleSelect(this)">
+  <div class="letter">3</div>
+  <div class="content"><h3>Proof states</h3><p>Unfold a proof and step through it: click a tactic, and see the goal at that point. The steps below are real output, from a longer spelling of <code>mark_terminates</code>. This is the costly one: it replays every proof at build time, and I haven't measured that time or the data size.</p></div>
+  <div class="nv" onclick="event.stopPropagation()">
+    <p class="nv-t">Marking a node finishes on any graph, cycles included.</p>
+    <div class="st">
+      <div id="tacs"></div>
+      <div><div class="goalbar"><span id="gcount"></span><span>click a tactic</span></div><pre id="goal" style="min-height:150px"></pre></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+(function(){
+  var ctx="fuel : nat\nn : node_id\ns : state\nHb : mark_measure s < fuel";
+  var both="is_Some (mark_check fuel n s) ∧ is_Some (mark_dirty fuel n s)";
+  var d="is_Some (mark_dirty fuel n s)";
+  var steps=[
+   ["Proof.",1,"","∀ (fuel : nat) (n : node_id) (s : state),\n  mark_measure s < fuel\n  → "+both,""],
+   ["intros fuel n s Hb.",1,ctx,both,""],
+   ["split.",2,ctx,"is_Some (mark_check fuel n s)",d],
+   ["apply mark_check_some.",2,ctx,"mark_measure s < fuel",d],
+   ["exact Hb.",1,ctx,d,""],
+   ["apply mark_dirty_some.",1,ctx,"mark_measure s < fuel",""],
+   ["exact Hb.",0,"","",""]];
+  var t=document.getElementById('tacs'),g=document.getElementById('goal'),c=document.getElementById('gcount');
+  function esc(x){return x.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+  function show(i){
+    [].forEach.call(t.children,function(b,k){b.className='tac'+(k===i?' on':'')});
+    var s=steps[i];
+    c.textContent=s[1]===0?'':s[1]+(s[1]===1?' goal':' goals');
+    if(s[1]===0){g.innerHTML='<span class="done">No more goals.</span>';return}
+    g.innerHTML=(s[2]?esc(s[2]):'')+'<hr class="rule">'+esc(s[3])+(s[4]?'<div class="other">goal 2: '+esc(s[4])+'</div>':'');
+  }
+  steps.forEach(function(s,i){var b=document.createElement('button');b.type='button';b.className='tac';b.textContent=s[0];b.onclick=function(e){e.stopPropagation();show(i)};t.appendChild(b)});
+  show(2);
+})();
+</script>

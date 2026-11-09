@@ -1,0 +1,29 @@
+<Project>
+
+    <!--
+        Task 1 outcome, 2026-11-09.
+        Set: View, View.Dom and View.Anime 0.1.44 with the Css 0.1.1-alpha.1 family. Anime stayed: Motion adds 13.1 KB gzipped
+        (without: 226527 bytes, 67493 gzipped; with: 260269 bytes, 80558 gzipped).
+        Client compiler: Fickl 0.8.0, pinned in .config/dotnet-tools.json.
+        Mounting: server render with one IdPrefix per island, hydrate per host with Strict = true. Island markup enters the
+        finished document, since t.Unsafe.html rejects root markers. Head marks are stripped, since hydration removes them.
+    -->
+    <PropertyGroup>
+        <NacaraCoreVersion>2.0.0-beta.6</NacaraCoreVersion>
+        <NacaraMarkdownVersion>1.0.0-beta.2</NacaraMarkdownVersion>
+        <NacaraLinkValidatorVersion>1.0.0-beta.2</NacaraLinkValidatorVersion>
+        <NacaraNuglifyVersion>1.0.0-beta.1</NacaraNuglifyVersion>
+        <RanvierViewVersion>0.1.44</RanvierViewVersion>
+        <RanvierCssVersion>0.1.1-alpha.1</RanvierCssVersion>
+        <RanvierWireVersion>0.1.1-preview.1</RanvierWireVersion>
+        <FableRanvierDomVersion>0.1.0-alpha.54</FableRanvierDomVersion>
+        <MarkdigVersion>1.3.2</MarkdigVersion>
+        <ExpectoVersion>11.0.0-alpha8</ExpectoVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Nacara.Core 2.0.0-beta.6 asks for 10.1.300, above the SDK's implicit version. 10.1.403 matches FSharp.Data.Rocq. -->
+        <PackageReference Update="FSharp.Core" Version="10.1.403" />
+    </ItemGroup>
+
+</Project>

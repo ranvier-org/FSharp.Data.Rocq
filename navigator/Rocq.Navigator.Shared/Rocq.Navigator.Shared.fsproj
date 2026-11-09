@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <Import Project="..\Packages.props" />
+
+    <ItemGroup>
+        <Compile Include="Model.fs" />
+        <Compile Include="Ranking.fs" />
+        <Compile Include="Islands.fs" />
+        <Compile Include="Tokens.fs" />
+        <Compile Include="Styles.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Ranvier.View" Version="$(RanvierViewVersion)" />
+        <PackageReference Include="Ranvier.View.Anime" Version="$(RanvierViewVersion)" />
+        <PackageReference Include="Ranvier.Wire" Version="$(RanvierWireVersion)" />
+        <PackageReference Include="Ranvier.Css" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.Bindings" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.View" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
+    </ItemGroup>
+
+</Project>

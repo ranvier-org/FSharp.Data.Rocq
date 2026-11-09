@@ -9,3 +9,36 @@ tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vo
 tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vok
 tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vos
 tests/FSharp.Data.Rocq.Tests/fixtures/**/.*.aux
+
+# Navigator browser tests: dependencies and Playwright's output.
+navigator/browser/node_modules/
+navigator/browser/test-results/
+navigator/browser/playwright-report/
+
+# Navigator client build output, rebuilt by navigator/build-client.sh.
+navigator/Rocq.Navigator.Client/generated/
+navigator/Rocq.Navigator.Client/node_modules/
+navigator/Nacara.Plugin.Rocq/assets/navigator.js
+# Demo site output.
+navigator/Rocq.Navigator.Site/output/
+navigator/Rocq.Navigator.Site/.nacara/
+# SageFs session state.
+.SageFs/
+
+# Navigator fixtures: compiled by fixtures/generate.sh, with the .glob files committed.
+!navigator/Rocq.Navigator.Tests/fixtures/**/*.glob
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vo
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vok
+navigator/Rocq.Navigator.Tests/fixtures/**/*.vos
+navigator/Rocq.Navigator.Tests/fixtures/**/.*.aux
+
+# Docs site: pages woven at build time, output, and the example's compiled files.
+docs/site/woven/
+docs/site/.work/
+docs/site/output/
+docs/site/.nacara/
+!docs/site/example/**/*.glob
+docs/site/example/**/*.vo
+docs/site/example/**/*.vok
+docs/site/example/**/*.vos
+docs/site/example/**/.*.aux

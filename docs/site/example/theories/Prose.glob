@@ -1,0 +1,33 @@
+DIGEST b168bd751d5310b48becb2b83ef3b954
+FTally.Prose
+R26:29 Tally.Core <> <> lib
+def 524:537 <> doc_paragraphs
+R542:546 Tally.Core <> total def
+R548:552 Tally.Core <> empty constr
+def 711:722 <> doc_no_lists
+def 1264:1277 <> markdown_forms
+R1282:1286 Tally.Core <> total def
+R1288:1292 Tally.Core <> empty constr
+def 1469:1472 <> push
+R1479:1481 Corelib.Init.Datatypes <> nat ind
+binder 1475:1475 <> n:1
+R1489:1493 Tally.Core <> tally ind
+binder 1485:1485 <> t:2
+R1498:1502 Tally.Core <> tally ind
+R1507:1510 Tally.Core <> cons constr
+R1512:1512 Tally.Prose <> n:1 var
+R1514:1514 Tally.Prose <> t:2 var
+def 1616:1623 <> is_empty
+R1630:1634 Tally.Core <> tally ind
+binder 1626:1626 <> t:3
+R1639:1642 Corelib.Init.Datatypes <> bool ind
+R1655:1655 Tally.Prose <> t:3 var
+R1666:1670 Tally.Core <> empty constr
+R1675:1678 Corelib.Init.Datatypes <> true constr
+R1684:1687 Tally.Core <> cons constr
+R1696:1700 Corelib.Init.Datatypes <> false constr
+def 1800:1817 <> with_plain_comment
+prf 2170:2183 <> titled_theorem
+R2198:2200 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2187:2191 Tally.Core <> total def
+R2193:2197 Tally.Core <> empty constr

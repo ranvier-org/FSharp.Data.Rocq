@@ -4,6 +4,16 @@ Typed access to a compiled Rocq project from F#: sentences, declarations, proofs
 cross-file dependencies. It reads `.v` and `.glob` files, and it needs the compiled output of Rocq but not Rocq itself.
 It can also write the same data as JSON, for browsers and other languages.
 
+The [documentation site](docs/site) holds the guide, the comment syntax and a real example. To build it into `docs/site/output`:
+
+```bash
+bash navigator/build-client.sh
+```
+
+```bash
+dotnet run --project docs/site -- build
+```
+
 ## Use
 
 Compile the project first, so each `.v` has a `.glob`. Then:
@@ -16,11 +26,11 @@ match load "proofs/_CoqProject" with
 | Ok project ->
     for d in project.Declarations do
         if d.Declaration.Category = Category.Theorem then
-            printfn "%s: %d proofs" d.Declaration.Name d.Declaration.Proofs.Count
+            printfn "%s: %d proofs" d.Declaration.Id d.Declaration.Proofs.Length
 
     for edge in whoUses project "some_lemma" do
         match edge.Owner with
-        | DeclarationOwner i -> printfn "used by %s" project.Declarations[i].Declaration.Name
+        | DeclarationOwner i -> printfn "used by %s" project.Declarations[i].Declaration.Id
         | FileOwner i -> printfn "used at the top level of %s" project.Files[i].Path
 | Error failures ->
     for failure in failures do
@@ -38,8 +48,8 @@ keeps lexical data for a stale file instead.
 | `RocqProject.CrossReferences` | Mentions between declarations and symbols; read with `usesOf`, `usesBy` or `whoUses` |
 | `RocqProject.FileGraph` | Dependencies between files |
 
-Spans are half-open byte offsets into `Model.Bytes`. In the current model, `-1` means "none" on index fields and `null`
-means absent on string fields.
+Spans are half-open byte offsets into `Model.Bytes`. An index or string field that can be absent is an `option`. The JSON
+writes `None` as `-1` on index fields and `null` on string fields.
 
 ## Write JSON
 
@@ -68,6 +78,85 @@ dotnet run -c Release --project samples/FSharp.Data.Rocq.Sample -- who-uses out 
 ```
 
 `show`, `measure` and `formats` are its other commands. `samples/measure.mjs` is the same idea in plain JavaScript.
+
+## Navigator
+
+`navigator/Nacara.Plugin.Rocq` is a [Nacara](https://github.com/shayanhabibi/Nacara) plugin that turns a compiled project into a
+static reader: a page per module, a Guarantees page, hover cards, search and two looks. Pages read, fold and link with
+JavaScript off. A site adds these lines:
+
+```fsharp
+let options =
+    Rocq.defaults
+    |> Rocq.project "proofs/_CoqProject"
+    |> Rocq.facts (Some "facts.json")
+    |> Rocq.config (Some "navigator.json")
+
+Site.create "Proofs"
+|> Rocq.register options
+|> Site.collection (Rocq.collection "proofs" options |> Collection.layout (Rocq.reader options))
+```
+
+`navigator.json` is optional. Its keys are `falsifiedSuffix`, `checkMarker` and `captureImports`.
+
+Readers change the page from **Settings**, at the bottom of the left pane, or at the end of the Modules drawer on narrow screens. The
+surface follows the viewport: a popover with a fine pointer, a side panel on large touch devices, and a dialog on phones. Choices apply
+live, and persist per key in the browser's `localStorage`:
+
+| Setting | Values | Default |
+|---|---|---|
+| Look | Family, Journal | Family |
+| Mode | Auto, Light, Dark | Auto |
+| Definitions | Open, Closed, Close long ones with a line count | The site's `collapseCodeOver` output |
+| Proofs | Closed, Open | Closed |
+| Imports | Closed, Open | Closed |
+| References (above 900 px) | Pinned, Badges, Under definitions | Pinned |
+| References open (under definitions) | Closed, Open | Closed |
+| Arguments | Names only, With types, In the panel | Names only |
+
+Reset clears every saved key. Below 900 px the references stay inline folds.
+
+A doc comment documents a declaration's arguments with one `- [name:] text` line each, and lines indented past the dash continue the
+entry. It works in `(** *)` and `(**md` comments:
+
+```coq
+(** Whether a node dirties itself.
+    - [s:] the state read.
+    - [n:] the node tested. *)
+Definition self_dirtying (s : state) (n : node_id) : Prop := ...
+```
+
+The entries appear in an Arguments list by the code and on the binder's hover card, with its type. An entry naming no binder of the
+statement still appears, and raises the build warning `rocq/argument-unmatched`, which fails a `--strict` build.
+
+Types and assumption badges come from `facts.json`, written by a separate command that needs Rocq and the `.vo` files. A
+site builds without it, and shows no badges:
+
+```bash
+dotnet run -- rocq-capture --rocq "rocq" --out facts.json
+```
+
+Before building the plugin itself, run `navigator/build-client.sh`, which compiles the client bundle the plugin embeds.
+
+**Minifying HTML:** default `Nuglify.minifyHtml` removes the comments that mark hydration roots. Cards, search, the settings
+and the right pane's Uses and Used by lists stop working, so the build fails with `rocq/hydration-markers-stripped`. Keep the
+comments:
+
+```fsharp
+|> Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false)
+```
+
+The acceptance suite runs on the committed fixture:
+
+```bash
+cd navigator/browser
+npm ci
+npm run site -- --strict
+npx playwright test
+```
+
+For a real project, build its site with `NAVIGATOR_BASE_URL=/sub/path/`. Then set `NAVIGATOR_SITE` to its output and
+`NAVIGATOR_CORPUS=1` for Playwright, and `FSHARP_DATA_ROCQ_CORPUS` to its `_CoqProject` for `Rocq.Navigator.Tests`.
 
 ## Test
 
