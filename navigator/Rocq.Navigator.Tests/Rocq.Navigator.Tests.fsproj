@@ -20,6 +20,7 @@
         <Compile Include="PluginTests.fs" />
         <Compile Include="TokenTests.fs" />
         <Compile Include="RankingTests.fs" />
+        <Compile Include="CorpusTests.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
 

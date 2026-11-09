@@ -5,9 +5,13 @@ import { defineConfig, devices } from "@playwright/test";
 const site = resolve(process.env.NAVIGATOR_SITE ?? "../Rocq.Navigator.Site/output");
 const port = Number(process.env.NAVIGATOR_PORT ?? 4173);
 
+// With NAVIGATOR_CORPUS set, the site is a real project's: the specs that name fixture declarations stay out.
+const corpus = Boolean(process.env.NAVIGATOR_CORPUS);
+
 export default defineConfig({
   testDir: ".",
-  testMatch: "*.spec.ts",
+  testMatch: corpus ? ["acceptance.spec.ts", "corpus.spec.ts"] : "*.spec.ts",
+  testIgnore: corpus ? [] : "corpus.spec.ts",
   outputDir: "test-results",
   fullyParallel: true,
   forbidOnly: true,

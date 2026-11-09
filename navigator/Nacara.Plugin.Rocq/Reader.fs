@@ -176,7 +176,11 @@ module internal RocqReader =
 
     /// <summary>The fonts of the default look, requested before the stylesheet's rules apply.</summary>
     let fontPreloads (urlOf: string -> string) : string =
-        [ "Inter-wght.woff2"; "JetBrainsMono-Regular.woff2"; "JetBrainsMono-SemiBold.woff2" ]
+        [
+            "Inter-wght.woff2"
+            "JetBrainsMono-Regular.woff2"
+            "JetBrainsMono-SemiBold.woff2"
+        ]
         |> List.map (fun file ->
             let url = encode (urlOf $"assets/fonts/{file}")
             $"""<link rel="preload" href="{url}" as="font" type="font/woff2" crossorigin>""")
@@ -287,7 +291,9 @@ module internal RocqReader =
             let client =
                 match bundle.Value with
                 | Some _ ->
-                    let serif = clientPreloadScript (site.UrlOfAsset "assets/fonts/SourceSerif4-wght.woff2")
+                    let serif =
+                        clientPreloadScript (site.UrlOfAsset "assets/fonts/SourceSerif4-wght.woff2")
+
                     $"<script>{serif}</script>"
                 | None -> ""
 

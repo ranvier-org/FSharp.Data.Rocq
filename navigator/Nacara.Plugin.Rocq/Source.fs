@@ -141,9 +141,9 @@ let stripTags (html: string) : string =
 
 /// <summary>An HTML fragment's lines. Each keeps its newline and balances its own tags, and the concatenated text equals the fragment's text.</summary>
 let lines (html: string) : string[] =
-    let result = ResizeArray<string> ()
+    let result = ResizeArray<string>()
     let line = StringBuilder ()
-    let opened = ResizeArray<string> ()
+    let opened = ResizeArray<string>()
 
     let closing (opening: string) =
         let stop = opening.IndexOfAny [| ' '; '>' |]
@@ -193,4 +193,5 @@ let indent (line: string) : int =
     if System.String.IsNullOrWhiteSpace text then
         0
     else
-        text.Length - text.TrimStart([| ' '; '\t' |]).Length
+        text.Length
+        - text.TrimStart([| ' '; '\t' |]).Length

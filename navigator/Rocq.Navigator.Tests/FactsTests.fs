@@ -233,7 +233,12 @@ let tests =
             testCase "collapseCodeOver reads a positive whole number and rejects anything else"
             <| fun () ->
                 let path =
-                    Path.Combine (Path.GetTempPath (), "rocq-navigator-" + Guid.NewGuid().ToString "N" + ".json")
+                    Path.Combine (
+                        Path.GetTempPath (),
+                        "rocq-navigator-"
+                        + Guid.NewGuid().ToString "N"
+                        + ".json"
+                    )
 
                 let readWith (value: string) =
                     File.WriteAllText (path, "{ \"collapseCodeOver\": " + value + " }")

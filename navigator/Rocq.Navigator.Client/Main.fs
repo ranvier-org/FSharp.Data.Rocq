@@ -73,7 +73,11 @@ let private animateFolds (graph: Graph) =
                     elif isFold then
                         let fold = unbox<HTMLDetailsElement> summary.parentElement
                         let target: Targets = unbox fold
-                        let closing = fold.``open`` && not (fold.hasAttribute closingAttribute)
+
+                        let closing =
+                            fold.``open``
+                            && not (fold.hasAttribute closingAttribute)
+
                         let current = fold.getBoundingClientRect().height
                         Utils.remove target
                         clearFold fold

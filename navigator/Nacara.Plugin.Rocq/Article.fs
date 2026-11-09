@@ -375,6 +375,8 @@ type private Item =
     | SentenceItem of Sentence
 
 /// <summary>A file's blocks in source order. The source-bearing fields, read in order, give every byte of the file apart from the comments rendered as prose.</summary>
+/// <param name="project">The project holding the file.</param>
+/// <param name="links">Builds the URLs of references.</param>
 /// <param name="fileIndex">The index in <c>RocqProject.Files</c>.</param>
 let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
     let file = project.Files[fileIndex]
@@ -587,9 +589,20 @@ let private appendStatement (out: StringBuilder) (config: Config) (statement: st
         $"""<pre class="statement"><code>{linesHtml lines}</code></pre>"""
 
     let lines = Source.lines statement
-    let hasText (line: string) = not (String.IsNullOrWhiteSpace (Source.stripTags line))
-    let first = lines |> Array.tryFindIndex hasText |> Option.defaultValue 0
-    let last = lines |> Array.tryFindIndexBack hasText |> Option.defaultValue 0
+
+    let hasText (line: string) =
+        not (String.IsNullOrWhiteSpace (Source.stripTags line))
+
+    let first =
+        lines
+        |> Array.tryFindIndex hasText
+        |> Option.defaultValue 0
+
+    let last =
+        lines
+        |> Array.tryFindIndexBack hasText
+        |> Option.defaultValue 0
+
     let count = last - first + 1
 
     let long =
@@ -600,7 +613,7 @@ let private appendStatement (out: StringBuilder) (config: Config) (statement: st
         let state = if long then "" else " open"
 
         out.Append (
-            $"""<details class="body"{state}><summary data-lines="{count} lines">{statementPre lines[.. first]}</summary>{statementPre lines[first + 1 ..]}</details>"""
+            $"""<details class="body"{state}><summary data-lines="{count} lines">{statementPre lines[..first]}</summary>{statementPre lines[first + 1 ..]}</details>"""
         )
         |> ignore
     else
@@ -613,7 +626,9 @@ let private appendImports (out: StringBuilder) (imports: string[]) =
             |> Array.map _.TrimStart()
             |> String.concat "\n"
 
-        out.Append ($"""<details class="imports"><summary>{imports.Length}</summary><pre class="command"><code>{codeHtml code}</code></pre></details>""")
+        out.Append (
+            $"""<details class="imports"><summary>{imports.Length}</summary><pre class="command"><code>{codeHtml code}</code></pre></details>"""
+        )
         |> ignore
 
 /// The index of the block after a page's opening heading and its prose.

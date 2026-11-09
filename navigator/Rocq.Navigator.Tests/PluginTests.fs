@@ -690,6 +690,18 @@ let private tests' =
                                 Expect.isTrue (proofs.Contains (text proof.Html)) $"{file.Module}#{anchor} proof"
                         | _ -> ())
 
+        testCase "host: htmlRemoveComments false keeps the hydration root markers default minifying removes"
+        <| fun () ->
+            let markers (minify: Site -> Site) =
+                withRoot (fun root ->
+                    buildAt root (minify (siteWith (fixtureOptions ())))
+                    |> ignore
+
+                    Regex.Matches(read root "Fixture.Guide.html", "<!--\[r-->").Count)
+
+            Expect.equal (markers Nuglify.minifyHtml) 0 "default minifying"
+            Expect.isGreaterThan (markers (Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false))) 0 "comments kept"
+
         testCase "host: a Markdown collection beside this one keeps its pages and its layout"
         <| fun () ->
             withRoot (fun root ->

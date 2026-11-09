@@ -10,7 +10,7 @@ const fixtures = resolve(navigator, "Rocq.Navigator.Tests/fixtures");
 
 const { status } = spawnSync(
   "dotnet",
-  ["run", "--project", resolve(navigator, "Rocq.Navigator.Site/Rocq.Navigator.Site.fsproj"), "--", "build"],
+  ["run", "--project", resolve(navigator, "Rocq.Navigator.Site/Rocq.Navigator.Site.fsproj"), "--", "build", ...process.argv.slice(2)],
   {
     cwd: navigator,
     stdio: "inherit",
