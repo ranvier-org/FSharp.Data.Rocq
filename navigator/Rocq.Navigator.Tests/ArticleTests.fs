@@ -250,22 +250,10 @@ let tests =
                 Expect.isGreaterThan (html.IndexOf """<details class="proof">""") pane "the proof is after the statement"
                 Expect.stringContains html "</details></div>" "the proof closes the pane"
 
-            testCase "toHtmlWith: code bodies stay plain unless an option asks otherwise"
+            testCase "toHtmlWith: a multi-line body folds at its first line, starting open"
             <| fun () ->
                 let html =
-                    toHtmlWith Config.none (fun _ -> "") [| Quiet (0, "a", "one\ntwo\nthree\n", [||], noRefs) |]
-
-                Expect.isFalse (html.Contains "details") "no fold"
-
-            testCase "toHtmlWith: collapsibleCode makes the first line the fold, starting open"
-            <| fun () ->
-                let config =
-                    { Config.none with
-                        CollapsibleCode = true
-                    }
-
-                let html =
-                    toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one &lt; x\n  two\n", [||], noRefs) |]
+                    toHtmlWith Config.none (fun _ -> "") [| Quiet (0, "a", "one &lt; x\n  two\n", [||], noRefs) |]
 
                 Expect.stringContains
                     html
@@ -281,7 +269,6 @@ let tests =
             <| fun () ->
                 let config =
                     { Config.none with
-                        CollapsibleCode = true
                         CollapseCodeOver = Some 1
                     }
 
@@ -420,21 +407,8 @@ let tests =
                 let page (statement: string) =
                     toHtmlWith config (fun _ -> "") [| Quiet (0, "a", statement, [||], noRefs) |]
 
-                Expect.isFalse ((page "one\ntwo\n").Contains "details") "at the limit"
+                Expect.stringContains (page "one\ntwo\n") """<details class="body" open><summary data-lines=""" "at the limit"
                 Expect.stringContains (page "one\ntwo\nthree\n") """<details class="body"><summary data-lines=""" "past the limit"
-
-            testCase "toHtmlWith: a long body starts closed when every body is collapsible"
-            <| fun () ->
-                let config =
-                    { Config.none with
-                        CollapsibleCode = true
-                        CollapseCodeOver = Some 1
-                    }
-
-                let html =
-                    toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one\ntwo\n", [||], noRefs) |]
-
-                Expect.stringContains html """<details class="body"><summary data-lines=""" "closed"
 
             testCase "toHtml: Admitted carries the warning class and text"
             <| fun () ->

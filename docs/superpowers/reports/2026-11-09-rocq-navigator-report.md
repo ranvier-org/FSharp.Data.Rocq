@@ -43,7 +43,7 @@ Full-gate run times: client 53 s, fixture site 8 s, Release tests 18 s, Playwrig
 ## Open owner decisions
 
 - Wire/Thoth (about 31 KB minified) against `JSON.parse`. Removing the server renderer from the client (about 43 KB minified).
-- Keeping `collapsibleCode`, and the card section-comment and raw search kinds.
+- The card section-comment and raw search kinds.
 - `data-surface`, `data-name` and `data-collapse-over` stay, awaiting confirmation.
 - Pushing, merging, a NuGet release, adding the plugin to the Ranvier docs, and replacing `proofs/docs.sh`.
 - Deferred: the pretty printer, identifying differences, the proof states layer.

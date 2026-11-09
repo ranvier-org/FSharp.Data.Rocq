@@ -241,7 +241,6 @@ let tests =
                             FalsifiedSuffix = Some "_falsified"
                             CheckMarker = Some "@checked"
                             CaptureImports = [| "Fixture.Guide" |]
-                            CollapsibleCode = true
                             CollapseCodeOver = None
                         })
                     "every field is read"
