@@ -23,7 +23,15 @@ let tests =
         [
             testCase "exact name beats prefix, prefix beats substring, substring beats subsequence"
             <| fun () ->
-                let entries = [| entry "xfoo_bar"; entry "fxoxo"; entry "foo_bar"; entry "xfoo"; entry "foo" |]
+                let entries =
+                    [|
+                        entry "xfoo_bar"
+                        entry "fxoxo"
+                        entry "foo_bar"
+                        entry "xfoo"
+                        entry "foo"
+                    |]
+
                 Expect.equal (names (rank entries "foo")) [ "foo"; "foo_bar"; "xfoo"; "xfoo_bar"; "fxoxo" ] "tiers in order, shorter first"
 
             testCase "the query is case-insensitive, and an empty query returns nothing"
@@ -35,7 +43,14 @@ let tests =
 
             testCase "a qualified name matches after every name tier"
             <| fun () ->
-                let entries = [| { entry "zzz" with Qualified = "Guide.helper" }; entry "helper" |]
+                let entries =
+                    [|
+                        { entry "zzz" with
+                            Qualified = "Guide.helper"
+                        }
+                        entry "helper"
+                    |]
+
                 Expect.equal (names (rank entries "guide.he")) [ "zzz" ] "qualified"
                 Expect.equal (names (rank entries "helper")) [ "helper"; "zzz" ] "name first"
 
@@ -48,6 +63,5 @@ let tests =
                 Expect.equal ranked[0].Summary "" "first kept"
 
             testCase "a name with markup characters ranks as plain text"
-            <| fun () ->
-                Expect.equal (names (rank [| entry "a<b>" |] "<b")) [ "a<b>" ] "literal"
+            <| fun () -> Expect.equal (names (rank [| entry "a<b>" |] "<b")) [ "a<b>" ] "literal"
         ]

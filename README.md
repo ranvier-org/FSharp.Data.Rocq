@@ -69,6 +69,54 @@ dotnet run -c Release --project samples/FSharp.Data.Rocq.Sample -- who-uses out 
 
 `show`, `measure` and `formats` are its other commands. `samples/measure.mjs` is the same idea in plain JavaScript.
 
+## Navigator
+
+`navigator/Nacara.Plugin.Rocq` is a [Nacara](https://github.com/shayanhabibi/Nacara) plugin that turns a compiled project into a
+static reader: a page per module, a Guarantees page, hover cards, search and two looks. Pages read, fold and link with
+JavaScript off. A site adds these lines:
+
+```fsharp
+let options =
+    Rocq.defaults
+    |> Rocq.project "proofs/_CoqProject"
+    |> Rocq.facts (Some "facts.json")
+    |> Rocq.config (Some "navigator.json")
+
+Site.create "Proofs"
+|> Rocq.register options
+|> Site.collection (Rocq.collection "proofs" options |> Collection.layout (Rocq.reader options))
+```
+
+`navigator.json` is optional. Its keys are `falsifiedSuffix`, `checkMarker` and `captureImports`.
+
+Types and assumption badges come from `facts.json`, written by a separate command that needs Rocq and the `.vo` files. A
+site builds without it, and shows no badges:
+
+```bash
+dotnet run -- rocq-capture --rocq "rocq" --out facts.json
+```
+
+Before building the plugin itself, run `navigator/build-client.sh`, which compiles the client bundle the plugin embeds.
+
+**Minifying HTML:** default `Nuglify.minifyHtml` removes the comments that mark hydration roots. The page stays readable and
+foldable, but cards, search and the look switch stop working. Keep the comments:
+
+```fsharp
+|> Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false)
+```
+
+The acceptance suite runs on the committed fixture:
+
+```bash
+cd navigator/browser
+npm ci
+npm run site -- --strict
+npx playwright test
+```
+
+For a real project, build its site with `NAVIGATOR_BASE_URL=/sub/path/`. Then set `NAVIGATOR_SITE` to its output and
+`NAVIGATOR_CORPUS=1` for Playwright, and `FSHARP_DATA_ROCQ_CORPUS` to its `_CoqProject` for `Rocq.Navigator.Tests`.
+
 ## Test
 
 ```bash

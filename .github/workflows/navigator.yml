@@ -1,0 +1,54 @@
+# Runs the Rocq navigator's full acceptance on the committed fixture. No sibling checkout or Rocq install is needed.
+name: Navigator
+
+on:
+  push:
+    branches: [main, navigator]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Check formatting
+        run: dotnet fantomas --check navigator
+
+      # The plugin embeds the bundle, and `dotnet build` does not compile Fable-only code.
+      - name: Build the client bundle
+        run: bash navigator/build-client.sh
+
+      - name: Install browser test dependencies
+        working-directory: navigator/browser
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      # build-site.mjs sets the subpath base URL from Node.
+      - name: Build the demo site over the fixture
+        working-directory: navigator/browser
+        run: node build-site.mjs --strict
+
+      - name: Run the .NET tests
+        run: dotnet run -c Release --project navigator/Rocq.Navigator.Tests
+
+      - name: Run Playwright
+        working-directory: navigator/browser
+        run: npx playwright test

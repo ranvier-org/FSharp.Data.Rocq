@@ -235,7 +235,14 @@ let private prose =
             ]
         rule ".page h3" [ "font-size", "1.05rem"; "margin", "2rem 0 0.5rem" ]
         rule ".page h4" [ "font-size", "1rem"; "margin", "1.25rem 0 0.25rem" ]
-        rule ".doc, .prose, .entry" [ "font-size", "0.92rem"; "line-height", "1.6"; "color", "var(--soft)" ]
+        rule
+            ".doc, .prose, .entry"
+            [
+                "font-size", "0.92rem"
+                "line-height", "1.6"
+                "color", "var(--soft)"
+                "overflow-wrap", "anywhere"
+            ]
         rule ".doc p, .prose p, .entry p" [ "margin", "0 0 0.75rem" ]
         rule ".doc ul, .doc ol, .prose ul, .prose ol, .entry ul, .entry ol" [ "margin", "0 0 0.75rem"; "padding-left", "1.4rem" ]
         rule ".doc code, .prose code, .entry p code, .entry li code, .decl-title code" [ "font", $"0.9em {mono}"; "color", "var(--link)" ]
@@ -394,7 +401,14 @@ let private guarantees =
 
 let private islands =
     [
-        rule ".switch" [ "display", "flex"; "flex-wrap", "wrap"; "gap", "0.5rem"; "font", $"11.5px/1.5 {ui}" ]
+        rule
+            ".switch"
+            [
+                "display", "flex"
+                "flex-wrap", "wrap"
+                "gap", "0.5rem"
+                "font", $"11.5px/1.5 {ui}"
+            ]
         rule
             ".switch-group"
             [
@@ -440,7 +454,14 @@ let private islands =
             ]
         rule ".card [hidden]" [ "display", "none" ]
         rule ".card p" [ "margin", "0" ]
-        rule ".card-head" [ "display", "flex"; "flex-wrap", "wrap"; "gap", "0.25rem 0.5rem"; "align-items", "baseline" ]
+        rule
+            ".card-head"
+            [
+                "display", "flex"
+                "flex-wrap", "wrap"
+                "gap", "0.25rem 0.5rem"
+                "align-items", "baseline"
+            ]
         rule ".card-name" [ "font-weight", "600"; "color", "var(--ink)" ]
         rule ".card-name[href]" [ "color", "var(--link)" ]
         rule ".card .badge" [ "margin", "0" ]
@@ -456,8 +477,20 @@ let private islands =
         rule ".card-doc" [ "margin-top", "0.375rem"; "color", "var(--soft)" ]
         rule ".card-doc > :first-child" [ "margin-top", "0" ]
         rule ".card-doc > :last-child" [ "margin-bottom", "0" ]
-        rule ".card-quiet" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font-style", "italic" ]
-        rule ".card-meta" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font", $"11px/1.5 {ui}" ]
+        rule
+            ".card-quiet"
+            [
+                "margin-top", "0.375rem !important"
+                "color", "var(--dim)"
+                "font-style", "italic"
+            ]
+        rule
+            ".card-meta"
+            [
+                "margin-top", "0.375rem !important"
+                "color", "var(--dim)"
+                "font", $"11px/1.5 {ui}"
+            ]
     ]
 
 let private search =
@@ -507,7 +540,14 @@ let private search =
                 "outline", "none"
             ]
         rule ".search-input:focus-visible" [ "box-shadow", "inset 0 -2px 0 var(--link)" ]
-        rule ".search-message" [ "margin", "0"; "padding", "0.5rem 1rem"; "color", "var(--dim)"; "font", $"12px/1.5 {ui}" ]
+        rule
+            ".search-message"
+            [
+                "margin", "0"
+                "padding", "0.5rem 1rem"
+                "color", "var(--dim)"
+                "font", $"12px/1.5 {ui}"
+            ]
         rule ".search-message:empty" [ "display", "none" ]
         rule ".search-list" [ "list-style", "none"; "margin", "0"; "padding", "0"; "overflow", "auto" ]
         rule ".search-list li" [ "margin", "0"; "padding", "0" ]

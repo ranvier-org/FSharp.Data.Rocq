@@ -680,7 +680,11 @@ let private searchMessage (instance: SearchInstance) =
     match instance.Status.Value with
     | status when status = statusLoading -> "Loading the index"
     | status when status = statusFailed -> "The search index could not be loaded. Reload the page to try again."
-    | _ when instance.Text.Value.Trim() <> "" && instance.Results.Value.Length = 0 -> "No matches"
+    | _ when
+        instance.Text.Value.Trim () <> ""
+        && instance.Results.Value.Length = 0
+        ->
+        "No matches"
     | _ -> ""
 
 let private createSearch (_: Setup) () : SearchInstance =
@@ -723,7 +727,10 @@ let private createSearch (_: Setup) () : SearchInstance =
             opener.Value <- activeElement ()
             isOpen.Value <- true
 
-            if status.Value <> statusReady && status.Value <> statusLoading then
+            if
+                status.Value <> statusReady
+                && status.Value <> statusLoading
+            then
                 load ()
 
     Api.createEffect (fun () ->
@@ -749,8 +756,12 @@ let private createSearch (_: Setup) () : SearchInstance =
         listenKeys (fun event ->
             let key = keyOf event
 
-            if (commandKey event && key.ToLowerInvariant() = "k")
-               || (key = "/" && not (modified event) && not (typedInField event)) then
+            if
+                (commandKey event && key.ToLowerInvariant () = "k")
+                || (key = "/"
+                    && not (modified event)
+                    && not (typedInField event))
+            then
                 preventDefault event
                 openDialog ())
 
@@ -792,10 +803,16 @@ let private createSearch (_: Setup) () : SearchInstance =
                 text.Value <- inputValue event
                 selected.Value <- 0
         OnKey = onKey
-        OnDialogClick = fun event -> if dismissesDialog event then isOpen.Value <- false
+        OnDialogClick =
+            fun event ->
+                if dismissesDialog event then
+                    isOpen.Value <- false
         OnClosed =
             fun () ->
-                if isNull dialog.Value || not (dialogIsOpen dialog.Value) then
+                if
+                    isNull dialog.Value
+                    || not (dialogIsOpen dialog.Value)
+                then
                     isOpen.Value <- false
     }
 #else
@@ -832,53 +849,63 @@ let private searchRow: TemplateView<unit -> SearchRow> =
 let search: Component<unit> =
     Component.template
         createSearch
-        (fragment [|
-            button (
-                Attrs.attribute ("type", "button"),
-                Attrs.className "search-trigger",
-                Attrs.aria ("haspopup", "dialog"),
-                Events.onClick (fun (instance: SearchInstance) _ -> instance.Open ())
-            ) {
-                span (Attrs.className "search-label") { "Search" }
-                kbd (Attrs.className "search-hint") { "Ctrl K" }
-            }
-
-            dialog (
-                Attrs.className "search-dialog",
-                Attrs.aria ("label", "Search declarations"),
-                Hooks.mounted (fun (instance: SearchInstance) element -> instance.Attach (box element)),
-                Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
-                Events.onClose (fun instance _ -> instance.OnClosed ())
-            ) {
-                input (
-                    Attrs.attribute ("type", "text"),
-                    Attrs.className "search-input",
-                    Attrs.role "combobox",
-                    Attrs.attribute ("autocomplete", "off"),
-                    Attrs.attribute ("spellcheck", "false"),
-                    Attrs.aria ("label", "Search declarations"),
-                    Attrs.aria ("controls", "search-list"),
-                    Attrs.aria ("autocomplete", "list"),
-                    Attrs.aria ("expanded", (fun (instance: SearchInstance) -> Some (if instance.Results.Value.Length > 0 then "true" else "false"))),
-                    Attrs.aria (
-                        "activedescendant",
-                        (fun (instance: SearchInstance) ->
-                            if instance.Results.Value.Length > 0 then
-                                Some (optionId (min instance.Selected.Value (instance.Results.Value.Length - 1)))
-                            else
-                                None)
-                    ),
-                    Events.onInput (fun instance event -> instance.OnInput (box event)),
-                    Events.onKeydown (fun instance event -> instance.OnKey (box event))
-                )
-
-                p (Attrs.className "search-message", Attrs.role "status") { searchMessage }
-
-                ul (Attrs.id "search-list", Attrs.className "search-list", Attrs.role "listbox", Attrs.aria ("label", "Results")) {
-                    forEach (fun (row: SearchRow) -> row.Entry.Href) searchRows searchRow
+        (fragment
+            [|
+                button (
+                    Attrs.attribute ("type", "button"),
+                    Attrs.className "search-trigger",
+                    Attrs.aria ("haspopup", "dialog"),
+                    Events.onClick (fun (instance: SearchInstance) _ -> instance.Open ())
+                ) {
+                    span (Attrs.className "search-label") { "Search" }
+                    kbd (Attrs.className "search-hint") { "Ctrl K" }
                 }
-            }
-        |])
+
+                dialog (
+                    Attrs.className "search-dialog",
+                    Attrs.aria ("label", "Search declarations"),
+                    Hooks.mounted (fun (instance: SearchInstance) element -> instance.Attach (box element)),
+                    Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
+                    Events.onClose (fun instance _ -> instance.OnClosed ())
+                ) {
+                    input (
+                        Attrs.attribute ("type", "text"),
+                        Attrs.className "search-input",
+                        Attrs.role "combobox",
+                        Attrs.attribute ("autocomplete", "off"),
+                        Attrs.attribute ("spellcheck", "false"),
+                        Attrs.aria ("label", "Search declarations"),
+                        Attrs.aria ("controls", "search-list"),
+                        Attrs.aria ("autocomplete", "list"),
+                        Attrs.aria (
+                            "expanded",
+                            (fun (instance: SearchInstance) ->
+                                Some (
+                                    if instance.Results.Value.Length > 0 then
+                                        "true"
+                                    else
+                                        "false"
+                                ))
+                        ),
+                        Attrs.aria (
+                            "activedescendant",
+                            (fun (instance: SearchInstance) ->
+                                if instance.Results.Value.Length > 0 then
+                                    Some (optionId (min instance.Selected.Value (instance.Results.Value.Length - 1)))
+                                else
+                                    None)
+                        ),
+                        Events.onInput (fun instance event -> instance.OnInput (box event)),
+                        Events.onKeydown (fun instance event -> instance.OnKey (box event))
+                    )
+
+                    p (Attrs.className "search-message", Attrs.role "status") { searchMessage }
+
+                    ul (Attrs.id "search-list", Attrs.className "search-list", Attrs.role "listbox", Attrs.aria ("label", "Results")) {
+                        forEach (fun (row: SearchRow) -> row.Entry.Href) searchRows searchRow
+                    }
+                }
+            |])
 
 /// An island with no content, standing in until the real islands exist.
 let stub: Component<unit> =
