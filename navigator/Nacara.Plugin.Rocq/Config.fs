@@ -31,7 +31,7 @@ module Config =
             CollapseCodeOver = None
         }
 
-    /// <summary>Reads the file at <c>path</c>. Returns <c>Error</c> naming the path when it is missing or malformed.</summary>
+    /// <summary>Reads the file at <c>path</c>. Returns <c>Error</c> naming the path when it is missing or malformed. An empty text setting is absent.</summary>
     let read (path: string) : Result<Config, string> =
         try
             use document = JsonDocument.Parse (File.ReadAllBytes path)
@@ -39,7 +39,10 @@ module Config =
 
             let text (name: string) =
                 match root.TryGetProperty name with
-                | true, value when value.ValueKind <> JsonValueKind.Null -> Option.ofObj (value.GetString ())
+                | true, value when value.ValueKind <> JsonValueKind.Null ->
+                    value.GetString ()
+                    |> Option.ofObj
+                    |> Option.filter (fun setting -> setting <> "")
                 | _ -> None
 
             Ok

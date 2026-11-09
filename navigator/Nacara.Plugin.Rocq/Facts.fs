@@ -388,12 +388,13 @@ module Facts =
             {
                 Type =
                     match element.TryGetProperty "type" with
-                    | true, value -> Some (value.GetString ())
+                    | true, value when value.ValueKind <> JsonValueKind.Null -> Some (value.GetString ())
                     | _ -> None
                 Binders = strings (element.GetProperty "binders")
                 Assumptions =
                     match element.TryGetProperty "assumptions" with
-                    | true, value when value.ValueKind = JsonValueKind.Array ->
+                    | true, value when value.ValueKind = JsonValueKind.Null -> None
+                    | true, value when value.ValueKind = JsonValueKind.Array && value.GetArrayLength () > 0 ->
                         value.EnumerateArray ()
                         |> Seq.map (fun axiom -> axiom.GetString ())
                         |> Array.ofSeq

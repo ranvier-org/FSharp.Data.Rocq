@@ -58,6 +58,22 @@ let private captureTests =
                     Expect.isNotEmpty facts.RocqVersion "the version is read"
         ]
 
+let private withJsonFile (text: string) (run: string -> unit) =
+    let path =
+        Path.Combine (
+            Path.GetTempPath (),
+            "rocq-navigator-"
+            + Guid.NewGuid().ToString "N"
+            + ".json"
+        )
+
+    File.WriteAllText (path, text)
+
+    try
+        run path
+    finally
+        File.Delete path
+
 let tests =
     testList
         "facts"
@@ -229,6 +245,24 @@ let tests =
                             CollapseCodeOver = None
                         })
                     "every field is read"
+
+            testCase "an empty suffix or marker is absent"
+            <| fun () ->
+                withJsonFile "{ \"falsifiedSuffix\": \"\", \"checkMarker\": \"\" }" (fun path ->
+                    Expect.equal (Config.read path |> Result.map (fun config -> config.FalsifiedSuffix, config.CheckMarker)) (Ok (None, None)) "both absent")
+
+            testCase "a null type is absent, null assumptions are absent, and an empty assumption list is closed"
+            <| fun () ->
+                let text =
+                    "{ \"rocqVersion\": \"v\", \"digests\": {}, \"symbols\": { \"a\": { \"type\": null, \"binders\": {}, \"assumptions\": [] }, \"b\": { \"binders\": {}, \"assumptions\": null } } }"
+
+                withJsonFile text (fun path ->
+                    match Facts.read path with
+                    | Result.Error message -> failtest message
+                    | Ok facts ->
+                        Expect.isNone facts.Symbols["a"].Type "null type"
+                        Expect.equal facts.Symbols["a"].Assumptions (Some Closed) "empty list"
+                        Expect.isNone facts.Symbols["b"].Assumptions "null assumptions")
 
             testCase "collapseCodeOver reads a positive whole number and rejects anything else"
             <| fun () ->
