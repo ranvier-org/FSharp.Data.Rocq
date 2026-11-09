@@ -320,6 +320,8 @@ test.describe("controls", () => {
       await route.continue();
     });
     await page.goto(MODULE_PAGE, { waitUntil: "commit" });
+    // The page's inline script writes the saved fold states while the document parses, and the held module runs after parsing.
+    await page.waitForFunction(() => document.readyState !== "loading");
     await page.locator("article details.proof").first().evaluate((fold) => ((fold as HTMLDetailsElement).open = true));
     await expect(page.locator("html")).not.toHaveAttribute("data-client", "ready");
     release();

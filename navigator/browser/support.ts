@@ -12,6 +12,9 @@ type Observed = { problems: string[] };
 /** Collects a page's console errors, uncaught exceptions, hydration reports and requests that miss the site. */
 export const observe = (page: Page, problems: string[]) => {
   page.on("console", (message) => {
+    // Windows out of socket buffers on the machine running the tests, on any request.
+    if (message.text().includes("net::ERR_NO_BUFFER_SPACE")) return;
+
     if (message.type() === "error" || message.text().includes("Hydration")) {
       problems.push(`${message.type()}: ${message.text()}`);
     }
@@ -28,6 +31,17 @@ export const observe = (page: Page, problems: string[]) => {
 
 /** Every test fails on what `observe` collects. */
 export const test = base.extend<Observed>({
+  page: async ({ page }, use) => {
+    const goto = page.goto.bind(page);
+
+    page.goto = (...args) =>
+      goto(...args).catch((error) => {
+        if (!String(error).includes("net::ERR_NO_BUFFER_SPACE")) throw error;
+        return goto(...args);
+      });
+
+    await use(page);
+  },
   problems: [
     async ({ page }, use) => {
       const problems: string[] = [];
