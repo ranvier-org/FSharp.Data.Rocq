@@ -3,6 +3,14 @@ import { clientReady, expect, MODULE_PAGE, runningAnimations, test } from "./sup
 
 const FOLD = "details.proof";
 
+/** The first definition line's fold, and the keyword on its summary. */
+const definitionLine = (page: Page) => {
+  const fold = page.locator("article .panel > details.body").first();
+  return { fold, word: fold.locator("summary .kw").first() };
+};
+
+const settled = (page: Page) => expect.poll(() => runningAnimations(page)).toBeLessThan(1);
+
 /** Clicks a fold's summary and records its height each frame, until the inline height is gone and ten frames agree. */
 const openAndSample = (page: Page) =>
   page.evaluate(
@@ -236,4 +244,34 @@ test.describe("with JavaScript off", () => {
     await page.locator(`${FOLD} summary`).first().click();
     await expect(page.locator(`${FOLD} pre`).first()).toBeVisible();
   });
+});
+
+test("the keyboard toggles a fold while a selection lies in its summary", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  const { fold, word } = definitionLine(page);
+
+  await word.evaluate((element) => {
+    element.closest("summary")!.focus();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+  });
+
+  expect(await page.evaluate(() => getSelection()!.toString().length)).toBeGreaterThan(0);
+  await page.keyboard.press("Enter");
+  await expect(fold).toHaveJSProperty("open", false);
+});
+
+test("a double click selects a word on a definition line and leaves the fold open", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  const { fold, word } = definitionLine(page);
+
+  await word.dblclick();
+  await page.waitForTimeout(400);
+
+  await expect(fold).toHaveJSProperty("open", true);
+  expect(await page.evaluate(() => getSelection()!.toString().trim().length)).toBeGreaterThan(0);
 });

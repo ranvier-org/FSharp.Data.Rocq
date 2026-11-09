@@ -15,6 +15,11 @@ let private document: Document = jsNative
 [<Emit "(getSelection() != null && !getSelection().isCollapsed && $0.contains(getSelection().anchorNode))">]
 let private selectionStartsIn (element: Element) : bool = jsNative
 
+/// The click count of a click event. Keyboard activation has 0.
+[<Emit "$0.detail">]
+let private clickCount (event: Event) : int = jsNative
+
+/// Hydrates the island on the page, if any. Returns false when hydration reported errors.
 let private hydrateIsland (graph: Graph) (name: string) (definition: Component<'props>) (props: 'props) =
     match
         document.querySelector $"""[%s{Islands.hostAttribute}="%s{name}"]"""
@@ -67,7 +72,10 @@ let private animateFolds (graph: Graph) =
                     elif
                         isFold
                         && (not (isNull (target.closest "[data-ref]"))
-                            || selectionStartsIn summary)
+                            // A double click's first click toggled, so its second, which selected a word, toggles back.
+                            || (clickCount event <> 0
+                                && clickCount event <> 2
+                                && selectionStartsIn summary))
                     then
                         event.preventDefault ()
                     elif isFold then
