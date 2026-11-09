@@ -14,6 +14,26 @@ bash navigator/build-client.sh
 dotnet run --project docs/site -- build
 ```
 
+## Install
+
+Both packages target .NET 10 and are in preview, so `--prerelease` is required.
+
+For the library:
+
+```bash
+dotnet add package FSharp.Data.Rocq --prerelease
+```
+
+For the Nacara plugin, which brings in the library, first add the feed that holds its `Xantham.*` dependency:
+
+```bash
+dotnet nuget add source https://nuget.cloudsmith.io/shayanhabibi/xantham/v3/index.json --name xantham-cloudsmith
+```
+
+```bash
+dotnet add package Nacara.Plugin.Rocq --prerelease
+```
+
 ## Use
 
 Compile the project first, so each `.v` has a `.glob`. Then:
@@ -189,14 +209,14 @@ dotnet fantomas --check src tests samples
 
 [`publish.yml`](.github/workflows/publish.yml) checks formatting, tests and packs on every push and pull request. A `v*` tag
 also publishes to nuget.org through trusted publishing, so the repository holds no API key. The tag must equal `v` plus
-`Version` in the library's project file:
+`Version` in `Directory.Build.props`, which every package shares:
 
 ```bash
-git tag v0.1.0-preview.1
+git tag v0.1.0-preview.2
 ```
 
 ```bash
-git push origin v0.1.0-preview.1
+git push origin v0.1.0-preview.2
 ```
 
 ## Design decisions

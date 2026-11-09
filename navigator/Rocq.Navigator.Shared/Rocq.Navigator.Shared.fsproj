@@ -5,6 +5,17 @@
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <IsPackable>true</IsPackable>
+        <PackageId>Rocq.Navigator.Shared</PackageId>
+        <Description>The components and styles Nacara.Plugin.Rocq renders with. Install Nacara.Plugin.Rocq, which depends on this package.</Description>
+        <PackageTags>rocq;coq;fsharp;nacara</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
     <Import Project="..\Packages.props" />
 
     <ItemGroup>

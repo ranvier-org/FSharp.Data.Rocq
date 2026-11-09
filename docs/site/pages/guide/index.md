@@ -2,6 +2,26 @@
 title: Getting started
 ---
 
+## Install
+
+Both packages target .NET 10 and are in preview, so `--prerelease` is required.
+
+For the library:
+
+```bash
+dotnet add package FSharp.Data.Rocq --prerelease
+```
+
+For the Nacara plugin, which brings in the library, first add the feed that holds its `Xantham.*` dependency:
+
+```bash
+dotnet nuget add source https://nuget.cloudsmith.io/shayanhabibi/xantham/v3/index.json --name xantham-cloudsmith
+```
+
+```bash
+dotnet add package Nacara.Plugin.Rocq --prerelease
+```
+
 ## Compile the project
 
 Both packages read what Rocq leaves behind, so compile first. Each `.v` needs a `.glob` beside it.

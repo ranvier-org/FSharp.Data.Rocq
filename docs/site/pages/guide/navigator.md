@@ -4,6 +4,18 @@ title: Navigator
 
 `Nacara.Plugin.Rocq` publishes a compiled project as a static site. Pages read, fold and link with JavaScript off, and the client adds hover cards, search and settings.
 
+## Install
+
+The package targets .NET 10 and is in preview. Add the feed that holds its `Xantham.*` dependency, then the package:
+
+```bash
+dotnet nuget add source https://nuget.cloudsmith.io/shayanhabibi/xantham/v3/index.json --name xantham-cloudsmith
+```
+
+```bash
+dotnet add package Nacara.Plugin.Rocq --prerelease
+```
+
 ## Add it to a site
 
 This is the complete program that built the site on the [Site output](output.md) page:
