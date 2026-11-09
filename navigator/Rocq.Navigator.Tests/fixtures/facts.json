@@ -2,6 +2,7 @@
   "rocqVersion": "9.1.0",
   "digests": {
     "theories/Guide.v": "bc0895303e2a40377565701f22a2a907",
+    "theories/Long.v": "59283ce7875991a33f7eec4beecb8900",
     "theories/Other.v": "3b40f9c4187920d8d7f09705a1bcd471"
   },
   "symbols": {
@@ -107,6 +108,134 @@
         "a": "nat"
       },
       "assumptions": "closed"
+    },
+    "Fixture.Long.long_01": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_02": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_03": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_04": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_05": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_06": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_07": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_08": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_09": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_10": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_11": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_12": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_13": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_14": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_15": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_16": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_17": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_18": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_19": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_20": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_21": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_22": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_23": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_24": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_25": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_26": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_27": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_28": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_29": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.long_30": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.uses_wrapped": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Long.wrapped": {
+      "type": "nat",
+      "binders": {}
     },
     "Fixture.Other.other_def": {
       "type": "nat -> nat",

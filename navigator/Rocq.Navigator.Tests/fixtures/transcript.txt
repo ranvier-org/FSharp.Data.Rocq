@@ -119,3 +119,131 @@ stable_twice
 The command has indeed failed with message:
 The reference __nav_32 was not found in the current environment.
 Closed under the global context
+The command has indeed failed with message:
+The reference __nav_33 was not found in the current environment.
+Long.wrapped
+     : nat
+The command has indeed failed with message:
+The reference __nav_34 was not found in the current environment.
+Long.uses_wrapped
+     : nat
+The command has indeed failed with message:
+The reference __nav_35 was not found in the current environment.
+Long.long_01
+     : nat
+The command has indeed failed with message:
+The reference __nav_36 was not found in the current environment.
+Long.long_02
+     : nat
+The command has indeed failed with message:
+The reference __nav_37 was not found in the current environment.
+Long.long_03
+     : nat
+The command has indeed failed with message:
+The reference __nav_38 was not found in the current environment.
+Long.long_04
+     : nat
+The command has indeed failed with message:
+The reference __nav_39 was not found in the current environment.
+Long.long_05
+     : nat
+The command has indeed failed with message:
+The reference __nav_40 was not found in the current environment.
+Long.long_06
+     : nat
+The command has indeed failed with message:
+The reference __nav_41 was not found in the current environment.
+Long.long_07
+     : nat
+The command has indeed failed with message:
+The reference __nav_42 was not found in the current environment.
+Long.long_08
+     : nat
+The command has indeed failed with message:
+The reference __nav_43 was not found in the current environment.
+Long.long_09
+     : nat
+The command has indeed failed with message:
+The reference __nav_44 was not found in the current environment.
+Long.long_10
+     : nat
+The command has indeed failed with message:
+The reference __nav_45 was not found in the current environment.
+Long.long_11
+     : nat
+The command has indeed failed with message:
+The reference __nav_46 was not found in the current environment.
+Long.long_12
+     : nat
+The command has indeed failed with message:
+The reference __nav_47 was not found in the current environment.
+Long.long_13
+     : nat
+The command has indeed failed with message:
+The reference __nav_48 was not found in the current environment.
+Long.long_14
+     : nat
+The command has indeed failed with message:
+The reference __nav_49 was not found in the current environment.
+Long.long_15
+     : nat
+The command has indeed failed with message:
+The reference __nav_50 was not found in the current environment.
+Long.long_16
+     : nat
+The command has indeed failed with message:
+The reference __nav_51 was not found in the current environment.
+Long.long_17
+     : nat
+The command has indeed failed with message:
+The reference __nav_52 was not found in the current environment.
+Long.long_18
+     : nat
+The command has indeed failed with message:
+The reference __nav_53 was not found in the current environment.
+Long.long_19
+     : nat
+The command has indeed failed with message:
+The reference __nav_54 was not found in the current environment.
+Long.long_20
+     : nat
+The command has indeed failed with message:
+The reference __nav_55 was not found in the current environment.
+Long.long_21
+     : nat
+The command has indeed failed with message:
+The reference __nav_56 was not found in the current environment.
+Long.long_22
+     : nat
+The command has indeed failed with message:
+The reference __nav_57 was not found in the current environment.
+Long.long_23
+     : nat
+The command has indeed failed with message:
+The reference __nav_58 was not found in the current environment.
+Long.long_24
+     : nat
+The command has indeed failed with message:
+The reference __nav_59 was not found in the current environment.
+Long.long_25
+     : nat
+The command has indeed failed with message:
+The reference __nav_60 was not found in the current environment.
+Long.long_26
+     : nat
+The command has indeed failed with message:
+The reference __nav_61 was not found in the current environment.
+Long.long_27
+     : nat
+The command has indeed failed with message:
+The reference __nav_62 was not found in the current environment.
+Long.long_28
+     : nat
+The command has indeed failed with message:
+The reference __nav_63 was not found in the current environment.
+Long.long_29
+     : nat
+The command has indeed failed with message:
+The reference __nav_64 was not found in the current environment.
+Long.long_30
+     : nat
