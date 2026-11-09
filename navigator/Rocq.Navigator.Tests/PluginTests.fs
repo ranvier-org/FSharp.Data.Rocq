@@ -9,7 +9,7 @@ open System.Text.RegularExpressions
 open Expecto
 open Feliz.ViewEngine
 open FSharp.Data.Rocq.Project
-open Markdig.Extensions.Tables
+open Markdig.Extensions.EmphasisExtras
 open Nacara.Core
 open Nacara.Plugins
 open Rocq.Navigator
@@ -588,7 +588,7 @@ let private tests' =
         testCase "build: a site's Markdown extension reaches comments, and raw HTML stays disabled"
         <| fun () ->
             let comment =
-                "\n(**md\n| left | right |\n|---|---|\n| 1 | 2 |\n\nRaw <marquee>text</marquee> here.\n*)\n"
+                "\n(**md\n| left | right |\n|---|---|\n| 1 | 2 |\n\n~~gone~~\n\nRaw <marquee>text</marquee> here.\n*)\n"
 
             let render (configure: RocqOptions -> RocqOptions) =
                 withRoot (fun root ->
@@ -607,12 +607,15 @@ let private tests' =
                     read root "Fixture.Guide.html")
 
             let plain = render id
-            let extended = render (Rocq.extensions [ PipeTableExtension () ])
 
-            Expect.isFalse (plain.Contains "<table") "the default options render no table"
-            Expect.stringContains extended "<table" "the extension renders the table"
+            let extended =
+                render (Rocq.extensions [ EmphasisExtraExtension EmphasisExtraOptions.Strikethrough ])
+
+            Expect.isFalse (plain.Contains "<del>") "the default options leave out the extension"
+            Expect.stringContains extended "<del>gone</del>" "the extension reaches comments"
 
             for name, html in [ "default", plain; "extended", extended ] do
+                Expect.stringContains html "<table" $"{name}: the table renders"
                 Expect.isFalse (html.Contains "<marquee") $"{name}: raw HTML is not written as markup"
                 Expect.stringContains html "&lt;marquee&gt;" $"{name}: raw HTML displays as text"
 

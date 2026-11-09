@@ -325,7 +325,25 @@ let private prose =
             ]
         rule ".doc p, .prose p, .entry p" [ "margin", "0 0 0.75rem" ]
         rule ".doc ul, .doc ol, .prose ul, .prose ol, .entry ul, .entry ol" [ "margin", "0 0 0.75rem"; "padding-left", "1.4rem" ]
-        rule ".doc code, .prose code, .entry p code, .entry li code, .decl-title code" [ "font", $"0.9em {mono}"; "color", "var(--link)" ]
+        rule
+            ".doc table, .prose table, .entry table"
+            [
+                "display", "block"
+                "max-width", "100%"
+                "overflow-x", "auto"
+                "margin", "0 0 0.75rem"
+                "border-collapse", "collapse"
+            ]
+        rule
+            ".doc th, .doc td, .prose th, .prose td, .entry th, .entry td"
+            [
+                "padding", "0.3rem 0.75rem"
+                "border", "1px solid var(--line)"
+                "text-align", "left"
+            ]
+        rule
+            ".doc code, .prose code, .entry p code, .entry li code, .entry td code, .entry th code, .decl-title code"
+            [ "font", $"0.9em {mono}"; "color", "var(--link)" ]
         rule ".doc a code, .prose a code, .entry a code" [ "border-bottom", "1px dotted var(--link)" ]
         rule ".doc a.ref, .prose a.ref, .entry a.ref" [ "text-decoration", "none" ]
         rule

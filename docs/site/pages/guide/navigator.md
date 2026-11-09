@@ -32,7 +32,7 @@ let rocqOptions =
 | `Rocq.config` | None | The path of `navigator.json` |
 | `Rocq.dropStaleFacts` | `false` | Drops the facts of a changed file, instead of failing with `rocq/facts-stale` |
 | `Rocq.home` | None | A label and URL linking back to the host site |
-| `Rocq.extensions` | None | Markdig extensions applied to comments |
+| `Rocq.extensions` | None | Markdig extensions applied to comments, alongside pipe tables |
 
 ## navigator.json
 

@@ -131,7 +131,7 @@ copied text stays exact.
 `Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
 
 **Docs.** `Comment.AttachedTo` and `Declaration.Docs` decide attachment. `(**md` bodies are Markdown, rendered by Markdig at the
-version `Nacara.Plugin.Markdown` uses, with any `IMarkdownExtension` the site registered and raw HTML disabled. `(** ... *)`
+version `Nacara.Plugin.Markdown` uses, with pipe tables, any `IMarkdownExtension` the site registered and raw HTML disabled. `(** ... *)`
 bodies are coqdoc, of which headings, `[code]` and paragraphs are handled. Code in docs that names a symbol in scope becomes
 a reference.
 
