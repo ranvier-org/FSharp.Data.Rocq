@@ -180,17 +180,37 @@ module Docs =
 
     let private argumentLine = Regex @"^(\s*)-\s+\[([^\s\[\]:]+):\]\s*(.*)$"
 
-    let private isFence (format: CommentFormat) (line: string) =
+    let private markdownFence = Regex @"^\s*(`{3,}|~{3,})(.*)$"
+
+    /// The open fence's marker after a line, given the marker before it.
+    let private fenceAfter (format: CommentFormat) (fence: string option) (line: string) =
         let text = line.TrimStart ()
 
         match format with
         | CommentFormat.Markdown ->
-            text.StartsWith ("```", System.StringComparison.Ordinal)
-            || text.StartsWith ("~~~", System.StringComparison.Ordinal)
+            let m = markdownFence.Match line
+            let marker = m.Groups[1].Value
+
+            match fence with
+            | _ when not m.Success -> fence
+            | None -> Some marker
+            | Some opening when
+                marker[0] = opening[0]
+                && marker.Length >= opening.Length
+                && System.String.IsNullOrWhiteSpace m.Groups[2].Value
+                ->
+                None
+            | _ -> fence
         | CommentFormat.Doc
         | CommentFormat.Plain ->
-            text.StartsWith ("<<", System.StringComparison.Ordinal)
-            || text.StartsWith (">>", System.StringComparison.Ordinal)
+            match fence with
+            | None when
+                text.StartsWith ("<<", System.StringComparison.Ordinal)
+                && not (text.Contains ">>")
+                ->
+                Some "<<"
+            | Some _ when text.StartsWith (">>", System.StringComparison.Ordinal) -> None
+            | _ -> fence
 
     /// <summary>The argument entries of a comment body, and the body without them. A body with no entries returns unchanged.</summary>
     /// <remarks>An entry continues over the following non-blank lines indented past its dash. Fenced or verbatim text holds no entries.</remarks>
@@ -201,7 +221,7 @@ module Docs =
         let entries = ResizeArray<ArgumentEntry>()
         let rest = ResizeArray<string>()
         let text = ResizeArray<string>()
-        let mutable fenced = false
+        let mutable fence: string option = None
         let mutable dash = -1
         let mutable name = ""
 
@@ -219,11 +239,13 @@ module Docs =
         for index, line in Array.indexed (body.Replace("\r\n", "\n").Split '\n') do
             let m = argumentLine.Match line
 
-            if isFence format line then
+            let next = fenceAfter format fence line
+
+            if next <> fence then
                 flush ()
-                fenced <- not fenced
+                fence <- next
                 rest.Add line
-            elif fenced then
+            elif fence.IsSome then
                 rest.Add line
             elif m.Success then
                 flush ()

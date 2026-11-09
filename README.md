@@ -117,7 +117,7 @@ Definition self_dirtying (s : state) (n : node_id) : Prop := ...
 ```
 
 The entries appear in an Arguments list by the code and on the binder's hover card, with its type. An entry naming no binder of the
-statement still appears, and raises the build warning `rocq/argument-unmatched`.
+statement still appears, and raises the build warning `rocq/argument-unmatched`, which fails a `--strict` build.
 
 Types and assumption badges come from `facts.json`, written by a separate command that needs Rocq and the `.vo` files. A
 site builds without it, and shows no badges:

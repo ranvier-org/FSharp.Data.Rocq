@@ -13,7 +13,7 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 | `Signal` | Current look, light or dark mode, each reading setting, the settings' open state, hovered or focused reference, the chip whose dialog is wanted and shown, search text, search open, section in view, the declaration owning the lists |
 | `createMemo` / `createMemoWithComparer` | Search results from the text; the hover card's symbol from the hovered reference, skipping unchanged symbols |
 | `createProjection` | Keyed rows of the search results |
-| `createEffect` / `createEffectOn` | Writes look, mode and the reference placement to the root element, a fold setting to its folds, and opens and closes the settings dialog when its signal changes |
+| `createEffect` / `createEffectOn` | Writes look, mode and the reference placement to the root element, and opens and closes the settings dialog when its signal changes |
 | `createRoot`, `Owner`, `onCleanup` | Lifetime of each hydrated island and its listeners |
 
 **View-owned state:**
@@ -151,7 +151,7 @@ CSS only, from `data-args` on the root, which the head script applies before fir
 |---|---|---|
 | Names only (default) | absent | Above the code, name and description. Types are `display: none`, so their links leave the tab order |
 | With types | `types` | Above the code, `name : type` then the description |
-| In the panel | `panel` | A footer joined to the code panel with flex `order` on `.decl`, after any proof folds |
+| In the panel | `panel` | A second server-rendered copy inside the code panel, between the statement and any proof folds. The stylesheet displays one copy per value, so the setting moves no DOM |
 
 At most 600 px the rows stack. Hovering a row marks that binder's occurrences in the statement with `.arg-hot`, through the card layer's
 delegated listener. An entry naming no statement binder still renders, and raises the warning `rocq/argument-unmatched`, so `--strict`
@@ -179,7 +179,7 @@ to start removes `data-lists`, so the inline lists return for every value.
 
 | Placement | `data-lists` | Rendering |
 |---|---|---|
-| Pinned (default) | `pane` | The bottom region of the right pane, always in view, at most 46vh, with its own scroll. A header names the definition beside a 3 px `--link` bar, and the section in view carries the same bar inside its panel through `.current-decl`. A definition with no lists shows one quiet line. With a heading in view, the lists' owner is the previous declaration while any of it is on screen, otherwise the first declaration with any part in the viewport, otherwise none, which shows the quiet line. `.current-decl` follows the owner, and the outline's `aria-current` stays on the section in view. |
+| Pinned (default) | `pane` | The bottom region of the right pane, always in view, at most 46vh, with its own scroll. A header names the definition beside a 3 px `--link` bar, and the lists' owner carries the same bar inside its panel through `.current-decl`. A definition with no lists shows one quiet line. With a heading in view, the lists' owner is the previous declaration while any of it is on screen, otherwise the first declaration with any part in the viewport, otherwise none, which shows the quiet line. `.current-decl` follows the owner, and the outline's `aria-current` stays on the section in view. |
 | Badges | `badges` | A server-rendered `uses N · used by M` chip per definition with any entries, a real `<button>` outside the `pre`, at 10 px, in the panel's background and border colours, clear of the caret and line-count column. `.decl` spacing grows in this mode only, so a chip never touches the previous panel. The chip opens a dialog with the definition's name and lists on hover, keyboard focus and tap. It reuses the card's hover delay and placement, and it ends at the chip's right edge, so it never covers the definition's caret. It stays open while the pointer is on it or on a card opened from it. Enter moves focus into it, Tab past its end returns to the chip, and Esc closes the top layer and returns focus. |
 | Under definitions | absent | The inline `details.refs`, visible. A `References open` setting (Closed by default) shows only in this placement and below 900 px. |
 

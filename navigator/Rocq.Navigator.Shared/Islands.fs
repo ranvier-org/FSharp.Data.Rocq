@@ -80,7 +80,7 @@ let argumentsNames = "names"
 [<Literal>]
 let argumentsTypes = "types"
 
-/// The argument list with types, as the footer of the code panel. Also its `data-args` value.
+/// The argument list with types, inside the code panel above the proofs. Also its `data-args` value.
 [<Literal>]
 let argumentsPanel = "panel"
 
@@ -384,7 +384,7 @@ let private keepMarkInPane () =
     for mark in all ".pane-right .pane-item.in-view" do
         keepInPane mark
 
-[<Emit("(() => { const t = $0.target; const a = t instanceof Element ? t.closest('a[href]') : null; return a !== null && a.hash !== '' && a.pathname === location.pathname && a.hash === location.hash })()")>]
+[<Emit("(() => { const t = $0.target; const a = t instanceof Element ? t.closest('a[href]') : null; return !$0.ctrlKey && !$0.metaKey && !$0.shiftKey && a !== null && a.hash !== '' && a.pathname === location.pathname && a.hash === location.hash })()")>]
 let private linksToCurrentHash (event: obj) : bool = jsNative
 
 /// Opens every fold holding the location's hash target. A declaration's own definition fold opens with it.
@@ -1446,7 +1446,7 @@ let private mediaMatches (query: string) : bool = jsNative
 [<Emit("$0.show()")>]
 let private showDialog (dialog: obj) : unit = jsNative
 
-[<Emit("$0.checkVisibility()")>]
+[<Emit("($0.checkVisibility ? $0.checkVisibility() : $0.getClientRects().length > 0)")>]
 let private isVisible (element: Element) : bool = jsNative
 
 [<Emit("$0.target === $0.currentTarget")>]

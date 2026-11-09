@@ -18,7 +18,7 @@ Proof. reflexivity. Qed.
 (** A number equals itself.
     - [n:] the number compared. *)
 Lemma same_named (n : nat) : n = n.
-Proof. exact ((fun n : nat => eq_refl n) n). Qed.
+Proof. exact ((fun (n : bool) (m : nat) => eq_refl m) true n). Qed.
 
 (**md Applies a function, with a body that folds.
 
@@ -31,3 +31,8 @@ Definition apply_once (f : nat -> nat) (x : nat) : nat :=
 Definition entries_only (m : nat) : nat := m.
 
 Definition after_args := entries_only 0.
+
+(** A hypothesis binding the same name as an argument.
+    - [n:] the number compared. *)
+Lemma shadowed (H : forall n : bool, n = n) (n : nat) : n = n.
+Proof. reflexivity. Qed.

@@ -1,7 +1,7 @@
 {
   "rocqVersion": "9.1.0",
   "digests": {
-    "theories/Args.v": "ea041fc95c3e6800e689832e0fd52b6f",
+    "theories/Args.v": "09323013ff454748c21009beccf4dc63",
     "theories/Guide.v": "bc0895303e2a40377565701f22a2a907",
     "theories/Long.v": "59283ce7875991a33f7eec4beecb8900",
     "theories/Other.v": "3b40f9c4187920d8d7f09705a1bcd471"
@@ -29,6 +29,11 @@
     "Fixture.Args.self_dirtying": {
       "type": "Args.state -> nat -> Prop",
       "binders": {}
+    },
+    "Fixture.Args.shadowed": {
+      "type": "(∀ n : bool, n = n) -> ∀ n : nat, n = n",
+      "binders": {},
+      "assumptions": "closed"
     },
     "Fixture.Args.state": {
       "type": "Set",

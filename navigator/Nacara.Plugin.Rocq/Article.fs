@@ -182,16 +182,16 @@ let internal statementSpan (declaration: Declaration) : FSharp.Data.Rocq.Source.
     }
 
 /// <summary>The type written in a binder's group, such as <c>nat</c> for <c>b</c> in <c>(a b : nat)</c> or <c>forall a b : nat,</c>.</summary>
-/// <param name="file">The binder's file.</param>
+/// <param name="bytes">The source.</param>
+/// <param name="isBinder">Whether a binder's name starts at a source offset.</param>
 /// <param name="scope">The source span holding the group.</param>
 /// <param name="binder">The binder's name in the source.</param>
-let internal writtenBinderType
-    (file: RocqFile)
+let internal writtenBinderTypeIn
+    (bytes: byte[])
+    (isBinder: int -> bool)
     (scope: FSharp.Data.Rocq.Source.Span)
     (binder: FSharp.Data.Rocq.Source.Span)
     : FSharp.Data.Rocq.Source.Span option =
-    let bytes = file.Model.Bytes
-
     let isSpace (value: byte) =
         value = 32uy
         || value = 9uy
@@ -240,10 +240,19 @@ let internal writtenBinderType
                 while first > scope.Start && isWord bytes[first - 1] do
                     first <- first - 1
 
-                if quantifiers.Contains (Encoding.UTF8.GetString (bytes, first, position - first)) then
+                let word = Encoding.UTF8.GetString (bytes, first, position - first)
+
+                if quantifiers.Contains word then
                     Some 0uy
-                else
+                elif
+                    word = "_"
+                    || word = "!"
+                    || isBinder first
+                    || (word.StartsWith '!' && isBinder (first + 1))
+                then
                     opener first
+                else
+                    None
 
     let startsAt (position: int) (text: string) =
         position + text.Length <= scope.End
@@ -258,7 +267,7 @@ let internal writtenBinderType
             bytes[position] = byte ':'
             && not (startsAt position ":=")
         then
-            Some (position + 1)
+            Some (position + if startsAt position ":>" then 2 else 1)
         else
             None
 
@@ -320,6 +329,21 @@ let internal writtenBinderType
             else
                 None)
     | _ -> None
+
+/// <summary>The type written in a binder's group, as <see cref="writtenBinderTypeIn"/> reads it from a file.</summary>
+/// <param name="file">The binder's file.</param>
+/// <param name="scope">The source span holding the group.</param>
+/// <param name="binder">The binder's name in the source.</param>
+let internal writtenBinderType
+    (file: RocqFile)
+    (scope: FSharp.Data.Rocq.Source.Span)
+    (binder: FSharp.Data.Rocq.Source.Span)
+    : FSharp.Data.Rocq.Source.Span option =
+    let isBinder (start: int) =
+        file.Model.Binders
+        |> Array.exists (fun known -> known.Span.Start = start)
+
+    writtenBinderTypeIn file.Model.Bytes isBinder scope binder
 
 /// The keyed reference and binder sites of a file. A site repeated in the `.glob` keeps its first entry.
 let private referenceTable (project: RocqProject) (links: Links) (declarationHref: int -> string) (fileIndex: int) =
@@ -634,15 +658,25 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
                 && binder.Span.End <= statement.End
                 && Source.text file binder.Span = entry.Name)
 
+        let written =
+            binders
+            |> Array.map (fun (_, binder) -> writtenBinderType file statement binder.Span)
+
         {
             Name = entry.Name
             Binders =
                 binders
                 |> Array.map (fun (binder, _) -> $"b{index}.{binder}")
             TypeHtml =
-                binders
-                |> Array.tryPick (fun (_, binder) -> writtenBinderType file statement binder.Span)
-                |> Option.map (fun span -> source span.Start span.End)
+                match
+                    written
+                    |> Array.map (Option.map (Source.text file))
+                    |> Array.distinct
+                with
+                | [| Some _ |] ->
+                    written[0]
+                    |> Option.map (fun span -> source span.Start span.End)
+                | _ -> None
             TextHtml = Docs.renderArgument links.Pipeline resolve comment.Format entry.Text
         }
 
@@ -775,11 +809,24 @@ let private encode (value: string) =
 
 let private visibleCount = 8
 
+/// Operators holding a hyphen, where a browser may otherwise break the line.
+let private unbreakable = Regex @"<[^>]*>|(?:&lt;)?-+[nd]?(?:&gt;|\*|∗)"
+
 /// Each line is a block carrying its source indentation, which sets where its wrapped text hangs.
 let private lineHtml (line: string) =
+    let body =
+        unbreakable.Replace (
+            line,
+            (fun m ->
+                if m.Value[0] = '<' then
+                    m.Value
+                else
+                    $"""<span class="nb">{m.Value}</span>""")
+        )
+
     match Source.indent line with
-    | 0 -> $"""<span class="l">{line}</span>"""
-    | indent -> $"""<span class="l" style="--i:{indent}">{line}</span>"""
+    | 0 -> $"""<span class="l">{body}</span>"""
+    | indent -> $"""<span class="l" style="--i:{indent}">{body}</span>"""
 
 let private linesHtml (lines: string[]) =
     lines |> Array.map lineHtml |> String.concat ""
@@ -964,6 +1011,7 @@ let private appendDeclaration
     (anchor: string)
     (badge: string)
     (doc: string)
+    (arguments: string)
     (statement: string)
     (proofs: ProofBlock[])
     (refs: RefLists)
@@ -973,11 +1021,12 @@ let private appendDeclaration
         | same when same = anchor -> ""
         | other -> " data-name=\"" + encode other + "\""
 
-    out.Append ($"""<section class="decl {className}" id="{encode anchor}"{name}>{badge}{doc}<div class="panel">""")
+    out.Append ($"""<section class="decl {className}" id="{encode anchor}"{name}>{badge}{doc}{arguments}<div class="panel">""")
     |> ignore
 
     appendStatement out config statement
     appendChip out refs
+    out.Append arguments |> ignore
 
     for proof in proofs do
         appendProof out proof
@@ -1020,11 +1069,12 @@ let toHtmlWith (config: Config) (badge: int -> string) (blocks: Block[]) : strin
                 "documented"
                 anchor
                 (badge decl)
-                $"""<div class="doc">{titled}</div>{argumentsHtml arguments}"""
+                $"""<div class="doc">{titled}</div>"""
+                (argumentsHtml arguments)
                 statement
                 proofs
                 refs
-        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out config "quiet" anchor "" "" statement proofs refs
+        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out config "quiet" anchor "" "" "" statement proofs refs
         | Command html when String.IsNullOrWhiteSpace html -> out.Append html |> ignore
         | Command html ->
             out.Append ($"""<pre class="command"><code>{codeHtml html}</code></pre>""")

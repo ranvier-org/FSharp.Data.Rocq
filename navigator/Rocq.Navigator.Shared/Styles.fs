@@ -357,6 +357,7 @@ let private code =
                 "color", "var(--ink)"
             ]
         rule "pre code" [ "font", "inherit"; "color", "inherit" ]
+        rule ".nb" [ "white-space", "nowrap" ]
         rule
             ".l"
             [
@@ -412,7 +413,6 @@ let private code =
 let private displayedRefsSpacing (root: string) =
     [
         rule $"{root} .panel:has(+ details.refs)" [ "margin-bottom", "2px" ]
-        rule $"{root}[{Islands.argumentsAttribute}=\"panel\"] .decl > .args:has(~ details.refs)" [ "margin-bottom", "2px" ]
         rule $"{root} .decl.quiet:has(> details.refs)" [ "margin-bottom", "1.1rem" ]
     ]
 
@@ -498,7 +498,7 @@ let private folds =
         rule ".ref-list a" [ "text-decoration", "none" ]
     ]
 
-/// The argument list: names only with no `data-args`, and types or the panel's footer with one.
+/// The argument list: names only with no `data-args`, and types or the copy inside the panel with one.
 let private arguments =
     let withArgs (value: string) =
         $":root[{Islands.argumentsAttribute}=\"{value}\"]"
@@ -553,29 +553,16 @@ let private arguments =
                 "grid-template-columns", "minmax(0, max-content) minmax(0, 1fr)"
                 "column-gap", "18px"
             ]
-        rule $"{panel} .decl:has(> .args)" [ "display", "flex"; "flex-direction", "column" ]
-        rule $"{panel} .decl:has(> .args) > *" [ "min-width", "0" ]
-        rule $"{panel} .decl:has(> .args) > .badge" [ "align-self", "flex-start" ]
+        rule ".panel > .args" [ "display", "none" ]
+        rule $"{panel} .decl > .args" [ "display", "none" ]
         rule
-            $"{panel} .decl:has(> .args) > .panel"
+            $"{panel} .panel > .args"
             [
-                "order", "1"
-                "margin-bottom", "0"
-                "border-bottom-left-radius", "0"
-                "border-bottom-right-radius", "0"
-            ]
-        rule
-            $"{panel} .decl > .args"
-            [
-                "order", "2"
-                "margin", "0 0 8px"
+                "display", "block"
+                "margin", "0"
                 "padding", "8px 12px 10px"
-                "background", "var(--side)"
-                "border", "1px solid var(--line)"
-                "border-top", "0"
-                "border-radius", "0 0 var(--radius) var(--radius)"
+                "border-top", "1px solid var(--line)"
             ]
-        rule $"{panel} .decl:has(> .args) > details.refs" [ "order", "3" ]
         rule
             ".arg-hot"
             [

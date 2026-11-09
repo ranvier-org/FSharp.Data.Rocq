@@ -313,8 +313,16 @@ test.describe("controls", () => {
 
   test("a fold the reader or a jump opened stays open while the page starts", async ({ page }) => {
     await save(page, { [KEYS.proofs]: "closed" });
-    await page.goto(MODULE_PAGE);
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/navigator.js", async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto(MODULE_PAGE, { waitUntil: "commit" });
     await page.locator("article details.proof").first().evaluate((fold) => ((fold as HTMLDetailsElement).open = true));
+    await expect(page.locator("html")).not.toHaveAttribute("data-client", "ready");
+    release();
     await clientReady(page);
     await page.waitForTimeout(100);
     await expect(page.locator("article details.proof").first()).toHaveJSProperty("open", true);
@@ -726,6 +734,31 @@ test.describe("fold targets", () => {
       link.click();
     }, target);
     await expect(fold).toHaveJSProperty("open", true);
+  });
+
+  test("a modified click on a link to the current hash leaves the fold closed", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await save(page, closed);
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    const target = await page.locator(".decl:has(> .panel > details.body)[id]").first().getAttribute("id");
+    const fold = page.locator(`[id="${target}"] > .panel > details.body`);
+    await page.evaluate((id) => {
+      const anchor = document.createElement("a");
+      anchor.className = "to-target";
+      anchor.href = `#${id}`;
+      anchor.textContent = "to the definition";
+      anchor.style.cssText = "position: fixed; top: 0; left: 300px; z-index: 99";
+      document.body.append(anchor);
+    }, target);
+    const link = page.locator("a.to-target");
+
+    await link.click();
+    await expect(fold).toHaveJSProperty("open", true);
+    await fold.evaluate((element) => ((element as HTMLDetailsElement).open = false));
+    await link.click({ modifiers: ["ControlOrMeta"] });
+    await page.waitForTimeout(100);
+    await expect(fold).toHaveJSProperty("open", false);
   });
 
   test("a second click on a link to the current hash opens the fold again", async ({ page }) => {

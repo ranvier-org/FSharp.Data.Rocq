@@ -142,6 +142,32 @@ let private argumentsCard (anchor: string) (binder: string) =
 
     project, (Cards.lookup project links facts key).Value
 
+/// The type written for the binder after `§`, with a binder's name also at each word in `others`.
+let private writtenOf (marked: string) (others: string list) =
+    let at = marked.IndexOf '§'
+    let source = marked.Replace ("§", "")
+    let bytes = Encoding.UTF8.GetBytes source
+    let start = Encoding.UTF8.GetByteCount (source.Substring (0, at))
+    let name = Regex.Match(source.Substring at, @"^[\w']+").Value
+
+    let isBinder (offset: int) =
+        others
+        |> List.exists (fun other ->
+            let word = Encoding.UTF8.GetBytes other
+
+            offset + word.Length <= bytes.Length
+            && bytes[offset .. offset + word.Length - 1] = word)
+
+    writtenBinderTypeIn
+        bytes
+        isBinder
+        { Start = 0; End = bytes.Length }
+        {
+            Start = start
+            End = start + Encoding.UTF8.GetByteCount name
+        }
+    |> Option.map (fun span -> Encoding.UTF8.GetString (bytes, span.Start, span.End - span.Start))
+
 let private urls (html: string) =
     Regex.Matches (html, "(?:href|src)=\"([^\"]*)\"")
     |> Seq.map _.Groups[1].Value
@@ -935,10 +961,64 @@ let private tests' =
             let _, card = argumentsCard "apply_once" "x"
             Expect.stringContains card.DocHtml.Value "<code>self_dirtying</code>" "the reference"
 
+        testCase "a written type comes only from the binder's own group"
+        <| fun () ->
+            for marked, others, expected in
+                [
+                    "(a §b : nat)", [ "a" ], Some "nat"
+                    "{§A}", [], None
+                    "{A §B : Type}", [ "A" ], Some "Type"
+                    "(§f : (nat -> nat))", [], Some "(nat -> nat)"
+                    "`{!§x}", [], None
+                    "`{!§x : Foo}", [], Some "Foo"
+                    "(§x := v : T)", [], None
+                    "(§x : T := v)", [], Some "T"
+                    "forall a §b : nat, b = b", [ "a" ], Some "nat"
+                    "∀§a : nat, a = a", [], Some "nat"
+                    "(a b : nat) §c", [ "a"; "b" ], None
+                    "Definition f §x y : nat", [ "x"; "y" ], None
+                    "{§x : nat | P x}", [], Some "nat"
+                    "{§x : nat & P x}", [], Some "nat"
+                    "(§x :> T)", [], Some "T"
+                    "(exists2 §x : nat, A & B)", [], None
+                    "(∃! §x : nat, A)", [], None
+                    "(fix g §n : nat := n)", [ "g" ], None
+                ] do
+                Expect.equal (writtenOf marked others) expected marked
+
+        testCase "a row with same-named binders of different types leaves the type to Rocq"
+        <| fun () ->
+            let project = FixtureFiles.fixtureProject ()
+
+            let index =
+                project.Files
+                |> Array.findIndex (fun file -> file.Module = "Fixture.Args")
+
+            let row =
+                blocks project links index
+                |> Array.pick (function
+                    | Documented (_, "shadowed", _, rows, _, _, _) -> Some rows[0]
+                    | _ -> None)
+
+            Expect.equal row.Binders.Length 2 "both statement binders"
+            Expect.isNone row.TypeHtml "no written type stands for both"
+
+        testCase "a same-named statement binder's card shows its own written type"
+        <| fun () ->
+            let _, card = argumentsCard "shadowed" "n"
+            Expect.equal card.Signature "bool" "the hypothesis's binder"
+            Expect.isFalse card.SignatureIsType "written"
+
         testCase "a same-named binder in a proof or body gets no entry"
         <| fun () ->
             let project = FixtureFiles.fixtureProject ()
-            let cards = Cards.lookup project links None
+
+            let facts =
+                match Facts.read (Path.Combine (FixtureFiles.fixtureDir (), "facts.json")) with
+                | Ok facts -> Some facts
+                | Result.Error message -> failwith message
+
+            let cards = Cards.lookup project links facts
 
             let file =
                 project.Files
@@ -965,10 +1045,10 @@ let private tests' =
                     && Source.text project.Files[file] binder.Span = name)
                 |> Array.map (fun (index, _) -> (cards $"b{first + local}.{index}").Value)
 
-            for name, anchor, expected in
+            for name, anchor, expected, innerType in
                 [
-                    "n", "same_named", "<p>the number compared.</p>"
-                    "x", "apply_once", "<p>the input"
+                    "n", "same_named", "<p>the number compared.</p>", "bool"
+                    "x", "apply_once", "<p>the input", "nat"
                 ] do
                 let found = binderCards name anchor
                 Expect.isGreaterThan found.Length 1 "binders in the statement and beyond it"
@@ -976,7 +1056,22 @@ let private tests' =
 
                 for inner in found[1..] do
                     Expect.isNone inner.DocHtml "the inner binder"
-                    Expect.equal inner.Signature "nat" "its own written type"
+                    Expect.equal inner.Signature innerType "its own written type"
+                    Expect.isFalse inner.SignatureIsType "written"
+
+        testCase "a page holds each list above the panel and inside it, and keeps an arrow whole"
+        <| fun () ->
+            withRoot (fun root ->
+                let _ = buildAt root (siteWith (fixtureOptions ()))
+                let html = read root "Fixture.Args.html"
+
+                let section =
+                    Regex.Match(html, "<section[^>]*id=\"sum_three\".*?</section>", RegexOptions.Singleline).Value
+
+                Expect.equal (Regex.Matches (section, "class=\"args\"")).Count 2 "both copies"
+                Expect.isTrue (section.IndexOf "class=\"args\"" < section.IndexOf "class=\"panel\"") "the copy above the panel"
+                Expect.isTrue (section.LastIndexOf "class=\"args\"" < section.IndexOf "class=\"proof") "the copy above the proof"
+                Expect.stringContains html "<span class=\"nb\">-&gt;</span>" "the arrow")
 
         testCase "a page lists its entries outside every pre, with type links, in source order"
         <| fun () ->

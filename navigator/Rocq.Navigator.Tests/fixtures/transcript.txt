@@ -282,3 +282,10 @@ The command has indeed failed with message:
 The reference __nav_73 was not found in the current environment.
 Args.after_args
      : nat
+The command has indeed failed with message:
+The reference __nav_74 was not found in the current environment.
+Args.shadowed
+     : (∀ n : bool, n = n) -> ∀ n : nat, n = n
+The command has indeed failed with message:
+The reference __nav_75 was not found in the current environment.
+Closed under the global context

@@ -211,11 +211,29 @@ let internal lookup (project: RocqProject) (links: Links) (facts: Facts option) 
             statement.Start <= span.Start
             && span.End <= statement.End
 
-        let kind = if inStatement then printed declaration name else None
-
         let written =
             writtenBinderType file (if inStatement then statement else owned.Declaration.Extent) span
-            |> Option.map (fun written -> Regex.Replace (Source.text file written, @"\s+", " "))
+            |> Option.map (fun written ->
+                let text =
+                    Regex.Replace (Source.text file written, @"\(\*.*?\*\)", "", RegexOptions.Singleline)
+
+                Regex.Replace(text, @"\s+", " ").Trim())
+
+        let sameNamed =
+            file.Model.Binders
+            |> Array.filter (fun other ->
+                statement.Start <= other.Span.Start
+                && other.Span.End <= statement.End
+                && Source.text file other.Span = name)
+
+        let kind =
+            if
+                inStatement
+                && (sameNamed.Length = 1 || written.IsNone)
+            then
+                printed declaration name
+            else
+                None
 
         let entry =
             if inStatement then

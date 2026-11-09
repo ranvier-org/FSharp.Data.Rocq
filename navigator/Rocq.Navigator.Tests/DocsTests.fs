@@ -172,6 +172,22 @@ let tests =
                         (entries, "Whether it holds.")
                         "the entries and the rest"
 
+            testCase "splitArguments pairs a fence with its own closer"
+            <| fun () ->
+                let names (format: CommentFormat) (body: string) =
+                    fst (Docs.splitArguments format 0 body)
+                    |> Array.map _.Name
+
+                for format, body, expected in
+                    [
+                        CommentFormat.Markdown, "````\n```\n- [x:] a\n````\n- [y:] b", [| "y" |]
+                        CommentFormat.Markdown, "```\n~~~\n- [x:] a\n```\n- [y:] b", [| "y" |]
+                        CommentFormat.Doc, ">> stray\n- [x:] a", [| "x" |]
+                        CommentFormat.Doc, "<<x>>\n- [y:] b", [| "y" |]
+                        CommentFormat.Doc, "<<\n- [x:] a\n>>\n- [y:] b", [| "y" |]
+                    ] do
+                    Expect.equal (names format body) expected body
+
             testCase "splitArguments ends a continuation at a blank line, or at a line not past the dash"
             <| fun () ->
                 let at (expected: string) (body: string) =
