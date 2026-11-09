@@ -9,5 +9,5 @@ dotnet tool restore
 dotnet fable "$client" --outDir "$client/generated" --noCache
 
 cd "$client"
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npx esbuild main.js --bundle --minify --format=esm --outfile=../Nacara.Plugin.Rocq/assets/navigator.js
