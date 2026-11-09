@@ -33,7 +33,7 @@ let private tier (query: string) (entry: SearchEntry) =
     else
         -1
 
-/// <summary>Search entries matching the query, best first, with one entry per <c>Href</c>.</summary>
+/// <summary>Search entries matching the query, best first, with one entry per <c>Href</c>: its best-ranked.</summary>
 /// <remarks>The order is exact name, name prefix, name substring, name subsequence, qualified-name substring. Ties go to the shorter name, then to the entry's place in the input. An empty query matches nothing.</remarks>
 let rank (entries: SearchEntry[]) (query: string) : SearchEntry[] =
     let query = query.Trim().ToLowerInvariant()
@@ -41,10 +41,9 @@ let rank (entries: SearchEntry[]) (query: string) : SearchEntry[] =
     if query = "" then
         [||]
     else
-        let seen = System.Collections.Generic.HashSet<string>()
-
         entries
         |> Array.mapi (fun index entry -> tier query entry, entry.Name.Length, index, entry)
-        |> Array.filter (fun (tier, _, _, entry) -> tier >= 0 && seen.Add entry.Href)
+        |> Array.filter (fun (tier, _, _, _) -> tier >= 0)
         |> Array.sortBy (fun (tier, length, index, _) -> tier, length, index)
         |> Array.map (fun (_, _, _, entry) -> entry)
+        |> Array.distinctBy _.Href

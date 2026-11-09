@@ -62,6 +62,17 @@ let tests =
                 Expect.equal ranked.Length 2 "two"
                 Expect.equal ranked[0].Summary "" "first kept"
 
+            testCase "entries sharing an Href keep the best-ranked one"
+            <| fun () ->
+                let parent = entry "rtree"
+
+                let constructorEntry =
+                    { entry "r" with
+                        Href = parent.Href
+                    }
+
+                Expect.equal (names (rank [| parent; constructorEntry |] "r")) [ "r" ] "the exact name wins"
+
             testCase "a name with markup characters ranks as plain text"
             <| fun () -> Expect.equal (names (rank [| entry "a<b>" |] "<b")) [ "a<b>" ] "literal"
         ]
