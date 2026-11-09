@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Rocq.Navigator.Tests" />
+        <InternalsVisibleTo Include="Rocq.Docs" />
     </ItemGroup>
 
     <ItemGroup>

@@ -29,7 +29,7 @@ jobs:
         run: dotnet tool restore
 
       - name: Check formatting
-        run: dotnet fantomas --check navigator
+        run: dotnet fantomas --check navigator docs/site
 
       # The plugin embeds the bundle, and `dotnet build` does not compile the client-only code.
       - name: Build the client bundle
@@ -45,6 +45,12 @@ jobs:
       - name: Build the demo site over the fixture
         working-directory: navigator/browser
         run: node build-site.mjs --strict
+
+      # Runs every example the pages quote, under a subpath, and checks every link.
+      - name: Build the documentation site
+        run: dotnet run --project docs/site -- build --strict
+        env:
+          DOCS_BASE_URL: /FSharp.Data.Rocq/
 
       - name: Run the .NET tests
         run: dotnet run -c Release --project navigator/Rocq.Navigator.Tests

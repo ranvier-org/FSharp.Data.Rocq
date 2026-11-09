@@ -1,0 +1,95 @@
+DIGEST 4274b0003688c7d6be41bd99ed5c9658
+FTally.Laws
+R26:29 Tally.Core <> <> lib
+prf 311:321 <> add_regroup
+R332:334 Corelib.Init.Datatypes <> nat ind
+binder 324:324 <> a:1
+binder 326:326 <> b:2
+binder 328:328 <> c:3
+R348:350 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R344:346 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R340:342 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R339:339 Tally.Laws <> a:1 var
+R343:343 Tally.Laws <> b:2 var
+R347:347 Tally.Laws <> c:3 var
+R352:355 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R361:361 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R351:351 Tally.Laws <> a:1 var
+R357:359 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R356:356 Tally.Laws <> b:2 var
+R360:360 Tally.Laws <> c:3 var
+prf 661:672 <> total_append
+R681:685 Tally.Core <> tally ind
+binder 675:675 <> a:4
+binder 677:677 <> b:5
+R708:710 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R690:694 Tally.Core <> total def
+R697:702 Tally.Core <> append def
+R704:704 Tally.Laws <> a:4 var
+R706:706 Tally.Laws <> b:5 var
+R718:720 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R711:715 Tally.Core <> total def
+R717:717 Tally.Laws <> a:4 var
+R721:725 Tally.Core <> total def
+R727:727 Tally.Laws <> b:5 var
+R825:835 Tally.Laws <> add_regroup thm
+R825:835 Tally.Laws <> add_regroup thm
+prf 947:964 <> total_append_empty
+R971:975 Tally.Core <> tally ind
+binder 967:967 <> a:6
+R1002:1004 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R980:984 Tally.Core <> total def
+R987:992 Tally.Core <> append def
+R994:994 Tally.Laws <> a:6 var
+R996:1000 Tally.Core <> empty constr
+R1012:1014 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R1005:1009 Tally.Core <> total def
+R1011:1011 Tally.Laws <> a:6 var
+R1033:1044 Tally.Laws <> total_append thm
+R1033:1044 Tally.Laws <> total_append thm
+ax 1166:1181 <> counts_are_small
+R1196:1200 Tally.Core <> tally ind
+binder 1192:1192 <> t:7
+R1209:1211 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1203:1206 Tally.Core <> size def
+R1208:1208 Tally.Laws <> t:7 var
+R1212:1215 Tally.Core <> size def
+R1217:1217 Tally.Laws <> t:7 var
+prf 1329:1339 <> size_stable
+R1346:1350 Tally.Core <> tally ind
+binder 1342:1342 <> t:10
+R1361:1363 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1355:1358 Tally.Core <> size def
+R1360:1360 Tally.Laws <> t:10 var
+R1364:1367 Tally.Core <> size def
+R1369:1369 Tally.Laws <> t:10 var
+R1388:1403 Tally.Laws <> counts_are_small prfax
+R1388:1403 Tally.Laws <> counts_are_small prfax
+prf 1505:1515 <> size_append
+R1524:1528 Tally.Core <> tally ind
+binder 1518:1518 <> a:11
+binder 1520:1520 <> b:12
+R1550:1552 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1533:1536 Tally.Core <> size def
+R1539:1544 Tally.Core <> append def
+R1546:1546 Tally.Laws <> a:11 var
+R1548:1548 Tally.Laws <> b:12 var
+R1559:1561 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R1553:1556 Tally.Core <> size def
+R1558:1558 Tally.Laws <> a:11 var
+R1562:1565 Tally.Core <> size def
+R1567:1567 Tally.Laws <> b:12 var
+prf 1720:1742 <> totals_differ_falsified
+R1764:1767 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1746:1750 Tally.Core <> total def
+R1754:1757 Tally.Core <> ::tally_scope:x_'::'_x not
+R1758:1762 Tally.Core <> empty constr
+R1768:1772 Tally.Core <> total def
+R1776:1779 Tally.Core <> ::tally_scope:x_'::'_x not
+R1780:1784 Tally.Core <> empty constr
+prf 1954:1966 <> generated_sum
+R1993:1995 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1970:1974 Tally.Core <> total def
+R1978:1981 Tally.Core <> ::tally_scope:x_'::'_x not
+R1983:1986 Tally.Core <> ::tally_scope:x_'::'_x not
+R1987:1991 Tally.Core <> empty constr

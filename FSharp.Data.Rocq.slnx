@@ -13,6 +13,9 @@
     <Project Path="navigator/Rocq.Navigator.Site/Rocq.Navigator.Site.fsproj" />
     <Project Path="navigator/Rocq.Navigator.Tests/Rocq.Navigator.Tests.fsproj" />
   </Folder>
+  <Folder Name="/docs/">
+    <Project Path="docs/site/Rocq.Docs.fsproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FSharp.Data.Rocq.Tests/FSharp.Data.Rocq.Tests.fsproj" />
   </Folder>

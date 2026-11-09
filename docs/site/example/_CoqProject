@@ -1,0 +1,5 @@
+-Q theories Tally
+
+theories/Core.v
+theories/Laws.v
+theories/Prose.v

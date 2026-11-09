@@ -31,3 +31,14 @@ navigator/Rocq.Navigator.Tests/fixtures/**/*.vo
 navigator/Rocq.Navigator.Tests/fixtures/**/*.vok
 navigator/Rocq.Navigator.Tests/fixtures/**/*.vos
 navigator/Rocq.Navigator.Tests/fixtures/**/.*.aux
+
+# Docs site: pages woven at build time, output, and the example's compiled files.
+docs/site/woven/
+docs/site/.work/
+docs/site/output/
+docs/site/.nacara/
+!docs/site/example/**/*.glob
+docs/site/example/**/*.vo
+docs/site/example/**/*.vok
+docs/site/example/**/*.vos
+docs/site/example/**/.*.aux
