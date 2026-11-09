@@ -62,6 +62,16 @@ let tests =
     testList
         "facts"
         ([
+            testCase "the committed facts.json holds the transcript's facts and the fixture's digests"
+            <| fun () ->
+                let project = FixtureFiles.fixtureProject ()
+
+                match Facts.read (Path.Combine (FixtureFiles.fixtureDir (), "facts.json")) with
+                | Result.Error message -> failtest message
+                | Ok facts ->
+                    Expect.equal facts (fileFacts (factsOf ())) "the file agrees with transcript.txt"
+                    Expect.isOk (Facts.reconcile false project facts) "the digests are current"
+
             testCase "a symbol whose Check errored has no type, and its neighbours keep theirs"
             <| fun () ->
                 let facts = factsOf ()

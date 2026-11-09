@@ -19,6 +19,7 @@ const { status } = spawnSync(
       NAVIGATOR_BASE_URL: "/sub/path/",
       NAVIGATOR_PROJECT: resolve(fixtures, "_CoqProject"),
       NAVIGATOR_CONFIG: resolve(fixtures, "navigator.json"),
+      NAVIGATOR_FACTS: resolve(fixtures, "facts.json"),
     },
   },
 );

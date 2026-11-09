@@ -529,6 +529,19 @@ let private tests' =
 
                 Expect.isTrue (File.Exists (Path.Combine (AbsolutePath.value root, "output", "proofs", "data", "search.json"))) "the data files")
 
+        testCase "the card layer's server HTML is one hidden card with no reference data"
+        <| fun () ->
+            let html =
+                Ranvier.View.Server.render
+                    { Ranvier.View.Server.Options.defaults with
+                        Policy = Ranvier.View.Representation.BrowserPolicy.Omit
+                    }
+                    Islands.cardLayer
+                    ()
+
+            Expect.stringContains html """<div class="card" id="rocq-card" role="tooltip" hidden="">""" "the card starts hidden"
+            Expect.isFalse (html.Contains "href") "no link before a reference opens the card"
+
         testCase "build: without facts the site builds, with no badges"
         <| fun () ->
             withRoot (fun root ->

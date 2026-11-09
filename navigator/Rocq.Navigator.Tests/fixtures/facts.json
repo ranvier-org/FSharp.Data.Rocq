@@ -1,0 +1,121 @@
+{
+  "rocqVersion": "9.1.0",
+  "digests": {
+    "theories/Guide.v": "bc0895303e2a40377565701f22a2a907",
+    "theories/Other.v": "3b40f9c4187920d8d7f09705a1bcd471"
+  },
+  "symbols": {
+    "Fixture.Guide.First.shared": {
+      "binders": {}
+    },
+    "Fixture.Guide.Nest.Deep.deep_law": {
+      "type": "Nest.inner = 3",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.Nest.inner": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Guide.Second.shared": {
+      "binders": {}
+    },
+    "Fixture.Guide.Stable": {
+      "type": "Prop -> Prop",
+      "binders": {}
+    },
+    "Fixture.Guide.checked_law": {
+      "type": "1 = 1",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.first_use": {
+      "type": "nat -> nat",
+      "binders": {}
+    },
+    "Fixture.Guide.fixture_axiom": {
+      "type": "2 = 2",
+      "binders": {}
+    },
+    "Fixture.Guide.open_goal": {
+      "type": "∀ n : nat, n = n + 0",
+      "binders": {
+        "n": "nat"
+      },
+      "assumptions": [
+        "open_goal"
+      ]
+    },
+    "Fixture.Guide.plain_doc": {
+      "type": "Other.other_def 2 = 2",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.rests_on_axiom": {
+      "type": "2 = 2 /\\ 1 = 1",
+      "binders": {},
+      "assumptions": [
+        "fixture_axiom"
+      ]
+    },
+    "Fixture.Guide.second_use": {
+      "type": "nat -> nat",
+      "binders": {}
+    },
+    "Fixture.Guide.stable_step": {
+      "type": "∀ P : Prop, Stable P -> P -> P",
+      "binders": {
+        "P": "Prop"
+      }
+    },
+    "Fixture.Guide.stable_twice": {
+      "type": "∀ P : Prop, Stable P -> P -> P",
+      "binders": {
+        "P": "Prop"
+      },
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.sum_refl": {
+      "type": "∀ a b : nat, a + b = a + b",
+      "binders": {
+        "a": "nat",
+        "b": "nat"
+      },
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.sum_refl'": {
+      "type": "∀ a : nat, a = a",
+      "binders": {
+        "a": "nat"
+      },
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.sum_zero": {
+      "type": "0 + 0 = 0",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.zero_absorbs_falsified": {
+      "type": "~ (∀ n : nat, n = 0)",
+      "binders": {},
+      "assumptions": "closed"
+    },
+    "Fixture.Guide.αβ_law": {
+      "type": "∀ (P : Prop) (a : nat), (∅ -> P) -> a = a",
+      "binders": {
+        "P": "Prop",
+        "a": "nat"
+      },
+      "assumptions": "closed"
+    },
+    "Fixture.Other.other_def": {
+      "type": "nat -> nat",
+      "binders": {}
+    },
+    "Fixture.Other.other_lemma": {
+      "type": "Other.other_def 1 = 1",
+      "binders": {},
+      "assumptions": "closed"
+    }
+  }
+}

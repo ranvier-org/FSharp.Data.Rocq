@@ -419,6 +419,44 @@ let private islands =
         rule ".xref:not(:empty)" [ "margin-top", "1rem" ]
         rule ":root[data-client=\"ready\"] .page::after" [ "content", "\"\""; "display", "block"; "height", "calc(100vh - 9rem)" ]
         Rule.media "(min-width: 901px)" [ rule ":root[data-lists=\"pane\"] .decl details.refs" [ "display", "none" ] ]
+        rule
+            ".card"
+            [
+                "position", "absolute"
+                "z-index", "40"
+                "box-sizing", "border-box"
+                "width", "min(22rem, calc(100vw - 12px))"
+                "max-height", "min(60vh, 24rem)"
+                "overflow", "auto"
+                "padding", "10px 12px"
+                "background", "var(--bg)"
+                "color", "var(--ink)"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "box-shadow", "0 12px 30px #0005"
+                "font", "13px/1.5 var(--body)"
+                "overflow-wrap", "anywhere"
+            ]
+        rule ".card [hidden]" [ "display", "none" ]
+        rule ".card p" [ "margin", "0" ]
+        rule ".card-head" [ "display", "flex"; "flex-wrap", "wrap"; "gap", "0.25rem 0.5rem"; "align-items", "baseline" ]
+        rule ".card-name" [ "font-weight", "600"; "color", "var(--ink)" ]
+        rule ".card-name[href]" [ "color", "var(--link)" ]
+        rule ".card .badge" [ "margin", "0" ]
+        rule
+            ".card-signature"
+            [
+                "margin", "0.375rem 0 0"
+                "padding", "0"
+                "font", $"11.5px/1.5 {mono}"
+                "white-space", "pre-wrap"
+                "color", "var(--binder)"
+            ]
+        rule ".card-doc" [ "margin-top", "0.375rem"; "color", "var(--soft)" ]
+        rule ".card-doc > :first-child" [ "margin-top", "0" ]
+        rule ".card-doc > :last-child" [ "margin-bottom", "0" ]
+        rule ".card-quiet" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font-style", "italic" ]
+        rule ".card-meta" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font", $"11px/1.5 {ui}" ]
     ]
 
 let private motion =
@@ -439,7 +477,7 @@ let private motion =
                 "to", [ Declaration.create "opacity" "1"; Declaration.create "translate" "0 0" ]
             ]
         rule ".decl:target > pre.statement" [ "animation", "rocq-settle 700ms ease-out" ]
-        rule ".card" [ "animation", "rocq-card-in 120ms ease-out" ]
+        rule ".card:not([hidden])" [ "animation", "rocq-card-in 120ms ease-out" ]
         Rule.media
             "(prefers-reduced-motion: reduce)"
             [
