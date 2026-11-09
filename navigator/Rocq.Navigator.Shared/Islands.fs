@@ -54,6 +54,18 @@ let private aboveLineMargin = $"0px 0px -{100 - linePercent}%% 0px"
 [<Literal>]
 let private bandShare = 0.4
 
+/// The element that holds every reference a card opens for.
+[<Literal>]
+let private cardHost = ".shell"
+
+/// The event the section marker dispatches on the card host after it replaces the right pane's lists.
+[<Literal>]
+let private listsReplaced = "rocq-lists-replaced"
+
+/// The distance in pixels between a marked outline item and its pane's edge, after the pane scrolls.
+[<Literal>]
+let private markMargin = 32.0
+
 #if FABLE_COMPILER
 [<Global "document">]
 let private document: Document = jsNative
@@ -66,6 +78,9 @@ let private all (selector: string) : Element array = jsNative
 
 [<Emit("$0.replaceChildren(...$1)")>]
 let private replaceChildren (parent: Element) (children: Node array) : unit = jsNative
+
+[<Emit("$0.dispatchEvent(new Event($1))")>]
+let private dispatch (target: Element) (name: string) : unit = jsNative
 
 let private rootAttribute (name: string) (fallback: string) =
     match document.documentElement.getAttribute name with
@@ -154,6 +169,10 @@ let private createSwitch (_: Setup) () =
     Api.createEffect (fun () -> document.documentElement.setAttribute ("data-mode", mode.Value))
 #else
     let look = Api.createSignal defaultLook
+
+        match document.querySelector cardHost with
+        | null -> ()
+        | host -> dispatch host listsReplaced
     let mode = Api.createSignal defaultMode
 #endif
     { Look = look; Mode = mode }
@@ -216,18 +235,15 @@ let private createMarker (_: Setup) () =
 
     Api.createEffect (fun () ->
         if section.Value <> "" then
-            markOutline section.Value
-            showLists section.Value)
+            let current = section.Value
+            markOutline current
+            Api.untrack (fun () -> showLists current))
 #endif
     ()
 
 /// Marks the section in view in the outline, and shows the current declaration's lists in the right pane.
 let sectionMarker: Component<unit> =
     Component.define createMarker (fun t -> t.fragment [||])
-
-/// The element that holds every reference a card opens for.
-[<Literal>]
-let private cardHost = ".shell"
 
 /// The id of the card element, which an open reference names in `aria-describedby`.
 [<Literal>]
@@ -428,8 +444,24 @@ let private createCards (_: Setup) () =
                 document.removeEventListener ("keydown", onKey)))
 
     let referenceOf (event: Event) =
-        (unbox<Element> event.target).closest "[data-ref]"
-        |> Option.ofObj
+        let target = unbox<Element> event.target
+
+        if isNull (target.closest ".card") then
+            target.closest "[data-ref]" |> Option.ofObj
+        else
+            None
+
+    let closeIfDisconnected () =
+        let disconnected (reference: Element option) =
+            reference
+            |> Option.exists (fun element -> not element.isConnected)
+
+        if
+            (disconnected shown.Value
+             || disconnected wanted.Value)
+            && isNull (document.querySelector ".card:hover")
+        then
+            close ()
 
     let onEvent (event: Event) =
         match event.``type``, referenceOf event with
@@ -445,14 +477,19 @@ let private createCards (_: Setup) () =
             isTouch event
             && isNull ((unbox<Element> event.target).closest ".card")
             ->
+    // A link inside the card's doc is the card's own content, not a reference to open.
             close ()
         | _ -> ()
 
     match document.querySelector cardHost with
     | null -> ()
     | host ->
+        | name, _ when name = listsReplaced -> closeIfDisconnected ()
+        | "pointerover", None -> closeIfDisconnected ()
         let listener: EventListener = unbox onEvent
-        let events = [ "pointerover"; "pointerout"; "focusin"; "focusout"; "click" ]
+
+        let events =
+            [ "pointerover"; "pointerout"; "focusin"; "focusout"; "click"; listsReplaced ]
 
         for name in events do
             host.addEventListener (name, listener)
@@ -520,7 +557,11 @@ let private metaOf (face: CardFace) =
         ""
     else
         let place = if face.Card.External then "external" else face.Card.Module
-        $"{place} · mentioned by {face.Card.Mentions}"
+
+        if hasMentions face then
+            $"{place} · mentioned by {face.Card.Mentions}"
+        else
+            place
 
 /// The hover card: one element in the server's HTML, hidden until a reference in the article opens it. Name and signature
 /// are text. The doc is HTML the build rendered with raw HTML disabled.
@@ -533,6 +574,13 @@ let cardLayer: Component<unit> =
             shownWhen (fun _ -> true),
             Events.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
             Events.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
+/// A card for a declaration or a file carries no count of mentions.
+let private hasMentions (face: CardFace) =
+    not (
+        face.Card.Key.StartsWith "d"
+        || face.Card.Key.StartsWith "f"
+    )
+
         ) {
             p (Attrs.className "card-head") {
                 a (

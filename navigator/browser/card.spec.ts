@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { BASE, clientReady, expect, MODULE_PAGE, test } from "./support";
+import { BASE, clientReady, expect, LONG_PAGE, MODULE_PAGE, test } from "./support";
 
 const DATA_FILE = "data/Fixture.Guide.symbols.json";
 
@@ -417,6 +417,133 @@ test("a reference list copied to the right pane opens the same card", async ({ p
   await page.mouse.move(5, 5);
   await expect(card).toBeHidden();
 });
+
+/** Opens the card of `wrapped`, whose doc holds a reference to `other_def`, and returns the card and that reference. */
+const openCardWithReference = async (page: Page, open: (reference: Locator) => Promise<void>) => {
+  await page.goto(LONG_PAGE);
+  await clientReady(page);
+  const cards: Card[] = await (await page.request.get(`${BASE}data/Fixture.Long.symbols.json`)).json();
+  const key = cards.find((item) => item.qualified === "Fixture.Long.wrapped")!.key;
+  await open(page.locator(`.decl[id="uses_wrapped"] pre.statement [data-ref="${key}"]`).first());
+
+  const card = cardOf(page);
+  await expect(card.locator(".card-name")).toHaveText("wrapped");
+  const link = card.locator(".card-doc a.ref[data-ref]");
+  await expect(link).toBeVisible();
+  return { card, link };
+};
+
+const expectStillWrapped = async (page: Page, card: Locator) => {
+  await page.waitForTimeout(400);
+  await expect(card).toBeVisible();
+  await expect(card.locator(".card-name")).toHaveText("wrapped");
+};
+
+const OTHER_DEF_URL = new RegExp(`${BASE}Fixture\\.Other\\.html#other_def$`);
+
+test("a pointer moving over the card's text and onto a reference in its doc leaves the card in place", async ({ page }) => {
+  const { card, link } = await openCardWithReference(page, (reference) => reference.hover());
+
+  await card.locator(".card-meta").hover();
+  await expectStillWrapped(page, card);
+  await link.hover();
+  await expectStillWrapped(page, card);
+
+  await link.click();
+  await expect(page).toHaveURL(OTHER_DEF_URL);
+});
+
+test("a pointer moving straight onto a reference in the card's doc, then to its text, leaves the card in place", async ({ page }) => {
+  const { card, link } = await openCardWithReference(page, (reference) => reference.hover());
+
+  await link.hover();
+  await expectStillWrapped(page, card);
+  await card.locator(".card-meta").hover();
+  await expectStillWrapped(page, card);
+
+  await page.locator(".topbar").hover();
+  await expect(card).toBeHidden();
+});
+
+test.describe("on touch at 375 px", () => {
+  test.use({ viewport: { width: 375, height: 700 }, hasTouch: true });
+
+  test("a tap on a reference in the card's doc follows it", async ({ page }) => {
+    const { link } = await openCardWithReference(page, (reference) => reference.tap());
+
+    await link.tap();
+    await expect(page).toHaveURL(OTHER_DEF_URL);
+  });
+});
+
+/** Hovers the last reference in the right pane's Uses list of `sum_refl`, whose list is longer than that of `sum_zero`. */
+const hoverPaneReference = async (page: Page) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await open(page);
+
+  await page.evaluate(() => {
+    const target = document.querySelector('.decl[id="sum_refl"]')!;
+    window.scrollTo({ top: target.getBoundingClientRect().top + scrollY - 10, behavior: "instant" });
+  });
+
+  const reference = page.locator(".pane-right [data-slot] [data-ref]").last();
+  await expect(reference).toBeVisible();
+  await reference.hover();
+  await expect(cardOf(page)).toBeVisible();
+  return reference;
+};
+
+test("a card closes when the section change replaces its reference under a resting pointer", async ({ page }) => {
+  await hoverPaneReference(page);
+
+  await page.evaluate(() => {
+    const target = document.querySelector('.decl[id="sum_zero"]')!;
+    window.scrollTo({ top: target.getBoundingClientRect().top + scrollY - 10, behavior: "instant" });
+  });
+
+  await expect(cardOf(page)).toBeHidden();
+});
+
+test("a card closes on the next pointer move after its reference left the page", async ({ page }) => {
+  const reference = await hoverPaneReference(page);
+  const card = cardOf(page);
+
+  await reference.evaluate((element) => element.remove());
+  await page.waitForTimeout(250);
+  await page.mouse.move(400, 790);
+  await expect(card).toBeHidden();
+});
+
+test("a card stays open under the pointer after its reference left the page", async ({ page }) => {
+  const reference = await hoverPaneReference(page);
+  const card = cardOf(page);
+
+  await card.locator(".card-name").hover();
+  await reference.evaluate((element) => element.remove());
+  await card.locator(".card-meta").hover();
+  await page.waitForTimeout(250);
+  await expect(card).toBeVisible();
+
+  await page.locator(".topbar").hover();
+  await expect(card).toBeHidden();
+});
+
+for (const [key, meta] of [
+  ["d0", "Fixture.Guide"],
+  ["f0", "Fixture.Guide"],
+]) {
+  test(`a card for the key ${key} shows no count of mentions`, async ({ page }) => {
+    await page.route(`**/${DATA_FILE}`, async (route) => {
+      const cards: Card[] = await (await route.fetch()).json();
+      const added = { ...cards[0], key, module: "Fixture.Guide", mentions: 0, external: false };
+      await route.fulfill({ json: [...cards, added] });
+    });
+
+    await open(page);
+    await (await injectRef(page, key)).hover();
+    await expect(cardOf(page).locator(".card-meta")).toHaveText("Fixture.Guide");
+  });
+}
 
 test("the card takes each look's tokens and appears with motion", async ({ page }) => {
   await open(page);

@@ -4,6 +4,7 @@ export const BASE = "/sub/path/";
 export const MODULE_PAGE = `${BASE}Fixture.Guide.html`;
 export const OTHER_PAGE = `${BASE}Fixture.Other.html`;
 export const GUARANTEES_PAGE = `${BASE}index.html`;
+export const LONG_PAGE = `${BASE}Fixture.Long.html`;
 
 type Observed = { problems: string[] };
 
