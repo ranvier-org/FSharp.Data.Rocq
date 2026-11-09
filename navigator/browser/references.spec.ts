@@ -377,3 +377,99 @@ test.describe("under definitions", () => {
     await expect(chips(page).first()).toBeHidden();
   });
 });
+
+test.describe("the gap around a References line", () => {
+  /** For each declaration whose references fold is displayed: its gaps to the panel above and the next declaration below. */
+  const refsGaps = (page: Page) =>
+    page.evaluate(() =>
+      [...document.querySelectorAll(".decl")].flatMap((decl) => {
+        const refs = decl.querySelector<HTMLDetailsElement>(":scope > details.refs");
+        let next = decl.nextElementSibling;
+        while (next && !next.matches(".decl")) next = next.nextElementSibling;
+        if (!refs || !next || getComputedStyle(refs).display === "none") return [];
+
+        return [
+          {
+            id: decl.id,
+            quiet: decl.matches(".quiet"),
+            open: refs.open,
+            above: refs.querySelector("summary")!.getBoundingClientRect().top - decl.querySelector(":scope > .panel")!.getBoundingClientRect().bottom,
+            below: next.getBoundingClientRect().top - refs.getBoundingClientRect().bottom,
+          },
+        ];
+      }),
+    );
+
+  const expectTight = async (page: Page, open: boolean) => {
+    const gaps = await refsGaps(page);
+    expect(gaps.some((gap) => gap.quiet), "a quiet declaration with references").toBe(true);
+    expect(gaps.some((gap) => !gap.quiet), "a documented declaration with references").toBe(true);
+
+    for (const gap of gaps) {
+      expect(gap.open, gap.id).toBe(open);
+      expect(gap.above, `${gap.id}: panel to summary`).toBeGreaterThanOrEqual(0);
+      expect(gap.above, `${gap.id}: panel to summary`).toBeLessThanOrEqual(4);
+      expect(gap.below, `${gap.id}: fold to the next declaration`).toBeGreaterThanOrEqual(14);
+      expect(gap.below, `${gap.id}: fold to the next declaration`).toBeGreaterThanOrEqual(3 * gap.above);
+    }
+  };
+
+  for (const width of [1440, 390]) {
+    for (const open of [false, true]) {
+      test(`under definitions at ${width} px, ${open ? "open" : "closed"}`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await place(page, "under");
+        if (open) await page.addInitScript(() => localStorage.setItem("rocq-navigator-references-open", "open"));
+        await page.goto(MODULE_PAGE);
+        await clientReady(page);
+        await expectTight(page, open);
+      });
+    }
+  }
+
+  test("below 900 px with the lists pinned on wider screens", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    expect(await page.evaluate(() => document.documentElement.getAttribute("data-lists"))).toBe("pane");
+    await expectTight(page, false);
+  });
+
+  test("after a failed client restores the folds", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.route("**/navigator.js", (route) => route.fulfill({ contentType: "text/javascript", body: "" }));
+    await page.goto(MODULE_PAGE);
+    await page.waitForLoadState("load");
+    await expectTight(page, false);
+  });
+
+  for (const [placement, quiet] of [["pane", "3.2px"], ["badges", "16px"]]) {
+    test(`${placement} keeps the spacing of a declaration whose fold is hidden`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await place(page, placement);
+      await page.goto(MODULE_PAGE);
+      await clientReady(page);
+
+      const margins = await page.evaluate(() => {
+        const read = (selector: string) =>
+          [...new Set([...document.querySelectorAll(selector)].map((element) => getComputedStyle(element).marginBottom))];
+        return { quiet: read(".decl.quiet:has(> details.refs)"), panel: read(".decl:has(> details.refs) > .panel") };
+      });
+
+      expect(margins).toEqual({ quiet: [quiet], panel: ["8px"] });
+    });
+  }
+
+  test("under definitions leaves a declaration with no references as it was", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await place(page, "under");
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    const margins = await page.evaluate(() => {
+      const quiet = document.querySelector(".decl.quiet:not(:has(> details.refs))")!;
+      return { decl: getComputedStyle(quiet).marginBottom, panel: getComputedStyle(quiet.querySelector(":scope > .panel")!).marginBottom };
+    });
+    expect(margins).toEqual({ decl: "3.2px", panel: "8px" });
+  });
+});

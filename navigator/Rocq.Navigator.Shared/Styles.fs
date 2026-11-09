@@ -408,6 +408,13 @@ let private code =
         rule ".decl:target > .panel" [ "border-color", "var(--link)" ]
     ]
 
+/// The spacing of a declaration with a displayed references fold, under a root selector.
+let private displayedRefsSpacing (root: string) =
+    [
+        rule $"{root} .panel:has(+ details.refs)" [ "margin-bottom", "2px" ]
+        rule $"{root} .decl.quiet:has(> details.refs)" [ "margin-bottom", "1.1rem" ]
+    ]
+
 let private folds =
     [
         rule
@@ -462,6 +469,9 @@ let private folds =
         rule ".page .panel details.body > pre" [ "padding-top", "0"; "padding-bottom", "0" ]
         rule ".warning-text" [ "font-weight", "600"; "margin-left", "0.35rem" ]
         rule ".decl.quiet details.proof, .decl.quiet details.refs" [ "margin-left", "0" ]
+        // A displayed References line belongs to the panel above it. Above 900 px, `data-lists` hides the fold.
+        yield! displayedRefsSpacing ":root:not([data-lists])"
+        Rule.media "(max-width: 900px)" (displayedRefsSpacing ":root")
         rule ".ref-list" [ "margin", "0.25rem 0 0.5rem" ]
         rule
             ".ref-list > p"
