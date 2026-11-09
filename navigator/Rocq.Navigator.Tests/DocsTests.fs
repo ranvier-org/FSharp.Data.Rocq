@@ -32,6 +32,14 @@ let tests =
     testList
         "docs"
         [
+            testCase "a code span inside a link stays code, under the written link"
+            <| fun () ->
+                for body in [ "[`add_comm`](Arith.html#other)"; "[**`add_comm`**](Arith.html#other)" ] do
+                    let html = Docs.render plain resolver CommentFormat.Markdown body
+                    Expect.equal (html.Split "<a ").Length 2 $"one anchor in {html}"
+                    Expect.stringContains html "href=\"/site/Arith.html#other\"" "the written link"
+                    Expect.stringContains html "<code>add_comm</code>" "the code"
+
             testCase "a markdown comment renders headings, paragraphs, links and code"
             <| fun () ->
                 let html =

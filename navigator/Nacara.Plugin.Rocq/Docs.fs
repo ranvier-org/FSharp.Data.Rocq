@@ -57,11 +57,17 @@ module Docs =
 
         link.Remove ()
 
+    let rec private insideLink (node: Inline) =
+        match node.Parent with
+        | null -> false
+        | :? LinkInline -> true
+        | parent -> insideLink parent
+
     let private rewrite (resolve: Resolve) (document: MarkdownDocument) =
         // The tree is edited during the walk, so the nodes are collected first.
         for node in document.Descendants<Inline>() |> Seq.toArray do
             match node with
-            | :? CodeInline as code ->
+            | :? CodeInline as code when not (insideLink code) ->
                 match resolve.Code code.Content with
                 | Some (key, href) ->
                     code.ReplaceBy (HtmlInline (referenceHtml code.Content key href))
