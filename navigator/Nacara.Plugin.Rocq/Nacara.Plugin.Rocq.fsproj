@@ -4,6 +4,21 @@
         <TargetFramework>net10.0</TargetFramework>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <IsPackable>true</IsPackable>
+        <PackageId>Nacara.Plugin.Rocq</PackageId>
+        <Description>A Nacara plugin that publishes a compiled Rocq project as a static site: a page per module, a Guarantees page, hover cards, search and two looks.</Description>
+        <PackageTags>rocq;coq;fsharp;nacara;documentation;static-site</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <Target Name="RequireClientBundle" BeforeTargets="GenerateNuspec">
+        <Error Condition="!Exists('assets\navigator.js')" Text="assets\navigator.js is missing, so the package would ship no client. Run navigator/build-client.sh first." />
+    </Target>
+
     <Import Project="..\Packages.props" />
 
     <ItemGroup>

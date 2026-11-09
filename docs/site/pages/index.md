@@ -19,6 +19,24 @@ layout: splash
 <a class="rocq-package" href="{{base}}guide/navigator/"><code class="rocq-package__name">Nacara.Plugin.Rocq</code><p>A Nacara plugin that publishes a project as a site: a page per module, a Guarantees page, hover cards, search and two looks.</p></a>
 </div>
 
+## Install
+
+Both packages target .NET 10 and are in preview, so `--prerelease` is required.
+
+```bash
+dotnet add package FSharp.Data.Rocq --prerelease
+```
+
+The Nacara plugin brings in the library. First add the feed that holds its `Xantham.*` dependency:
+
+```bash
+dotnet nuget add source https://nuget.cloudsmith.io/shayanhabibi/xantham/v3/index.json --name xantham-cloudsmith
+```
+
+```bash
+dotnet add package Nacara.Plugin.Rocq --prerelease
+```
+
 ## Everything here is real
 
 A small Rocq project, [Tally](guide/example.md), is compiled and committed beside the site. Each build runs the code you see against it and places the output under the code. This is the example site, built by the plugin as part of this site:

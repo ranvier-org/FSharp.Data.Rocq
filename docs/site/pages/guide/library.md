@@ -4,6 +4,10 @@ title: Library
 
 `FSharp.Data.Rocq` has no dependencies beyond `FSharp.Core`. The examples on this page run against the [Tally](example.md) project.
 
+```bash
+dotnet add package FSharp.Data.Rocq --prerelease
+```
+
 ```fsharp
 open FSharp.Data.Rocq.Project
 open FSharp.Data.Rocq.Structure

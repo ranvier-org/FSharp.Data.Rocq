@@ -9,6 +9,11 @@
         <IsPackable>false</IsPackable>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Version>0.1.0-preview.2</Version>
+        <Authors>Shayan Habibi</Authors>
+        <PackageProjectUrl>https://github.com/ranvier-org/FSharp.Data.Rocq</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/ranvier-org/FSharp.Data.Rocq</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
 </Project>
