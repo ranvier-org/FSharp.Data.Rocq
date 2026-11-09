@@ -40,18 +40,19 @@ let looks = [ defaultLook; "journal" ]
 /// The values `data-mode` accepts.
 let modes = [ defaultMode; "light"; "dark" ]
 
-/// The distance from the top of the viewport, in pixels, of the line that decides the section in view.
+/// The percentage of the viewport's height, from its top, above the line that decides the section in view.
 [<Literal>]
-let private sectionLine = 48.0
+let private linePercent = 5
 
-/// The share of the viewport's height, from its top, that holds candidate sections.
+/// The `scroll-margin-top` of a jump target. Its top lands just above the line at every viewport height.
+let landingMargin = $"calc({linePercent}vh - 4px)"
+
+/// The `IntersectionObserver` margin of the area above the line. A section's state changes whenever its top crosses the line.
+let private aboveLineMargin = $"0px 0px -{100 - linePercent}%% 0px"
+
+/// The share of the viewport's height, from its top, that holds the first section of a page.
 [<Literal>]
 let private bandShare = 0.4
-
-/// The band between the line and its end, as an `IntersectionObserver` margin. A section whose top crosses the line
-/// changes its ratio in the band from 1, and a section that leaves past the line changes it from above 0.
-[<Literal>]
-let private sectionBand = "-48px 0px -60% 0px"
 
 #if FABLE_COMPILER
 [<Global "document">]
@@ -82,26 +83,23 @@ type private SectionObserver =
     abstract observe: Element -> unit
     abstract disconnect: unit -> unit
 
-[<Emit("new IntersectionObserver(() => $0(), { rootMargin: $1, threshold: [0, 1] })")>]
+[<Emit("new IntersectionObserver(() => $0(), { rootMargin: $1 })")>]
 let private sectionObserver (callback: unit -> unit) (rootMargin: string) : SectionObserver = jsNative
 
-/// The section in view: the last to start above a line near the top of the viewport or, at the top of the page, the first
-/// in the band. Space after the article lets the last section reach the line.
+/// The section in view: the last to start above the line or, with none above it, the first in the band.
 let private sectionInView (sections: Element array) : Element option =
     let top (section: Element) =
         section.getBoundingClientRect().top
 
-    let bandEnd =
-        float document.documentElement.clientHeight
-        * bandShare
+    let height = float document.documentElement.clientHeight
 
     let inBand =
         sections
-        |> Array.filter (fun section -> top section < bandEnd)
+        |> Array.filter (fun section -> top section < height * bandShare)
 
     let aboveLine =
         inBand
-        |> Array.filter (fun section -> top section <= sectionLine)
+        |> Array.filter (fun section -> top section <= height * float linePercent / 100.0)
 
     if inBand.Length = 0 then
         None
@@ -178,12 +176,12 @@ let lookSwitch: Component<unit> =
     Component.template
         createSwitch
         (div (Attrs.className "switch") {
-            span (Attrs.className "switch-group", Attrs.aria ("label", "Look")) {
+            span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Look")) {
                 choice _.Look lookKey "family" "Family"
                 choice _.Look lookKey "journal" "Journal"
             }
 
-            span (Attrs.className "switch-group", Attrs.aria ("label", "Mode")) {
+            span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Mode")) {
                 choice _.Mode modeKey "system" "Auto"
                 choice _.Mode modeKey "light" "Light"
                 choice _.Mode modeKey "dark" "Dark"
@@ -202,18 +200,19 @@ let private createMarker (_: Setup) () =
                  document.getElementById ((link.getAttribute "href").Substring 1)
                  |> Option.ofObj))
 
-    let observer =
-        sectionObserver
-            (fun () ->
-                match sectionInView sections with
-                | Some current -> section.Value <- current.id
-                | None -> ())
-            sectionBand
+    let update () =
+        match sectionInView sections with
+        | Some current -> section.Value <- current.id
+        | None -> ()
 
-    for target in sections do
-        observer.observe target
+    // A jump between two gaps can leave the area above the line unchanged. It moves sections across the viewport's edges.
+    for margin in [ aboveLineMargin; "0px" ] do
+        let observer = sectionObserver update margin
 
-    Api.onCleanup observer.disconnect
+        for target in sections do
+            observer.observe target
+
+        Api.onCleanup observer.disconnect
 
     if (all ".pane-right [data-slot]").Length > 0 then
         document.documentElement.setAttribute ("data-lists", "pane")
