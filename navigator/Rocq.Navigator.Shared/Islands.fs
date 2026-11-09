@@ -610,7 +610,7 @@ let private dialogIsOpen (dialog: obj) : bool = jsNative
 [<Emit("$0.showModal()")>]
 let private showModal (dialog: obj) : unit = jsNative
 
-[<Emit("$0.close()")>]
+[<Emit("($0.contains(document.activeElement) && document.activeElement.blur(), $0.close())")>]
 let private closeDialog (dialog: obj) : unit = jsNative
 
 [<Emit("(() => { const i = $0.querySelector('input'); i.focus(); i.select() })()")>]
@@ -771,6 +771,9 @@ let private createSearch (_: Setup) () : SearchInstance =
             let target = results.Value[min selected.Value (count - 1)]
             isOpen.Value <- false
             navigate target.Href
+        | "Escape" ->
+            preventDefault event
+            isOpen.Value <- false
         | _ -> ()
 
     {
@@ -790,7 +793,10 @@ let private createSearch (_: Setup) () : SearchInstance =
                 selected.Value <- 0
         OnKey = onKey
         OnDialogClick = fun event -> if dismissesDialog event then isOpen.Value <- false
-        OnClosed = fun () -> isOpen.Value <- false
+        OnClosed =
+            fun () ->
+                if isNull dialog.Value || not (dialogIsOpen dialog.Value) then
+                    isOpen.Value <- false
     }
 #else
     {
