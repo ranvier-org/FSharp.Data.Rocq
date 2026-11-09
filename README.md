@@ -4,7 +4,7 @@ Typed access to a compiled Rocq project from F#: sentences, declarations, proofs
 cross-file dependencies. It reads `.v` and `.glob` files, and it needs the compiled output of Rocq but not Rocq itself.
 It can also write the same data as JSON, for browsers and other languages.
 
-The [documentation site](docs/site) holds the guide, the comment syntax and a real example. To build it into `docs/site/output`:
+The [documentation site](https://ranvier-org.github.io/FSharp.Data.Rocq/) holds the guide, the comment syntax and a real example. To build it into `docs/site/output`:
 
 ```bash
 bash navigator/build-client.sh
