@@ -96,6 +96,7 @@ let private shell =
             ".topbar"
             [
                 "display", "flex"
+                "flex-wrap", "wrap"
                 "align-items", "center"
                 "gap", "0.75rem"
                 "max-width", "46rem"
@@ -393,7 +394,7 @@ let private guarantees =
 
 let private islands =
     [
-        rule ".switch" [ "display", "flex"; "gap", "0.5rem"; "font", $"11.5px/1.5 {ui}" ]
+        rule ".switch" [ "display", "flex"; "flex-wrap", "wrap"; "gap", "0.5rem"; "font", $"11.5px/1.5 {ui}" ]
         rule
             ".switch-group"
             [
@@ -457,6 +458,76 @@ let private islands =
         rule ".card-doc > :last-child" [ "margin-bottom", "0" ]
         rule ".card-quiet" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font-style", "italic" ]
         rule ".card-meta" [ "margin-top", "0.375rem !important"; "color", "var(--dim)"; "font", $"11px/1.5 {ui}" ]
+    ]
+
+let private search =
+    [
+        rule
+            ".search-trigger"
+            [
+                "appearance", "none"
+                "display", "inline-flex"
+                "gap", "0.6rem"
+                "align-items", "center"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "background", "transparent"
+                "color", "var(--dim)"
+                "font", $"11.5px/1.5 {ui}"
+                "padding", "2px 8px"
+                "cursor", "pointer"
+            ]
+        rule ".search-trigger:hover" [ "color", "var(--ink)" ]
+        rule ".search-hint" [ "font", "inherit"; "opacity", "0.8" ]
+        rule
+            ".search-dialog"
+            [
+                "width", "min(40rem, calc(100vw - 2rem))"
+                "max-height", "min(32rem, calc(100vh - 6rem))"
+                "margin", "4rem auto auto"
+                "padding", "0"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "background", "var(--bg)"
+                "color", "var(--ink)"
+                "overflow", "hidden"
+            ]
+        rule ".search-dialog[open]" [ "display", "flex"; "flex-direction", "column" ]
+        rule ".search-dialog::backdrop" [ "background", "rgba(0, 0, 0, 0.4)" ]
+        rule
+            ".search-input"
+            [
+                "appearance", "none"
+                "border", "0"
+                "border-bottom", "1px solid var(--line)"
+                "background", "transparent"
+                "color", "var(--ink)"
+                "font", $"15px/1.5 {ui}"
+                "padding", "0.8rem 1rem"
+                "outline", "none"
+            ]
+        rule ".search-input:focus-visible" [ "box-shadow", "inset 0 -2px 0 var(--link)" ]
+        rule ".search-message" [ "margin", "0"; "padding", "0.5rem 1rem"; "color", "var(--dim)"; "font", $"12px/1.5 {ui}" ]
+        rule ".search-message:empty" [ "display", "none" ]
+        rule ".search-list" [ "list-style", "none"; "margin", "0"; "padding", "0"; "overflow", "auto" ]
+        rule ".search-list li" [ "margin", "0"; "padding", "0" ]
+        rule
+            ".search-list .hit"
+            [
+                "display", "grid"
+                "grid-template-columns", "1fr auto"
+                "gap", "0 1rem"
+                "padding", "0.45rem 1rem"
+                "color", "var(--ink)"
+                "text-decoration", "none"
+            ]
+        rule ".search-list li[aria-selected=\"true\"] .hit" [ "background", "var(--selected)" ]
+        rule ".hit-name" [ "font-weight", "600"; "overflow-wrap", "anywhere" ]
+        rule ".hit-kind, .hit-module" [ "color", "var(--dim)"; "font", $"11.5px/1.6 {ui}" ]
+        rule ".hit-kind" [ "grid-column", "2"; "grid-row", "1"; "text-align", "right" ]
+        rule ".hit-module" [ "grid-column", "1" ]
+        rule ".hit-summary" [ "grid-column", "1 / -1"; "color", "var(--soft)"; "font", $"12px/1.5 {ui}" ]
+        rule ".hit-summary:empty" [ "display", "none" ]
     ]
 
 let private motion =
@@ -525,6 +596,7 @@ let modules: CssModule list =
                 @ badges
                 @ guarantees
                 @ islands
+                @ search
                 @ motion
                 @ narrow
         }

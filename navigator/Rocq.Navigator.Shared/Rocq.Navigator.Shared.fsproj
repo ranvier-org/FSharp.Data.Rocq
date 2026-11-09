@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <Compile Include="Model.fs" />
+        <Compile Include="Ranking.fs" />
         <Compile Include="Islands.fs" />
         <Compile Include="Tokens.fs" />
         <Compile Include="Styles.fs" />
