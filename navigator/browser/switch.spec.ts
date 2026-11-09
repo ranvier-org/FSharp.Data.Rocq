@@ -272,3 +272,49 @@ test.describe("with JavaScript off", () => {
     await expect(body.locator("pre.statement")).toBeHidden();
   });
 });
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 700 }]) {
+  test(`a route change paints its final layout at ${viewport.width} px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      const shifts: number[] = [];
+      (window as any).__shifts = shifts;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) shifts.push((entry as any).value);
+      }).observe({ type: "layout-shift", buffered: true });
+    });
+
+    await page.goto(OTHER_PAGE);
+    await clientReady(page);
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await page.waitForTimeout(300);
+
+    expect(await page.evaluate(() => (window as any).__shifts)).toEqual([]);
+  });
+}
+
+test("the inline lists are hidden on wide screens before the client runs", async ({ page }) => {
+  await page.route("**/navigator.js", (route) => route.fulfill({ contentType: "text/javascript", body: "" }));
+  await page.goto(MODULE_PAGE);
+
+  expect(await rootAttribute(page, "data-lists")).toBe("pane");
+  await expect(page.locator(".decl details.refs").first()).toBeHidden();
+});
+
+test("the default look's fonts are requested from the document head", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  const fonts = await page.locator('head link[rel="preload"][as="font"]').evaluateAll((links) =>
+    links.map((link) => link.getAttribute("href")!.split("/").pop()),
+  );
+
+  expect(fonts).toEqual(["Inter-wght.woff2", "JetBrainsMono-Regular.woff2", "JetBrainsMono-SemiBold.woff2"]);
+});
+
+test("the Journal look's serif is requested before the stylesheet applies", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rocq-navigator-look", "journal"));
+  await page.goto(MODULE_PAGE);
+
+  await expect(page.locator('head link[rel="preload"][href$="SourceSerif4-wght.woff2"]')).toHaveCount(1);
+});
+

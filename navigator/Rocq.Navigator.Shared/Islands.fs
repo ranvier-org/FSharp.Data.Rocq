@@ -214,9 +214,6 @@ let private createMarker (_: Setup) () =
 
         Api.onCleanup observer.disconnect
 
-    if (all ".pane-right [data-slot]").Length > 0 then
-        document.documentElement.setAttribute ("data-lists", "pane")
-
     Api.createEffect (fun () ->
         if section.Value <> "" then
             markOutline section.Value

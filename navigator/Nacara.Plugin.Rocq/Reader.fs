@@ -160,6 +160,28 @@ module internal RocqReader =
                 "})()"
             ]
 
+    /// <summary>The inline head script of a page with a client: the lists' place on the root, and the Journal look's font request.</summary>
+    /// <param name="serifUrl">The site URL of the serif font.</param>
+    let clientPreloadScript (serifUrl: string) : string =
+        String.concat
+            ""
+            [
+                "(function(){var r=document.documentElement;"
+                """r.setAttribute("data-lists","pane");"""
+                """if(r.getAttribute("data-look")==="journal"){var l=document.createElement("link");"""
+                """l.rel="preload";l.as="font";l.type="font/woff2";l.crossOrigin="";"""
+                $"""l.href="{serifUrl}";document.head.appendChild(l)}}}}"""
+                ")()"
+            ]
+
+    /// <summary>The fonts of the default look, requested before the stylesheet's rules apply.</summary>
+    let fontPreloads (urlOf: string -> string) : string =
+        [ "Inter-wght.woff2"; "JetBrainsMono-Regular.woff2"; "JetBrainsMono-SemiBold.woff2" ]
+        |> List.map (fun file ->
+            let url = encode (urlOf $"assets/fonts/{file}")
+            $"""<link rel="preload" href="{url}" as="font" type="font/woff2" crossorigin>""")
+        |> String.concat ""
+
     /// <summary>Inserts text at the start of the head, before any stylesheet.</summary>
     /// <returns><c>Error</c> when the document has no head.</returns>
     let insertAtHeadStart (text: string) (html: string) : Result<string, string> =
@@ -259,13 +281,23 @@ module internal RocqReader =
                 | Some text -> $"""<meta name="description" content="{encode text}">"""
                 | None -> ""
 
-            $"""<meta name="viewport" content="width=device-width, initial-scale=1">{description}"""
+            $"""<meta name="viewport" content="width=device-width, initial-scale=1">{description}{fontPreloads site.UrlOfAsset}"""
+
+        let preload =
+            let client =
+                match bundle.Value with
+                | Some _ ->
+                    let serif = clientPreloadScript (site.UrlOfAsset "assets/fonts/SourceSerif4-wght.woff2")
+                    $"<script>{serif}</script>"
+                | None -> ""
+
+            $"<script>{preloadScript}</script>{client}"
 
         let html =
             Server.renderDocument serverOptions document (shell page.Title) (UnsafeHtml.Trust shellMarkup)
             |> unmarkHead
             |> Result.bind (insertInHead head)
-            |> Result.bind (insertAtHeadStart $"<script>{preloadScript}</script>")
+            |> Result.bind (insertAtHeadStart preload)
 
         Islands.islands
         |> List.map islandMarkup
