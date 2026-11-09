@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // A site directory built with NAVIGATOR_BASE_URL=/sub/path/. `npm run site` builds the demo site this default names.
 const site = resolve(process.env.NAVIGATOR_SITE ?? "../Rocq.Navigator.Site/output");
-const port = 4173;
+const port = Number(process.env.NAVIGATOR_PORT ?? 4173);
 
 export default defineConfig({
   testDir: ".",
