@@ -261,6 +261,32 @@ test("a multi-line statement folds on its rendered first line", async ({ page })
   await expect(head).toBeVisible();
 });
 
+test("a definition's body starts below its closed height, so closing hides it line by line", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const body = page.locator("article .panel > details.body").first();
+  const summary = (await body.locator("> summary").boundingBox())!;
+  const rest = (await body.locator("> pre.statement").boundingBox())!;
+  expect(rest.y).toBeGreaterThanOrEqual(summary.y + summary.height - 0.5);
+
+  await body.locator("summary pre.statement").click();
+  await expect(body).toHaveJSProperty("open", false);
+  await expect.poll(async () => (await body.boundingBox())!.height).toBeCloseTo(summary.height, 0);
+});
+
+test("a definition's caret follows its line count at the right of the row", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  const caret = await page
+    .locator("article .panel > details.body > summary")
+    .first()
+    .evaluate((summary) => {
+      const style = getComputedStyle(summary, "::before");
+      return { position: style.position, order: style.order, flex: getComputedStyle(summary).display };
+    });
+  expect(caret).toEqual({ position: "static", order: "1", flex: "flex" });
+});
+
 test("a one-line statement has no fold", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await expect(page.locator('.decl[id="sum_refl"] .panel > pre.statement')).toBeVisible();

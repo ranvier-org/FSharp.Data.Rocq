@@ -299,6 +299,13 @@ let tests =
                 Expect.isLessThan (html.IndexOf "intro") (html.IndexOf "details") "after the opening prose"
                 Expect.isLessThan (html.IndexOf "details") (html.IndexOf "one.") "before the first declaration"
 
+            testCase "collectsAsImport: imports and scope opens, and nothing else"
+            <| fun () ->
+                Expect.isTrue (collectsAsImport Category.Import (Some "From")) "an import"
+                Expect.isTrue (collectsAsImport Category.Directive (Some "Open Scope")) "a scope open"
+                Expect.isFalse (collectsAsImport Category.Directive (Some "Close Scope")) "a scope close"
+                Expect.isFalse (collectsAsImport Category.Directive None) "no keyword"
+
             testCase "toHtml: a page with no imports has no imports block"
             <| fun () -> Expect.isFalse ((toHtml [| Prose "intro" |]).Contains "imports") "no block"
 

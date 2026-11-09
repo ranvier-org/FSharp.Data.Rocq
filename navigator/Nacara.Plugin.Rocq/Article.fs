@@ -44,7 +44,7 @@ type Block =
     | Quiet of decl: int * anchor: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
     /// A sentence outside any declaration, or the whitespace between two blocks.
     | Command of html: string
-    /// A sentence of the Import category. A page shows its imports together.
+    /// A sentence of the Import category or an <c>Open Scope</c>. A page shows its imports together.
     | Import of html: string
     /// A comment attached to no declaration, or the text around a comment's headings.
     | Prose of html: string
@@ -369,6 +369,11 @@ let private commentBlocks (file: RocqFile) (render: Comment -> string -> string)
         yield! prose cursor body.End
     ]
 
+/// <summary>True for a sentence the imports block collects. A locality modifier such as <c>Local</c> is outside the keyword.</summary>
+let internal collectsAsImport (category: Category) (keyword: string option) : bool =
+    category = Category.Import
+    || keyword = Some "Open Scope"
+
 type private Item =
     | DeclarationItem of Declaration
     | CommentItem of Comment
@@ -498,7 +503,7 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
                 let html = source cursor sentence.Span.End
 
                 result.Add (
-                    if sentence.Category = Category.Import then
+                    if collectsAsImport sentence.Category sentence.Keyword then
                         Import html
                     else
                         Command html

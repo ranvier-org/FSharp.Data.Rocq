@@ -352,23 +352,17 @@ let private folds =
         rule "details.imports" [ "margin", "0.5rem 0 1rem" ]
         rule "details.imports > summary::before" [ "content", "\"▸ Imports · \"" ]
         rule "details.imports[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Imports · \"" ]
-        rule
-            "details.body > summary"
-            [
-                "display", "flex"
-                "position", "relative"
-                "padding", "0"
-                "cursor", "pointer"
-                "list-style", "none"
-            ]
+        rule "details.body > summary" [ "display", "flex"; "padding", "0"; "cursor", "pointer"; "list-style", "none" ]
+        rule "details.body" [ "margin-bottom", "10px" ]
         rule "details.body > summary > pre" [ "flex", "1"; "min-width", "0" ]
+        rule ".page .panel details.body > summary > pre" [ "padding-bottom", "0" ]
         rule
             "details.body > summary::before"
             [
                 "content", "\"▸\""
-                "position", "absolute"
-                "left", "1px"
-                "top", "10px"
+                "order", "1"
+                "flex", "none"
+                "padding", "10px 12px 0 0"
                 "font", $"12px/20px {ui}"
                 "color", "var(--dim)"
             ]
@@ -379,12 +373,12 @@ let private folds =
             [
                 "content", "attr(data-lines)"
                 "flex", "none"
-                "padding", "10px 12px 0 0"
+                "padding", "10px 6px 0 0"
                 "font", $"11px/20px {ui}"
                 "color", "var(--dim)"
             ]
         rule "details.body[open]:not([data-closing]) > summary:not(:hover)::after" [ "visibility", "hidden" ]
-        rule ".page .panel details.body > pre" [ "margin-top", "-10px"; "padding-top", "0" ]
+        rule ".page .panel details.body > pre" [ "padding-top", "0"; "padding-bottom", "0" ]
         rule ".warning-text" [ "font-weight", "600"; "margin-left", "0.35rem" ]
         rule ".decl.quiet details.proof, .decl.quiet details.refs" [ "margin-left", "0" ]
         rule ".ref-list" [ "margin", "0.25rem 0 0.5rem" ]
