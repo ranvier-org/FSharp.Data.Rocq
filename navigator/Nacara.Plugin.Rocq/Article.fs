@@ -373,6 +373,8 @@ type private Item =
     | SentenceItem of Sentence
 
 /// <summary>A file's blocks in source order. The source-bearing fields, read in order, give every byte of the file apart from the comments rendered as prose.</summary>
+/// <param name="project">The project holding the file.</param>
+/// <param name="links">Builds the URLs of references.</param>
 /// <param name="fileIndex">The index in <c>RocqProject.Files</c>.</param>
 let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
     let file = project.Files[fileIndex]

@@ -18,4 +18,5 @@ let main args =
                 PluginTests.tests
                 TokenTests.tests
                 RankingTests.tests
+                CorpusTests.tests
             ])

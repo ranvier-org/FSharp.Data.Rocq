@@ -9,6 +9,8 @@ open Nacara.Core
 
 /// <summary>The route of a module's page, <c>&lt;root&gt;/&lt;Module&gt;.html</c>.</summary>
 /// <param name="root">The route prefix. Empty places the page at the site root.</param>
+/// <param name="locale">The page's locale.</param>
+/// <param name="moduleName">The module's full name.</param>
 let routeOf (root: string) (locale: Locale) (moduleName: string) : Route =
     match root.Trim '/' with
     | "" -> Route.file locale $"{moduleName}.html"

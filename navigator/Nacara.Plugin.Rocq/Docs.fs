@@ -138,7 +138,10 @@ module Docs =
         out.ToString ()
 
     /// <summary>Renders a comment body to HTML according to its format.</summary>
+    /// <param name="pipeline">The Markdown pipeline for Markdown comments.</param>
     /// <param name="resolve">Turns code spans and relative links into references.</param>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="body">The comment's text.</param>
     let render (pipeline: MarkdownPipeline) (resolve: Resolve) (format: CommentFormat) (body: string) : string =
         match format with
         | CommentFormat.Markdown -> renderMarkdown pipeline resolve body
