@@ -319,9 +319,7 @@ let tests =
 
             testCase "Source.lines balances each line's tags and keeps the text"
             <| fun () ->
-                let html = "  <span class=\"comment\">a &lt;
-  <a href=\"x\">b</a></span> c
-"
+                let html = "  <span class=\"comment\">a &lt;\n  <a href=\"x\">b</a></span> c\n"
 
                 let lines = Source.lines html
 
