@@ -29,13 +29,18 @@ type ArgumentEntry =
 [<RequireQualifiedAccess>]
 module Docs =
 
-    /// <summary>A Markdig pipeline with raw HTML disabled and the given extensions applied.</summary>
+    /// <summary>A Markdig pipeline with raw HTML disabled, pipe tables enabled and the given extensions applied.</summary>
     let pipeline (extensions: IMarkdownExtension list) : MarkdownPipeline =
-        let builder = MarkdownPipelineBuilder().DisableHtml()
+        let builder = MarkdownPipelineBuilder().DisableHtml().UsePipeTables()
 
         for extension in extensions do
-            builder.Extensions.AddIfNotAlready extension
-            |> ignore
+            if
+                not (
+                    builder.Extensions
+                    |> Seq.exists (fun added -> added.GetType () = extension.GetType ())
+                )
+            then
+                builder.Extensions.Add extension
 
         builder.Build ()
 

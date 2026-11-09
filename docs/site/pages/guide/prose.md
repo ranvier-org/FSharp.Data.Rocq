@@ -50,10 +50,10 @@ Markdown comments use [CommonMark](https://commonmark.org). Backticks mark code,
 
 <!-- prose: Another, with a -->
 
-The table in that comment stays text, because tables are a Markdig extension and the plugin applies none by default. Add one to the site's options, and the same comment renders a table:
+Pipe tables render too, as in that comment. Other Markdig extensions can be added to the site's options:
 
 ```fsharp
-|> Rocq.extensions [ Markdig.Extensions.Tables.PipeTableExtension () ]
+|> Rocq.extensions [ Markdig.Extensions.EmphasisExtras.EmphasisExtraExtension Markdig.Extensions.EmphasisExtras.EmphasisExtraOptions.Strikethrough ]
 ```
 
 Three rules hold for every comment:
