@@ -34,12 +34,30 @@ type RefItem =
 /// <summary>The cross-references of a declaration. Each name appears once, and the declaration itself is absent.</summary>
 type RefLists = { Uses: RefItem[]; UsedBy: RefItem[] }
 
+/// <summary>A row of a declaration's Arguments list.</summary>
+type ArgumentRow =
+    {
+        Name: string
+        /// The reference keys of the statement's binders with this name. Empty for a stale entry.
+        Binders: string[]
+        /// The binder's type as HTML, written with its references when the source has one.
+        TypeHtml: string option
+        TextHtml: string
+    }
+
 /// <summary>One unit of a page. Source-bearing fields decode to the exact source text.</summary>
 type Block =
     /// A heading comment's heading. Anchors are unique on the page.
     | Heading of level: int * text: string * anchor: string
     /// A declaration with attached documentation.
-    | Documented of decl: int * anchor: string * docHtml: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
+    | Documented of
+        decl: int *
+        anchor: string *
+        docHtml: string *
+        arguments: ArgumentRow[] *
+        statementHtml: string *
+        proofs: ProofBlock[] *
+        refs: RefLists
     /// A declaration with no attached documentation.
     | Quiet of decl: int * anchor: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
     /// A sentence outside any declaration, or the whitespace between two blocks.
@@ -128,6 +146,180 @@ let internal notationText (file: RocqFile) (declaration: Declaration) : string o
 /// <summary>The comment's body as source text.</summary>
 let internal commentBody (file: RocqFile) (comment: Comment) : string =
     Source.text file comment.BodySpan
+
+let private bodyColumn (file: RocqFile) (comment: Comment) =
+    let bytes = file.Model.Bytes
+    let mutable start = comment.BodySpan.Start
+
+    while start > 0 && bytes[start - 1] <> 10uy do
+        start <- start - 1
+
+    comment.BodySpan.Start - start
+
+/// <summary>A comment's argument entries, and its body without them.</summary>
+let internal docParts (file: RocqFile) (comment: Comment) : ArgumentEntry[] * string =
+    Docs.splitArguments comment.Format (bodyColumn file comment) (commentBody file comment)
+
+/// <summary>The comments documenting a declaration: its attached comments that hold no heading.</summary>
+let internal docComments (file: RocqFile) (declaration: Declaration) : Comment[] =
+    let hasHeading = file.Model.Headings |> Array.map _.Comment |> set
+
+    declaration.Docs
+    |> Array.filter (fun comment -> not (hasHeading.Contains comment))
+    |> Array.map (fun comment -> file.Model.Comments[comment])
+
+/// <summary>A declaration's statement: from its keyword to its body or proof.</summary>
+let internal statementSpan (declaration: Declaration) : FSharp.Data.Rocq.Source.Span =
+    let stop =
+        match declaration.Statement, declaration.Body with
+        | ValueSome statement, _ -> statement.End
+        | ValueNone, ValueSome body -> body.Start
+        | ValueNone, ValueNone -> declaration.SentenceSpan.End
+
+    {
+        Start = declaration.KeywordSpan.Start
+        End = stop
+    }
+
+/// <summary>The type written in a binder's group, such as <c>nat</c> for <c>b</c> in <c>(a b : nat)</c> or <c>forall a b : nat,</c>.</summary>
+/// <param name="file">The binder's file.</param>
+/// <param name="scope">The source span holding the group.</param>
+/// <param name="binder">The binder's name in the source.</param>
+let internal writtenBinderType
+    (file: RocqFile)
+    (scope: FSharp.Data.Rocq.Source.Span)
+    (binder: FSharp.Data.Rocq.Source.Span)
+    : FSharp.Data.Rocq.Source.Span option =
+    let bytes = file.Model.Bytes
+
+    let isSpace (value: byte) =
+        value = 32uy
+        || value = 9uy
+        || value = 10uy
+        || value = 13uy
+
+    let isOpen (value: byte) =
+        value = byte '('
+        || value = byte '{'
+        || value = byte '['
+
+    let isClose (value: byte) =
+        value = byte ')'
+        || value = byte '}'
+        || value = byte ']'
+
+    let isDelimiter (value: byte) =
+        isOpen value
+        || isClose value
+        || value = byte ':'
+        || value = byte ','
+        || value = byte '='
+        || value = byte '|'
+
+    let isWord (value: byte) =
+        not (isSpace value) && not (isDelimiter value)
+
+    let quantifiers = set [ "forall"; "exists"; "fun"; "∀"; "∃"; "λ" ]
+
+    // The bracket opening the group, or zero for a group opened by a quantifier.
+    let rec opener (position: int) =
+        if position <= scope.Start then
+            None
+        else
+            let previous = bytes[position - 1]
+
+            if isSpace previous then
+                opener (position - 1)
+            elif isOpen previous then
+                Some previous
+            elif isDelimiter previous then
+                None
+            else
+                let mutable first = position - 1
+
+                while first > scope.Start && isWord bytes[first - 1] do
+                    first <- first - 1
+
+                if quantifiers.Contains (Encoding.UTF8.GetString (bytes, first, position - first)) then
+                    Some 0uy
+                else
+                    opener first
+
+    let startsAt (position: int) (text: string) =
+        position + text.Length <= scope.End
+        && Encoding.ASCII.GetString (bytes, position, text.Length) = text
+
+    let rec afterColon (position: int) =
+        if position >= scope.End then
+            None
+        elif isSpace bytes[position] || isWord bytes[position] then
+            afterColon (position + 1)
+        elif
+            bytes[position] = byte ':'
+            && not (startsAt position ":=")
+        then
+            Some (position + 1)
+        else
+            None
+
+    let rec afterComment (position: int) (depth: int) =
+        if position >= scope.End then
+            scope.End
+        elif startsAt position "(*" then
+            afterComment (position + 2) (depth + 1)
+        elif startsAt position "*)" then
+            if depth = 1 then
+                position + 2
+            else
+                afterComment (position + 2) (depth - 1)
+        else
+            afterComment (position + 1) depth
+
+    let rec typeEnd (group: byte) (position: int) (depth: int) =
+        if position >= scope.End then
+            None
+        elif startsAt position "(*" then
+            typeEnd group (afterComment position 0) depth
+        elif isOpen bytes[position] then
+            typeEnd group (position + 1) (depth + 1)
+        elif isClose bytes[position] then
+            match depth, group with
+            | 0, 0uy -> None
+            | 0, _ -> Some position
+            | _ -> typeEnd group (position + 1) (depth - 1)
+        elif depth > 0 then
+            typeEnd group (position + 1) depth
+        elif
+            startsAt position ":="
+            || (group = 0uy
+                && (bytes[position] = byte ','
+                    || startsAt position "=>"))
+            || (group = byte '{'
+                && (bytes[position] = byte '|'
+                    || bytes[position] = byte '&'))
+        then
+            Some position
+        else
+            typeEnd group (position + 1) depth
+
+    match opener binder.Start, afterColon binder.End with
+    | Some group, Some start ->
+        typeEnd group start 0
+        |> Option.bind (fun stop ->
+            let mutable first = start
+            let mutable last = stop
+
+            while first < last && isSpace bytes[first] do
+                first <- first + 1
+
+            while last > first && isSpace bytes[last - 1] do
+                last <- last - 1
+
+            if last > first then
+                Some { Start = first; End = last }
+            else
+                None)
+    | _ -> None
 
 /// The keyed reference and binder sites of a file. A site repeated in the `.glob` keeps its first entry.
 let private referenceTable (project: RocqProject) (links: Links) (declarationHref: int -> string) (fileIndex: int) =
@@ -433,6 +625,27 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
 
     let hasHeading = model.Headings |> Array.map _.Comment |> set
 
+    let argumentRow (index: int) (statement: SourceSpan) (comment: Comment) (entry: ArgumentEntry) =
+        let binders =
+            model.Binders
+            |> Array.indexed
+            |> Array.filter (fun (_, binder) ->
+                statement.Start <= binder.Span.Start
+                && binder.Span.End <= statement.End
+                && Source.text file binder.Span = entry.Name)
+
+        {
+            Name = entry.Name
+            Binders =
+                binders
+                |> Array.map (fun (binder, _) -> $"b{index}.{binder}")
+            TypeHtml =
+                binders
+                |> Array.tryPick (fun (_, binder) -> writtenBinderType file statement binder.Span)
+                |> Option.map (fun span -> source span.Start span.End)
+            TextHtml = Docs.renderArgument links.Pipeline resolve comment.Format entry.Text
+        }
+
     let firstDeclaration =
         project.Declarations
         |> Array.tryFindIndex (fun declaration -> declaration.File = fileIndex)
@@ -473,17 +686,21 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
         let index = firstDeclaration + declaration.Index
         let refs = refLists project links href symbolsByDeclaration index
 
-        let docs =
-            declaration.Docs
-            |> Array.filter (fun comment -> not (hasHeading.Contains comment))
+        let docs = docComments file declaration
 
         if docs.Length > 0 then
             let docHtml =
                 docs
-                |> Array.map (fun comment -> render model.Comments[comment] (commentBody file model.Comments[comment]))
+                |> Array.map (fun comment -> render comment (snd (docParts file comment)))
                 |> String.concat ""
 
-            Documented (index, anchors[declaration.Index], docHtml, statement, proofs, refs)
+            let arguments =
+                docs
+                |> Array.collect (fun comment ->
+                    fst (docParts file comment)
+                    |> Array.map (argumentRow index (statementSpan declaration) comment))
+
+            Documented (index, anchors[declaration.Index], docHtml, arguments, statement, proofs, refs)
         else
             Quiet (index, anchors[declaration.Index], statement, proofs, refs)
 
@@ -702,6 +919,44 @@ let private appendChip (out: StringBuilder) (refs: RefLists) =
         )
         |> ignore
 
+/// The list holds every type. The stylesheet hides or shows them, and places the list, from `data-args`.
+let private argumentsHtml (rows: ArgumentRow[]) =
+    let rowHtml (row: ArgumentRow) =
+        let kind =
+            match row.TypeHtml with
+            | Some html -> $"""<span class="args-type"> : {html}</span>"""
+            | None -> ""
+
+        let binders = encode (String.concat " " row.Binders)
+
+        $"""<div class="args-row" data-binders="{binders}"><div class="args-sig"><span class="args-name">{encode row.Name}</span>{kind}</div><div class="args-text">{row.TextHtml}</div></div>"""
+
+    if rows.Length = 0 then
+        ""
+    else
+        let inner = rows |> Array.map rowHtml |> String.concat ""
+        $"""<div class="args"><p class="args-label">Arguments</p><div class="args-rows">{inner}</div></div>"""
+
+/// <summary>Fills each argument row with no written type from Rocq's printed binders, for a row matching a statement binder.</summary>
+/// <param name="printed">The printed type, by declaration index and binder name.</param>
+/// <param name="blocks">The page's blocks.</param>
+let withPrintedTypes (printed: int -> string -> string option) (blocks: Block[]) : Block[] =
+    blocks
+    |> Array.map (function
+        | Documented (decl, anchor, doc, arguments, statement, proofs, refs) ->
+            let filled =
+                arguments
+                |> Array.map (fun row ->
+                    if row.TypeHtml.IsNone && row.Binders.Length > 0 then
+                        { row with
+                            TypeHtml = printed decl row.Name |> Option.map encode
+                        }
+                    else
+                        row)
+
+            Documented (decl, anchor, doc, filled, statement, proofs, refs)
+        | other -> other)
+
 let private appendDeclaration
     (out: StringBuilder)
     (config: Config)
@@ -756,9 +1011,19 @@ let toHtmlWith (config: Config) (badge: int -> string) (blocks: Block[]) : strin
         | Heading (level, text, anchor) ->
             out.Append ($"""<h{level} id="{encode anchor}">{encode text}</h{level}>""")
             |> ignore
-        | Documented (decl, anchor, doc, statement, proofs, refs) ->
+        | Documented (decl, anchor, doc, arguments, statement, proofs, refs) ->
             let titled = leadingBold.Replace (doc, """<p class="decl-title">$1</p>""")
-            appendDeclaration out config "documented" anchor (badge decl) $"""<div class="doc">{titled}</div>""" statement proofs refs
+
+            appendDeclaration
+                out
+                config
+                "documented"
+                anchor
+                (badge decl)
+                $"""<div class="doc">{titled}</div>{argumentsHtml arguments}"""
+                statement
+                proofs
+                refs
         | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out config "quiet" anchor "" "" statement proofs refs
         | Command html when String.IsNullOrWhiteSpace html -> out.Append html |> ignore
         | Command html ->

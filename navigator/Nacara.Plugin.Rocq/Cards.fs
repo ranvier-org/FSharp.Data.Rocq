@@ -52,33 +52,29 @@ let badges (project: RocqProject) (facts: Facts option) : int -> Badge option =
 
 /// The declaration's text up to its body or proof.
 let private headerOf (file: RocqFile) (declaration: Declaration) =
-    let start = declaration.KeywordSpan.Start
-
-    let stop =
-        match declaration.Statement, declaration.Body with
-        | ValueSome statement, _ -> statement.End
-        | ValueNone, ValueSome body -> body.Start
-        | ValueNone, ValueNone -> declaration.SentenceSpan.End
-
-    let text = Source.text file { Start = start; End = stop }
+    let text = Source.text file (statementSpan declaration)
     text.TrimEnd().TrimEnd('=').TrimEnd(':').TrimEnd().TrimEnd('.')
 
 let private docOf (project: RocqProject) (links: Links) (href: int -> string) (owned: ProjectDeclaration) =
     let file = project.Files[owned.File]
-    let model = file.Model
-    let hasHeading = model.Headings |> Array.map _.Comment |> set
     let resolve = resolver project links href owned.File
 
     match
-        owned.Declaration.Docs
-        |> Array.filter (fun comment -> not (hasHeading.Contains comment))
-    with
-    | [||] -> None
-    | docs ->
-        docs
-        |> Array.map (fun comment -> Docs.render links.Pipeline resolve model.Comments[comment].Format (commentBody file model.Comments[comment]))
+        docComments file owned.Declaration
+        |> Array.map (fun comment -> Docs.render links.Pipeline resolve comment.Format (snd (docParts file comment)))
         |> String.concat ""
-        |> Some
+    with
+    | "" -> None
+    | html -> Some html
+
+/// <summary>The type Rocq printed for a binder, by declaration index and binder name.</summary>
+let printedBinder (project: RocqProject) (facts: Facts option) : int -> string -> string option =
+    let symbols = symbolsByDeclaration project
+
+    fun declaration name ->
+        namedSymbol project symbols declaration
+        |> Option.bind (factOf project facts)
+        |> Option.bind (fun fact -> fact.Binders.TryFind name)
 
 let private keyShape = Regex @"^([sxdf])(\d+)$|^b(\d+)\.(\d+)$"
 
@@ -91,6 +87,8 @@ let internal lookup (project: RocqProject) (links: Links) (facts: Facts option) 
 
     let edgesOf (node: Node) =
         usesOf project node |> Array.sumBy _.Count
+
+    let printed = printedBinder project facts
 
     let binderCounts =
         project.Files
@@ -205,12 +203,33 @@ let internal lookup (project: RocqProject) (links: Links) (facts: Facts option) 
     let binderCard (key: string) (declaration: int) (binder: int) =
         let owned = project.Declarations[declaration]
         let file = project.Files[owned.File]
-        let name = Source.text file file.Model.Binders[binder].Span
+        let span = file.Model.Binders[binder].Span
+        let name = Source.text file span
+        let statement = statementSpan owned.Declaration
 
-        let kind =
-            namedSymbol project symbols declaration
-            |> Option.bind (factOf project facts)
-            |> Option.bind (fun fact -> fact.Binders.TryFind name)
+        let inStatement =
+            statement.Start <= span.Start
+            && span.End <= statement.End
+
+        let kind = if inStatement then printed declaration name else None
+
+        let written =
+            writtenBinderType file (if inStatement then statement else owned.Declaration.Extent) span
+            |> Option.map (fun written -> Regex.Replace (Source.text file written, @"\s+", " "))
+
+        let entry =
+            if inStatement then
+                docComments file owned.Declaration
+                |> Array.tryPick (fun comment ->
+                    fst (docParts file comment)
+                    |> Array.tryFind (fun entry -> entry.Name = name)
+                    |> Option.map (fun entry ->
+                        let text =
+                            Docs.renderArgument links.Pipeline (resolver project links href owned.File) comment.Format entry.Text
+
+                        $"<p>{text}</p>"))
+            else
+                None
 
         {
             Key = key
@@ -218,9 +237,12 @@ let internal lookup (project: RocqProject) (links: Links) (facts: Facts option) 
             Qualified = name
             Module = file.Module
             Href = None
-            Signature = kind |> Option.defaultValue ""
+            Signature =
+                kind
+                |> Option.orElse written
+                |> Option.defaultValue ""
             SignatureIsType = kind.IsSome
-            DocHtml = None
+            DocHtml = entry
             Mentions =
                 match binderCounts[owned.File].Value.TryGetValue binder with
                 | true, count -> count

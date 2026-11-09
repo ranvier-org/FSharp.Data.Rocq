@@ -151,4 +151,67 @@ let tests =
                 Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "\n**Adds zero.**\n\nMore.") (Some "Adds zero.") "bold"
                 Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "Plain first.\n**Later.**") None "not opening"
                 Expect.equal (Docs.firstBoldLine CommentFormat.Markdown "") None "empty"
+
+            testCase "splitArguments takes an entry and its continuation out of the body, in both formats"
+            <| fun () ->
+                let entries: ArgumentEntry[] =
+                    [|
+                        { Name = "s"; Text = "the state read." }
+                        {
+                            Name = "n'"
+                            Text = "the node tested,\nacross lines."
+                        }
+                    |]
+
+                for format in [ CommentFormat.Doc; CommentFormat.Markdown ] do
+                    Expect.equal
+                        (Docs.splitArguments
+                            format
+                            4
+                            "Whether it holds.\n    - [s:] the state read.\n    - [n':] the node tested,\n      across lines. ")
+                        (entries, "Whether it holds.")
+                        "the entries and the rest"
+
+            testCase "splitArguments ends a continuation at a blank line, or at a line not past the dash"
+            <| fun () ->
+                let at (expected: string) (body: string) =
+                    Expect.equal (snd (Docs.splitArguments CommentFormat.Doc 4 body)) expected body
+
+                at "\n    After." "- [a:] left.\n\n    After."
+                at "    After." "- [a:] left.\n    After."
+                let entries, _ = Docs.splitArguments CommentFormat.Doc 4 "- [a:] left\n      more."
+                Expect.equal entries[0].Text "left\nmore." "past the dash"
+
+            testCase "splitArguments returns a body with no entries unchanged, and leaves a normal list alone"
+            <| fun () ->
+                let body = "First.\r\n- a plain item\r\n- [not an entry] x\r\n- [also not]: y\r\n"
+                Expect.equal (Docs.splitArguments CommentFormat.Markdown 0 body) ([||], body) "markdown"
+                Expect.equal (Docs.splitArguments CommentFormat.Doc 0 body) ([||], body) "coqdoc"
+
+                let entries, rest =
+                    Docs.splitArguments CommentFormat.Markdown 0 "Intro.\n\n- plain item\n- [x:] entry\n- other item"
+
+                Expect.equal (entries |> Array.map _.Name) [| "x" |] "the entry"
+                Expect.equal rest "Intro.\n\n- plain item\n- other item" "the list stays"
+
+            testCase "splitArguments leaves fenced and verbatim text alone"
+            <| fun () ->
+                let markdown = "```\n- [y:] shown\n```\n"
+                Expect.equal (fst (Docs.splitArguments CommentFormat.Markdown 0 markdown)) [||] "a fence"
+                let coqdoc = "<<\n- [y:] shown\n>>\n"
+                Expect.equal (fst (Docs.splitArguments CommentFormat.Doc 0 coqdoc)) [||] "verbatim text"
+
+            testCase "renderArgument renders inline, with references in both formats"
+            <| fun () ->
+                let doc = Docs.renderArgument plain resolver CommentFormat.Doc "See [add_comm] < 2."
+                Expect.stringContains doc """data-ref="Arith.add_comm" """ "coqdoc reference"
+                Expect.isFalse (doc.Contains "<p>") "coqdoc is inline"
+                Expect.stringContains doc "&lt; 2." "text is encoded"
+
+                let md =
+                    Docs.renderArgument plain resolver CommentFormat.Markdown "See `add_comm` *now*."
+
+                Expect.stringContains md """data-ref="Arith.add_comm" """ "markdown reference"
+                Expect.stringContains md "<em>now</em>" "markdown inline"
+                Expect.isFalse (md.Contains "<p>") "markdown is inline"
         ]

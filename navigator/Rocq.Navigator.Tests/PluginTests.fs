@@ -118,6 +118,30 @@ let private cardsOf (root: AbsolutePath) (moduleName: string) =
     | Ok cards -> cards
     | Result.Error error -> failwith $"{error}"
 
+/// The card of the named binder in the statement of a declaration of the `Args` fixture, with the committed facts.
+let private argumentsCard (anchor: string) (binder: string) =
+    let project = FixtureFiles.fixtureProject ()
+
+    let facts =
+        match Facts.read (Path.Combine (FixtureFiles.fixtureDir (), "facts.json")) with
+        | Ok facts -> Some facts
+        | Result.Error message -> failwith message
+
+    let index =
+        project.Files
+        |> Array.findIndex (fun file -> file.Module = "Fixture.Args")
+
+    let key =
+        blocks project links index
+        |> Array.pick (function
+            | Documented (_, name, _, rows, _, _, _) when name = anchor ->
+                rows
+                |> Array.tryFind (fun row -> row.Name = binder)
+                |> Option.map _.Binders[0]
+            | _ -> None)
+
+    project, (Cards.lookup project links facts key).Value
+
 let private urls (html: string) =
     Regex.Matches (html, "(?:href|src)=\"([^\"]*)\"")
     |> Seq.map _.Groups[1].Value
@@ -233,7 +257,7 @@ let private tests' =
                 blocks project links (guideIndex project)
                 |> Array.collect (fun block ->
                     match block with
-                    | Documented (_, _, _, _, _, refs)
+                    | Documented (_, _, _, _, _, _, refs)
                     | Quiet (_, _, _, _, refs) -> Array.append refs.Uses refs.UsedBy
                     | _ -> [||])
                 |> Array.map _.Name
@@ -406,6 +430,7 @@ let private tests' =
             Expect.stringContains RocqReader.preloadScript "catch(e){}" "a failure is silent"
             Expect.stringContains RocqReader.preloadScript "\"family\",\"journal\"" "the looks"
             Expect.stringContains RocqReader.preloadScript "\"system\",\"light\",\"dark\"" "the modes"
+            Expect.stringContains RocqReader.preloadScript $"\"data-args\",\"{Islands.argumentsKey}\",[\"types\",\"panel\"]" "the argument layouts"
             Expect.isFalse (RocqReader.preloadScript.Contains "</") "the script cannot close its element"
 
         testCase "the bundle decides the script tag and the warning"
@@ -779,7 +804,7 @@ let private tests' =
 
                     for block in blocks project links index do
                         match block with
-                        | Documented (_, anchor, _, statement, blockProofs, _)
+                        | Documented (_, anchor, _, _, statement, blockProofs, _)
                         | Quiet (_, anchor, statement, blockProofs, _) ->
                             Expect.isTrue (written.Contains (text statement)) $"{file.Module}#{anchor} statement"
 
@@ -886,6 +911,141 @@ let private tests' =
                     |]
 
             Expect.stringContains html "A <code>Clean</code> memo &lt;stays&gt;" "the title"
+
+        testCase "a Definition argument's card holds its entry and written type, with no printed binders"
+        <| fun () ->
+            let project, card = argumentsCard "self_dirtying" "s"
+            ignore project
+            Expect.equal card.Signature "state" "the written type"
+            Expect.isFalse card.SignatureIsType "written, not printed"
+            Expect.equal card.DocHtml (Some "<p>the state read.</p>") "the entry"
+
+            let _, continued = argumentsCard "self_dirtying" "n"
+            Expect.equal continued.DocHtml (Some "<p>the node tested,\nacross two lines.</p>") "the continuation"
+
+        testCase "a forall argument's card holds its entry and printed type, including an unannotated binder"
+        <| fun () ->
+            let _, card = argumentsCard "sum_three" "c"
+            Expect.equal card.Signature "nat" "Rocq's printed type"
+            Expect.isTrue card.SignatureIsType "printed"
+            Expect.equal card.DocHtml (Some "<p>the right number, with no written type.</p>") "the entry"
+
+        testCase "a Markdown entry's card renders its references"
+        <| fun () ->
+            let _, card = argumentsCard "apply_once" "x"
+            Expect.stringContains card.DocHtml.Value "<code>self_dirtying</code>" "the reference"
+
+        testCase "a same-named binder in a proof or body gets no entry"
+        <| fun () ->
+            let project = FixtureFiles.fixtureProject ()
+            let cards = Cards.lookup project links None
+
+            let file =
+                project.Files
+                |> Array.findIndex (fun file -> file.Module = "Fixture.Args")
+
+            let model = project.Files[file].Model
+
+            let binderCards (name: string) (anchor: string) =
+                let first =
+                    project.Declarations
+                    |> Array.findIndex (fun declaration -> declaration.File = file)
+
+                let local =
+                    model.Declarations
+                    |> Array.findIndex (fun declaration -> declaration.Name = Some anchor)
+
+                let declaration = model.Declarations[local]
+
+                model.Binders
+                |> Array.indexed
+                |> Array.filter (fun (_, binder) ->
+                    declaration.Extent.Start <= binder.Span.Start
+                    && binder.Span.End <= declaration.Extent.End
+                    && Source.text project.Files[file] binder.Span = name)
+                |> Array.map (fun (index, _) -> (cards $"b{first + local}.{index}").Value)
+
+            for name, anchor, expected in
+                [
+                    "n", "same_named", "<p>the number compared.</p>"
+                    "x", "apply_once", "<p>the input"
+                ] do
+                let found = binderCards name anchor
+                Expect.isGreaterThan found.Length 1 "binders in the statement and beyond it"
+                Expect.stringStarts found[0].DocHtml.Value expected "the statement's binder"
+
+                for inner in found[1..] do
+                    Expect.isNone inner.DocHtml "the inner binder"
+                    Expect.equal inner.Signature "nat" "its own written type"
+
+        testCase "a page lists its entries outside every pre, with type links, in source order"
+        <| fun () ->
+            withRoot (fun root ->
+                let _ = buildAt root (siteWith (fixtureOptions ()))
+
+                let html = read root "Fixture.Args.html"
+
+                let section =
+                    Regex.Match (html, """<section class="decl documented" id="self_dirtying">.*?</section>""", RegexOptions.Singleline)
+
+                let list = section.Value
+
+                Expect.stringContains list """<p class="args-label">Arguments</p>""" "the label"
+                Expect.stringContains list """<span class="args-name">s</span><span class="args-type"> : <a href=""" "the type's real link"
+                Expect.isTrue (list.IndexOf "class=\"args\"" < list.IndexOf "class=\"panel\"") "above the panel in the source"
+                Expect.isFalse (Regex.IsMatch (list, """<pre[^>]*>(?:(?!</pre>).)*class="args""", RegexOptions.Singleline)) "outside every pre"
+                Expect.isFalse (list.Contains "[s:]") "out of the prose"
+                Expect.stringContains list """data-binders="b""" "the row's binder keys"
+                Expect.stringContains list "<p>Whether a node dirties itself.</p>" "the prose stays")
+
+        testCase "a page with no entries has no Arguments list"
+        <| fun () ->
+            withRoot (fun root ->
+                let _ = buildAt root (siteWith (fixtureOptions ()))
+
+                for page in [ "Fixture.Guide.html"; "Fixture.Long.html"; "Fixture.Other.html" ] do
+                    Expect.isFalse ((read root page).Contains "class=\"args\"") page)
+
+        testCase "an entry naming no binder still renders, with a warning and a passing build"
+        <| fun () ->
+            withRoot (fun root ->
+                let project =
+                    fixtureCopy root (Some ("Args", "\n(** Stale.\n    - [zz:] names nothing. *)\nDefinition stale_entry := 1.\n"))
+
+                let result = buildAt root (siteWith (fixtureOptions () |> Rocq.project project))
+
+                let warning =
+                    result.Diagnostics
+                    |> List.find (fun diagnostic -> diagnostic.Code = "rocq/argument-unmatched")
+
+                Expect.equal warning.Severity Severity.Warning "a warning, not an error"
+                Expect.stringContains warning.Message "[zz:]" "the entry"
+                Expect.stringContains warning.Message "Fixture.Args" "the page"
+
+                Expect.isEmpty
+                    (result.Diagnostics
+                     |> List.filter (fun diagnostic -> diagnostic.Severity = Severity.Error))
+                    "no errors"
+
+                Expect.stringContains (read root "Fixture.Args.html") """<span class="args-name">zz</span></div>""" "the row, with no type")
+
+        testCase "a body with only entries has no doc on its card"
+        <| fun () ->
+            let project = FixtureFiles.fixtureProject ()
+
+            let cards =
+                Cards.forModule
+                    project
+                    links
+                    None
+                    (project.Files
+                     |> Array.findIndex (fun file -> file.Module = "Fixture.Args"))
+
+            let card =
+                cards
+                |> Array.find (fun card -> card.Qualified = "Fixture.Args.entries_only")
+
+            Expect.isNone card.DocHtml "no doc"
 
         testCase "rocq-capture --help prints its arguments"
         <| fun () ->

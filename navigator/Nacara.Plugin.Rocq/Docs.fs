@@ -17,6 +17,14 @@ type Resolve =
         Link: string -> string option
     }
 
+/// <summary>An argument entry of a doc comment, written <c>- [name:] text</c>.</summary>
+type ArgumentEntry =
+    {
+        Name: string
+        /// The entry's text in the comment's markup. Continuation lines are joined by a newline.
+        Text: string
+    }
+
 /// <summary>Renders comment bodies to HTML. Raw HTML in a body is displayed as text.</summary>
 [<RequireQualifiedAccess>]
 module Docs =
@@ -153,6 +161,95 @@ module Docs =
         | CommentFormat.Markdown -> renderMarkdown pipeline resolve body
         | CommentFormat.Doc
         | CommentFormat.Plain -> renderCoqdoc resolve body
+
+    let private wholeParagraph = Regex (@"^<p>(.*)</p>\s*$", RegexOptions.Singleline)
+
+    /// <summary>Renders an argument entry's text to inline HTML according to its format.</summary>
+    /// <param name="pipeline">The Markdown pipeline for Markdown comments.</param>
+    /// <param name="resolve">Turns code spans and relative links into references.</param>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="text">The entry's text.</param>
+    let renderArgument (pipeline: MarkdownPipeline) (resolve: Resolve) (format: CommentFormat) (text: string) : string =
+        match format with
+        | CommentFormat.Markdown ->
+            let html = renderMarkdown pipeline resolve text
+            let m = wholeParagraph.Match html
+            if m.Success then m.Groups[1].Value else html
+        | CommentFormat.Doc
+        | CommentFormat.Plain -> coqdocInline resolve text
+
+    let private argumentLine = Regex @"^(\s*)-\s+\[([^\s\[\]:]+):\]\s*(.*)$"
+
+    let private isFence (format: CommentFormat) (line: string) =
+        let text = line.TrimStart ()
+
+        match format with
+        | CommentFormat.Markdown ->
+            text.StartsWith ("```", System.StringComparison.Ordinal)
+            || text.StartsWith ("~~~", System.StringComparison.Ordinal)
+        | CommentFormat.Doc
+        | CommentFormat.Plain ->
+            text.StartsWith ("<<", System.StringComparison.Ordinal)
+            || text.StartsWith (">>", System.StringComparison.Ordinal)
+
+    /// <summary>The argument entries of a comment body, and the body without them. A body with no entries returns unchanged.</summary>
+    /// <remarks>An entry continues over the following non-blank lines indented past its dash. Fenced or verbatim text holds no entries.</remarks>
+    /// <param name="format">The comment's markup.</param>
+    /// <param name="firstColumn">The source column of the body's first line.</param>
+    /// <param name="body">The comment's text.</param>
+    let splitArguments (format: CommentFormat) (firstColumn: int) (body: string) : ArgumentEntry[] * string =
+        let entries = ResizeArray<ArgumentEntry>()
+        let rest = ResizeArray<string>()
+        let text = ResizeArray<string>()
+        let mutable fenced = false
+        let mutable dash = -1
+        let mutable name = ""
+
+        let flush () =
+            if dash >= 0 then
+                entries.Add
+                    {
+                        Name = name
+                        Text = String.concat "\n" text
+                    }
+
+                text.Clear ()
+                dash <- -1
+
+        for index, line in Array.indexed (body.Replace("\r\n", "\n").Split '\n') do
+            let m = argumentLine.Match line
+
+            if isFence format line then
+                flush ()
+                fenced <- not fenced
+                rest.Add line
+            elif fenced then
+                rest.Add line
+            elif m.Success then
+                flush ()
+
+                dash <-
+                    m.Groups[1].Length
+                    + (if index = 0 then firstColumn else 0)
+
+                name <- m.Groups[2].Value
+                text.Add (m.Groups[3].Value.TrimEnd())
+            elif
+                dash >= 0
+                && not (System.String.IsNullOrWhiteSpace line)
+                && line.Length - line.TrimStart().Length > dash
+            then
+                text.Add (line.Trim ())
+            else
+                flush ()
+                rest.Add line
+
+        flush ()
+
+        if entries.Count = 0 then
+            [||], body
+        else
+            entries.ToArray (), (String.concat "\n" rest).TrimEnd()
 
     let private boldLine = Regex (@"^\s*\*\*(.+?)\*\*\s*$")
 

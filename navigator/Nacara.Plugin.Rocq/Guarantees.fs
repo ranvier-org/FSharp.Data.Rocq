@@ -114,7 +114,7 @@ let entries (project: RocqProject) (links: Links) (config: Config) (facts: Facts
             let docHtml =
                 docs
                 |> Array.map (fun comment ->
-                    let body = commentBody file comment
+                    let body = snd (docParts file comment)
 
                     Docs.render
                         links.Pipeline

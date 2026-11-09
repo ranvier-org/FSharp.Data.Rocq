@@ -247,3 +247,38 @@ The command has indeed failed with message:
 The reference __nav_64 was not found in the current environment.
 Long.long_30
      : nat
+The command has indeed failed with message:
+The reference __nav_65 was not found in the current environment.
+Args.state
+     : Set
+The command has indeed failed with message:
+The reference __nav_66 was not found in the current environment.
+Args.self_dirtying
+     : Args.state -> nat -> Prop
+The command has indeed failed with message:
+The reference __nav_67 was not found in the current environment.
+Args.sum_three
+     : ∀ a b c : nat, a + b + c = a + b + c
+The command has indeed failed with message:
+The reference __nav_68 was not found in the current environment.
+Fetching opaque proofs from disk for Fixture.Args
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_69 was not found in the current environment.
+Args.same_named
+     : ∀ n : nat, n = n
+The command has indeed failed with message:
+The reference __nav_70 was not found in the current environment.
+Closed under the global context
+The command has indeed failed with message:
+The reference __nav_71 was not found in the current environment.
+Args.apply_once
+     : (nat -> nat) -> nat -> nat
+The command has indeed failed with message:
+The reference __nav_72 was not found in the current environment.
+Args.entries_only
+     : nat -> nat
+The command has indeed failed with message:
+The reference __nav_73 was not found in the current environment.
+Args.after_args
+     : nat

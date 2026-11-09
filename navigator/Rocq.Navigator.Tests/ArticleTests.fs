@@ -41,7 +41,7 @@ let private guideBlocks () =
 
 let private sourceHtml (block: Block) =
     match block with
-    | Documented (_, _, _, statement, proofs, _)
+    | Documented (_, _, _, _, statement, proofs, _)
     | Quiet (_, _, statement, proofs, _) ->
         statement
         :: [
@@ -90,7 +90,7 @@ let private expectedSource (file: RocqFile) =
 let private declarationBlock (blocks: Block[]) (anchor: string) =
     blocks
     |> Array.find (function
-        | Documented (_, name, _, _, _, _)
+        | Documented (_, name, _, _, _, _, _)
         | Quiet (_, name, _, _, _) -> name = anchor
         | _ -> false)
 
@@ -183,7 +183,7 @@ let tests =
                 let declarations =
                     blocks
                     |> Array.choose (function
-                        | Documented (decl, _, _, _, _, _)
+                        | Documented (decl, _, _, _, _, _, _)
                         | Quiet (decl, _, _, _, _) -> Some decl
                         | _ -> None)
 
@@ -203,7 +203,7 @@ let tests =
                 let _, blocks = guideBlocks ()
 
                 match declarationBlock blocks "sum_refl" with
-                | Documented (_, _, doc, statement, proofs, _) ->
+                | Documented (_, _, doc, _, statement, proofs, _) ->
                     Expect.stringContains doc "Reflexivity of sums" "the doc is on the declaration"
                     Expect.stringStarts (Source.stripTags statement) "Theorem sum_refl" "the statement follows"
                     Expect.equal proofs.Length 1 "one proof"
@@ -474,7 +474,7 @@ let tests =
                 let others = blocks project links otherIndex
 
                 match declarationBlock others "other_def" with
-                | Documented (_, _, _, _, _, refs) ->
+                | Documented (_, _, _, _, _, _, refs) ->
                     let names = refs.UsedBy |> Array.map _.Name
                     Expect.contains names "plain_doc" "a later file's use"
                     Expect.contains names "other_lemma" "a use in the same file"
@@ -491,7 +491,7 @@ let tests =
                 let _, guide = guideBlocks ()
 
                 match declarationBlock guide "sum_refl" with
-                | Documented (_, _, _, statement, _, refs) ->
+                | Documented (_, _, _, _, statement, _, refs) ->
                     Expect.isTrue (Regex.IsMatch (statement, """<span data-ref="b\d+\.\d+">a</span>""")) "a binder is keyed"
                     Expect.isTrue (Regex.IsMatch (statement, """<span data-ref="x\d+">nat</span>""")) "an external is a span"
                     Expect.exists refs.Uses (fun entry -> entry.Name = "nat" && entry.Href.IsNone) "an external has no link"

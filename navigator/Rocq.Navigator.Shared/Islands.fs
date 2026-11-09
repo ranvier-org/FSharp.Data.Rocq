@@ -64,6 +64,26 @@ let proofsKey = "rocq-navigator-proofs"
 [<Literal>]
 let importsKey = "rocq-navigator-imports"
 
+/// The `localStorage` key of the saved argument list layout.
+[<Literal>]
+let argumentsKey = "rocq-navigator-args"
+
+/// The root attribute holding the argument list layout, absent for names only.
+[<Literal>]
+let argumentsAttribute = "data-args"
+
+/// The argument list with names and descriptions, above the code.
+[<Literal>]
+let argumentsNames = "names"
+
+/// The argument list with types, above the code. Also its `data-args` value.
+[<Literal>]
+let argumentsTypes = "types"
+
+/// The argument list with types, as the footer of the code panel. Also its `data-args` value.
+[<Literal>]
+let argumentsPanel = "panel"
+
 /// The placement with the lists in the right pane. Also its `data-lists` value.
 [<Literal>]
 let placementPane = "pane"
@@ -551,6 +571,22 @@ let private scrollX () : float = jsNative
 [<Emit("window.scrollY")>]
 let private scrollY () : float = jsNative
 
+[<Emit("Array.from($0.querySelectorAll($1))")>]
+let private allIn (parent: Element) (selector: string) : Element array = jsNative
+
+/// Marks or clears the statement's occurrences of an argument row's binders.
+let private markBinders (row: Element) (marked: bool) =
+    match row.closest ".decl" with
+    | null -> ()
+    | declaration ->
+        for key in (row.getAttribute "data-binders").Split ' ' do
+            if key <> "" then
+                for occurrence in allIn declaration $"""pre.statement [data-ref="{key}"]""" do
+                    if marked then
+                        occurrence.classList.add "arg-hot"
+                    else
+                        occurrence.classList.remove "arg-hot"
+
 [<Emit("$0.pointerType === 'touch'")>]
 let private isTouch (event: obj) : bool = jsNative
 
@@ -818,6 +854,12 @@ let private createCards (_: Setup) () =
         (unbox<Element> event.target).closest ".refs-chip"
         |> Option.ofObj
 
+    let onArgumentEvent (event: Event) =
+        match event.``type``, (unbox<Element> event.target).closest ".args-row" with
+        | "pointerover", row when not (isNull row) -> markBinders row true
+        | "pointerout", row when not (isNull row) -> markBinders row false
+        | _ -> ()
+
     // The dialog and any card over it hold the dialog open.
     let inChipLayer (event: Event) =
         let target = unbox<Element> event.target
@@ -873,7 +915,8 @@ let private createCards (_: Setup) () =
         let listener: EventListener =
             unbox (fun (event: Event) ->
                 onEvent event
-                onChipEvent event)
+                onChipEvent event
+                onArgumentEvent event)
 
         let events =
             [ "pointerover"; "pointerout"; "focusin"; "focusout"; "click"; listsReplaced ]
@@ -1370,6 +1413,7 @@ type SettingsInstance =
         DefinitionsOver: Signal<int>
         Proofs: Signal<string>
         Imports: Signal<string>
+        Arguments: Signal<string>
         /// Writes a fold setting's chosen value to its folds, by the setting's key. Other keys change no fold.
         WriteFolds: string -> string -> unit
         Attach: obj -> (unit -> unit)
@@ -1506,9 +1550,16 @@ let private createSettings (_: Setup) () : SettingsInstance =
     let definitionsOver = Api.createSignal (storedOver ())
     let proofs = Api.createSignal (storedChoice proofsKey foldStates foldClosed)
     let imports = Api.createSignal (storedChoice importsKey foldStates foldClosed)
+    let arguments = Api.createSignal (rootAttribute argumentsAttribute argumentsNames)
     let isOpen = Api.createSignal false
     let dialog = ref null
     let opener = ref null
+
+    Api.createEffect (fun () ->
+        if arguments.Value = argumentsNames then
+            document.documentElement.removeAttribute argumentsAttribute
+        else
+            document.documentElement.setAttribute (argumentsAttribute, arguments.Value))
 
     Api.createEffect (fun () -> document.documentElement.setAttribute ("data-look", look.Value))
     Api.createEffect (fun () -> document.documentElement.setAttribute ("data-mode", mode.Value))
@@ -1610,6 +1661,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
         DefinitionsOver = definitionsOver
         Proofs = proofs
         Imports = imports
+        Arguments = arguments
         WriteFolds =
             fun key value ->
                 match key with
@@ -1654,6 +1706,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
                         definitionsOverKey
                         proofsKey
                         importsKey
+                        argumentsKey
                     ] do
                     forget key
 
@@ -1665,6 +1718,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
                 definitionsOver.Value <- defaultDefinitionsOver
                 proofs.Value <- foldClosed
                 imports.Value <- foldClosed
+                arguments.Value <- argumentsNames
                 setFolds "article details.proof" foldClosed
                 setFolds "article details.imports" foldClosed
                 setFolds "article details.refs" foldClosed
@@ -1680,6 +1734,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
         DefinitionsOver = Api.createSignal defaultDefinitionsOver
         Proofs = Api.createSignal foldClosed
         Imports = Api.createSignal foldClosed
+        Arguments = Api.createSignal argumentsNames
         WriteFolds = fun _ _ -> ()
         Attach = fun _ -> ignore
         Close = ignore
@@ -1791,6 +1846,16 @@ let settings: Component<unit> =
                         span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Imports")) {
                             choice _.Imports importsKey foldClosed "Closed"
                             choice _.Imports importsKey foldOpen "Open"
+                        }
+                    }
+
+                    div (Attrs.className "setting") {
+                        p (Attrs.className "setting-label") { "Arguments" }
+
+                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Arguments")) {
+                            choice _.Arguments argumentsKey argumentsNames "Names only"
+                            choice _.Arguments argumentsKey argumentsTypes "With types"
+                            choice _.Arguments argumentsKey argumentsPanel "In the panel"
                         }
                     }
 

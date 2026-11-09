@@ -1,11 +1,48 @@
 {
   "rocqVersion": "9.1.0",
   "digests": {
+    "theories/Args.v": "ea041fc95c3e6800e689832e0fd52b6f",
     "theories/Guide.v": "bc0895303e2a40377565701f22a2a907",
     "theories/Long.v": "59283ce7875991a33f7eec4beecb8900",
     "theories/Other.v": "3b40f9c4187920d8d7f09705a1bcd471"
   },
   "symbols": {
+    "Fixture.Args.after_args": {
+      "type": "nat",
+      "binders": {}
+    },
+    "Fixture.Args.apply_once": {
+      "type": "(nat -> nat) -> nat -> nat",
+      "binders": {}
+    },
+    "Fixture.Args.entries_only": {
+      "type": "nat -> nat",
+      "binders": {}
+    },
+    "Fixture.Args.same_named": {
+      "type": "∀ n : nat, n = n",
+      "binders": {
+        "n": "nat"
+      },
+      "assumptions": "closed"
+    },
+    "Fixture.Args.self_dirtying": {
+      "type": "Args.state -> nat -> Prop",
+      "binders": {}
+    },
+    "Fixture.Args.state": {
+      "type": "Set",
+      "binders": {}
+    },
+    "Fixture.Args.sum_three": {
+      "type": "∀ a b c : nat, a + b + c = a + b + c",
+      "binders": {
+        "a": "nat",
+        "b": "nat",
+        "c": "nat"
+      },
+      "assumptions": "closed"
+    },
     "Fixture.Guide.First.shared": {
       "binders": {}
     },

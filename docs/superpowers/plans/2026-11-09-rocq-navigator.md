@@ -29,6 +29,8 @@
 | `open` on `details` | DOM state; the stylesheet and the browser read it (owner's agreement, 2026-11-09) |
 | `.current-decl` on the declaration owning the lists; `aria-current` stays on the outline links, at the section in view | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
+| `data-args` on the root: `types`, `panel`, or absent for names only | DOM state; the stylesheet reads it (requested by the owner, 2026-11-09) |
+| `.arg-hot` on a statement's binder occurrences while the pointer is on an argument row | DOM state; the stylesheet reads it |
 | `data-surface` on the settings dialog, written at each opening | DOM state read by the stylesheet. Awaiting the owner's confirmation |
 | Server HTML | Written by the build |
 | `data-name` on a declaration whose anchor is not its name, and `data-collapse-over` on the body | Server HTML, read by the client; no client value holds them. Awaiting the owner's confirmation |

@@ -27,6 +27,8 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 | `open` on `details`, and `data-closing` during a fold's closing motion | DOM state; the stylesheet and the browser read them (owner's agreement, 2026-11-09) |
 | `.current-decl` on the declaration owning the lists. `aria-current` stays on the outline links, at the section in view | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | `<dialog>` open state, and the opener that focus returns to | Neither has a core equivalent (owner's agreement, 2026-11-09) |
+| `data-args` on the root: `types`, `panel`, or absent for names only | DOM state; the stylesheet reads it (requested by the owner, 2026-11-09) |
+| `.arg-hot` on a statement's binder occurrences while the pointer is on an argument row | DOM state; the stylesheet reads it |
 | `data-surface` on the settings dialog, written at each opening | DOM state read by the stylesheet. Awaiting the owner's confirmation |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
 | Server HTML | Written by the build |
@@ -133,6 +135,28 @@ version `Nacara.Plugin.Markdown` uses, with any `IMarkdownExtension` the site re
 bodies are coqdoc, of which headings, `[code]` and paragraphs are handled. Code in docs that names a symbol in scope becomes
 a reference.
 
+**Argument documentation.** Rocq has no per-argument doc syntax, so this is a house convention. A line `- [name:] text` in a
+declaration's doc comment is an argument entry, in both comment formats, and lines indented past its dash continue it. Entries leave the
+prose before paragraphs are built. An entry applies to the binders of that name inside the declaration's statement, and a binder in a
+proof or body with the same name does not match.
+
+A binder's card holds the entry's text as `DocHtml`. Its type comes from `fact.Binders`, otherwise the type written in the binder's
+group in the source with `SignatureIsType = false`, otherwise no type line.
+
+Each declaration with entries has one server-rendered Arguments list, always holding the types, outside every `pre`. A row's type is the
+written source with its `data-ref` links, or Rocq's printed text when none is written. The `Arguments` setting switches the layout with
+CSS only, from `data-args` on the root, which the head script applies before first paint from `rocq-navigator-args`:
+
+| Value | `data-args` | Rendering |
+|---|---|---|
+| Names only (default) | absent | Above the code, name and description. Types are `display: none`, so their links leave the tab order |
+| With types | `types` | Above the code, `name : type` then the description |
+| In the panel | `panel` | A footer joined to the code panel with flex `order` on `.decl`, after any proof folds |
+
+At most 600 px the rows stack. Hovering a row marks that binder's occurrences in the statement with `.arg-hot`, through the card layer's
+delegated listener. An entry naming no statement binder still renders, and raises the warning `rocq/argument-unmatched`, so `--strict`
+rejects a stale comment.
+
 **Right pane.** Outline of the page, with the section in view marked. For the declaration in view, "Uses" and "Used by" from
 `CrossReferences`.
 
@@ -174,10 +198,10 @@ A resize that changes the row re-picks the surface. Focus moves into the surface
 
 Controls apply live and save per key in `localStorage`: Look (Family, Journal) and Mode (Auto, Light, Dark), on their existing keys;
 Definitions (Open, Closed, Close long ones with a line count; unset leaves the site's `collapseCodeOver` output standing); Proofs and
-Imports (Closed, Open); References and References open, as above. Reset clears every saved key and restores the server's state with no
+Imports (Closed, Open); References and References open, as above; Arguments (Names only, With types, In the panel). Reset clears every saved key and restores the server's state with no
 reload, using the site's limit from `data-collapse-over` on the body. Invalid values and blocked storage fall back to defaults.
 
-Look, mode and `data-lists` apply in the head script. Fold settings need the elements, so a small inline script directly after the
+Look, mode, `data-args` and `data-lists` apply in the head script. Fold settings need the elements, so a small inline script directly after the
 article sets `open` from the saved values, and only when a value is saved. A jump to a target inside a closed fold, or to a definition
 whose own body is closed, opens that fold, including a second click on a link to the hash already in the URL.
 

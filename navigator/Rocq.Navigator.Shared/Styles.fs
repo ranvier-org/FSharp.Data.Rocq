@@ -412,6 +412,7 @@ let private code =
 let private displayedRefsSpacing (root: string) =
     [
         rule $"{root} .panel:has(+ details.refs)" [ "margin-bottom", "2px" ]
+        rule $"{root}[{Islands.argumentsAttribute}=\"panel\"] .decl > .args:has(~ details.refs)" [ "margin-bottom", "2px" ]
         rule $"{root} .decl.quiet:has(> details.refs)" [ "margin-bottom", "1.1rem" ]
     ]
 
@@ -495,6 +496,102 @@ let private folds =
                 "color", "var(--soft)"
             ]
         rule ".ref-list a" [ "text-decoration", "none" ]
+    ]
+
+/// The argument list: names only with no `data-args`, and types or the panel's footer with one.
+let private arguments =
+    let withArgs (value: string) =
+        $":root[{Islands.argumentsAttribute}=\"{value}\"]"
+
+    let types = withArgs Islands.argumentsTypes
+    let panel = withArgs Islands.argumentsPanel
+
+    [
+        rule
+            ".args"
+            [
+                "margin", "-0.35rem 0 0.9rem"
+                "font", $"13px/1.5 {ui}"
+                "color", "var(--soft)"
+            ]
+        rule
+            ".args-label"
+            [
+                "margin", "0 0 4px"
+                "font", $"600 10px/1.6 {ui}"
+                "letter-spacing", "0.09em"
+                "text-transform", "uppercase"
+                "color", "var(--dim)"
+            ]
+        rule
+            ".args-rows"
+            [
+                "display", "grid"
+                "grid-template-columns", "max-content minmax(0, 1fr)"
+                "column-gap", "12px"
+            ]
+        rule ".args-row" [ "display", "contents" ]
+        rule ".args-sig" [ "padding", "1px 0"; "max-width", "30rem"; "overflow-wrap", "anywhere" ]
+        rule ".args-text" [ "padding", "1px 0"; "min-width", "0"; "overflow-wrap", "anywhere" ]
+        rule ".args-text code" [ "font", $"0.9em {mono}"; "color", "var(--link)" ]
+        rule ".args-text a" [ "text-decoration", "none" ]
+        rule ".args-text a code" [ "border-bottom", "1px dotted var(--link)" ]
+        rule ".args-row:hover > *" [ "background", "color-mix(in srgb, var(--binder) 10%, transparent)" ]
+        rule ".args-name" [ "font", $"600 12px/1.6 {mono}"; "color", "var(--binder)" ]
+        rule ".args-type" [ "display", "none"; "font", $"400 12px/1.6 {mono}"; "color", "var(--dim)" ]
+        rule $"{types} .args-type, {panel} .args-type" [ "display", "inline" ]
+        rule
+            ".args-type a"
+            [
+                "color", "inherit"
+                "text-decoration", "underline dotted"
+                "text-underline-offset", "3px"
+            ]
+        rule
+            $"{types} .args-rows, {panel} .args-rows"
+            [
+                "grid-template-columns", "minmax(0, max-content) minmax(0, 1fr)"
+                "column-gap", "18px"
+            ]
+        rule $"{panel} .decl:has(> .args)" [ "display", "flex"; "flex-direction", "column" ]
+        rule $"{panel} .decl:has(> .args) > *" [ "min-width", "0" ]
+        rule $"{panel} .decl:has(> .args) > .badge" [ "align-self", "flex-start" ]
+        rule
+            $"{panel} .decl:has(> .args) > .panel"
+            [
+                "order", "1"
+                "margin-bottom", "0"
+                "border-bottom-left-radius", "0"
+                "border-bottom-right-radius", "0"
+            ]
+        rule
+            $"{panel} .decl > .args"
+            [
+                "order", "2"
+                "margin", "0 0 8px"
+                "padding", "8px 12px 10px"
+                "background", "var(--side)"
+                "border", "1px solid var(--line)"
+                "border-top", "0"
+                "border-radius", "0 0 var(--radius) var(--radius)"
+            ]
+        rule $"{panel} .decl:has(> .args) > details.refs" [ "order", "3" ]
+        rule
+            ".arg-hot"
+            [
+                "background", "color-mix(in srgb, var(--binder) 24%, transparent)"
+                "border-radius", "2px"
+                "outline", "1px solid color-mix(in srgb, var(--binder) 45%, transparent)"
+            ]
+        Rule.media
+            "(max-width: 600px)"
+            [
+                rule ".args-rows, .args-row" [ "display", "block" ]
+                rule ".args-row" [ "padding", "3px 0" ]
+                rule ".args-sig" [ "display", "inline"; "margin-right", "8px"; "padding", "0" ]
+                rule ".args-text" [ "display", "inline"; "padding", "0" ]
+                rule $"{types} .args-sig, {panel} .args-sig, {types} .args-text, {panel} .args-text" [ "display", "block" ]
+            ]
     ]
 
 let private badges =
@@ -937,6 +1034,7 @@ let modules: CssModule list =
                 @ prose
                 @ code
                 @ folds
+                @ arguments
                 @ badges
                 @ guarantees
                 @ islands

@@ -216,7 +216,7 @@ module Rocq =
                     }
                     (RocqReader.leftPane links project indexUrl (Some file.Module))
                     (RocqReader.rightPane blocks)
-                    (Article.toHtmlWith config badge blocks)
+                    (Article.toHtmlWith config badge (Article.withPrintedTypes (Cards.printedBinder project facts) blocks))
                 |> GeneratedContent.dependsOn (
                     [ AbsolutePath.create file.FullPath; globOf file ]
                     @ factsFile
@@ -366,6 +366,22 @@ module Rocq =
             |> Option.bind (fun moduleName ->
                 project.Files
                 |> Array.tryFindIndex (fun file -> file.Module = moduleName))
+
+        match index with
+        | None -> ()
+        | Some index ->
+            for block in Article.blocks project loaded.Links index do
+                match block with
+                | Documented (_, anchor, _, arguments, _, _, _) ->
+                    for row in arguments do
+                        if row.Binders.Length = 0 then
+                            context.Diagnostics.Add (
+                                Diagnostic.warning
+                                    "argument-unmatched"
+                                    $"{name}: the argument entry [{row.Name}:] of {anchor} names no binder in its statement"
+                                |> Diagnostic.withHint "Rename the entry to a binder of the statement, or remove it"
+                            )
+                | _ -> ()
 
         let keys = Cards.keysIn html
 

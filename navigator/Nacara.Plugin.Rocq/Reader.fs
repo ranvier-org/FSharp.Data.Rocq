@@ -148,7 +148,7 @@ module internal RocqReader =
             island
             ()
 
-    /// <summary>The inline head script that writes the saved look and mode to the root before the stylesheet applies.</summary>
+    /// <summary>The inline head script that writes the saved look, mode and argument list to the root before the stylesheet applies.</summary>
     /// <remarks>Storage that throws, or holds an unknown value, leaves the server's <c>data-look</c> in place.</remarks>
     let preloadScript: string =
         let known (values: string list) =
@@ -162,7 +162,8 @@ module internal RocqReader =
                 "(function(){var r=document.documentElement;"
                 "function a(n,k,v){try{var s=localStorage.getItem(k);if(v.indexOf(s)>=0)r.setAttribute(n,s)}catch(e){}}"
                 $"""a("data-look","{Islands.lookKey}",[{known Islands.looks}]);"""
-                $"""a("data-mode","{Islands.modeKey}",[{known Islands.modes}])"""
+                $"""a("data-mode","{Islands.modeKey}",[{known Islands.modes}]);"""
+                $"""a("{Islands.argumentsAttribute}","{Islands.argumentsKey}",[{known [ Islands.argumentsTypes; Islands.argumentsPanel ]}])"""
                 "})()"
             ]
 
@@ -432,7 +433,7 @@ module internal RocqReader =
         for block in blocks do
             match block with
             | Heading (level, text, anchor) -> item $"outline-heading depth-{level}" anchor text
-            | Documented (_, anchor, _, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-documented" anchor anchor
+            | Documented (_, anchor, _, _, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-documented" anchor anchor
             | Quiet (_, anchor, _, _, _) when not (unnamedAnchor.IsMatch anchor) -> item "outline-quiet" anchor anchor
             | _ -> ()
 

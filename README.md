@@ -102,8 +102,22 @@ live, and persist per key in the browser's `localStorage`:
 | Imports | Closed, Open | Closed |
 | References (above 900 px) | Pinned, Badges, Under definitions | Pinned |
 | References open (under definitions) | Closed, Open | Closed |
+| Arguments | Names only, With types, In the panel | Names only |
 
 Reset clears every saved key. Below 900 px the references stay inline folds.
+
+A doc comment documents a declaration's arguments with one `- [name:] text` line each, and lines indented past the dash continue the
+entry. It works in `(** *)` and `(**md` comments:
+
+```coq
+(** Whether a node dirties itself.
+    - [s:] the state read.
+    - [n:] the node tested. *)
+Definition self_dirtying (s : state) (n : node_id) : Prop := ...
+```
+
+The entries appear in an Arguments list by the code and on the binder's hover card, with its type. An entry naming no binder of the
+statement still appears, and raises the build warning `rocq/argument-unmatched`.
 
 Types and assumption badges come from `facts.json`, written by a separate command that needs Rocq and the `.vo` files. A
 site builds without it, and shows no badges:
