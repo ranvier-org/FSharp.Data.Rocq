@@ -21,7 +21,6 @@ let private fixtureConfig =
         FalsifiedSuffix = Some "_falsified"
         CheckMarker = Some "@checked"
         CaptureImports = [||]
-        CollapsibleCode = false
         CollapseCodeOver = None
     }
 

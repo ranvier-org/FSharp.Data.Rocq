@@ -907,7 +907,7 @@ let private appendStatement (out: StringBuilder) (config: Config) (statement: st
         config.CollapseCodeOver
         |> Option.exists (fun limit -> count > limit)
 
-    if count > 1 && (config.CollapsibleCode || long) then
+    if count > 1 then
         let state = if long then "" else " open"
 
         out.Append (

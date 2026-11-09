@@ -1,6 +1,5 @@
 {
   "falsifiedSuffix": "_falsified",
   "checkMarker": "@checked",
-  "captureImports": ["Fixture.Guide"],
-  "collapsibleCode": true
+  "captureImports": ["Fixture.Guide"]
 }

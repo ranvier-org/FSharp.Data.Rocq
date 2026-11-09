@@ -13,9 +13,7 @@ type Config =
         CheckMarker: string option
         /// The modules imported before capture, which select the notations Rocq prints.
         CaptureImports: string[]
-        /// Makes the first line of every multi-line code body a fold for the rest, starting open.
-        CollapsibleCode: bool
-        /// The most lines a code body shows on load. A longer body folds to its first line, starting closed.
+        /// The most lines a code body shows on load. A longer body starts closed, showing its first line.
         CollapseCodeOver: int option
     }
 
@@ -27,7 +25,6 @@ module Config =
             FalsifiedSuffix = None
             CheckMarker = None
             CaptureImports = [||]
-            CollapsibleCode = false
             CollapseCodeOver = None
         }
 
@@ -57,10 +54,6 @@ module Config =
                                     item.GetString ()
                             |]
                         | _ -> [||]
-                    CollapsibleCode =
-                        match root.TryGetProperty "collapsibleCode" with
-                        | true, value -> value.GetBoolean ()
-                        | _ -> false
                     CollapseCodeOver =
                         match root.TryGetProperty "collapseCodeOver" with
                         | true, value when value.ValueKind = JsonValueKind.Null -> None

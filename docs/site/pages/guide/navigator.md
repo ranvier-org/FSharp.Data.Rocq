@@ -52,8 +52,9 @@ The file is optional, and so is every key. The example project uses this one:
 | `falsifiedSuffix` | The name suffix marking a theorem that disproves a claim |
 | `checkMarker` | The text marking a comment as a record of property checking |
 | `captureImports` | The modules imported before capture, which select the notations Rocq prints |
-| `collapsibleCode` | Makes the first line of every multi-line code body a fold for the rest, starting open |
-| `collapseCodeOver` | The most lines a code body shows on load. A longer body folds to its first line, starting closed |
+| `collapseCodeOver` | The most lines a code body shows on load. A longer body starts closed, showing its first line |
+
+The first line of every multi-line code body is a fold for the rest, so readers can open or close any of them. Bodies start open unless `collapseCodeOver` closes them.
 
 ## Types and assumption badges
 

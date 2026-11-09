@@ -119,9 +119,9 @@ and never show a passing badge. An Admitted theorem's `Print Assumptions` result
 | Other commands (`Import`, `Section`, `Instance`, ...) | Compact code; the file stays complete |
 | Comment attached to nothing | Prose in place |
 
-Two optional `navigator.json` settings fold a statement's code body, and both are off without them. `"collapsibleCode": true`
-makes the rendered first line of every multi-line body the fold for the rest, starting open. `"collapseCodeOver": <lines>`
-does the same for a body longer than that, starting closed. A folded body shows its first line and its length.
+The rendered first line of every multi-line statement body is the fold for the rest, and a folded body shows its first line and
+its length. Bodies start open. The optional `navigator.json` setting `"collapseCodeOver": <lines>` starts a body longer than that
+closed.
 
 A page's imports collect in one closed block after its opening heading and prose: imports and `Open Scope` forms at file top
 level, before the first scope or declaration. Any other, including a `Local` or `Global` form inside a `Section` or `Module`, stays in
