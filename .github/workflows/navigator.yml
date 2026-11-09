@@ -3,7 +3,7 @@ name: Navigator
 
 on:
   push:
-    branches: [main, navigator]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
       - name: Check formatting
         run: dotnet fantomas --check navigator
 
-      # The plugin embeds the bundle, and `dotnet build` does not compile Fable-only code.
+      # The plugin embeds the bundle, and `dotnet build` does not compile the client-only code.
       - name: Build the client bundle
         run: bash navigator/build-client.sh
 

@@ -9,10 +9,10 @@
       ],
       "rollForward": false
     },
-    "fable": {
-      "version": "5.27.0",
+    "fickl": {
+      "version": "0.8.0",
       "commands": [
-        "fable"
+        "fickl"
       ],
       "rollForward": false
     }

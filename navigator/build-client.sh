@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Compiles the client with Fable, then bundles it to the file the plugin embeds.
+# Compiles the client with Fickl, then bundles it to the file the plugin embeds.
 set -euo pipefail
 
 navigator="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 client="$navigator/Rocq.Navigator.Client"
 
 dotnet tool restore
-dotnet fable "$client" --outDir "$client/generated" --noCache
+dotnet fickl "$client" --outDir "$client/generated" --noCache
 
 cd "$client"
 npm ci --no-audit --no-fund

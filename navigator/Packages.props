@@ -4,7 +4,7 @@
         Task 1 outcome, 2026-11-09.
         Set: View, View.Dom and View.Anime 0.1.44 with the Css 0.1.1-alpha.1 family. Anime stayed: Motion adds 13.1 KB gzipped
         (without: 226527 bytes, 67493 gzipped; with: 260269 bytes, 80558 gzipped).
-        Fable: 5.27.0. Fable 5.13.0 rejects Ranvier.Wire (FABLE error in Thoth.Json.Core/Decode.fs, tryParseDecimal).
+        Client compiler: Fickl 0.8.0, pinned in .config/dotnet-tools.json.
         Mounting: server render with one IdPrefix per island, hydrate per host with Strict = true. Island markup enters the
         finished document, since t.Unsafe.html rejects root markers. Head marks are stripped, since hydration removes them.
     -->
