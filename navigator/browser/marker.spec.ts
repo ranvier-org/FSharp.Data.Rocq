@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { clientReady, expect, GUARANTEES_PAGE, MODULE_PAGE, test } from "./support";
+import { clientReady, expect, GUARANTEES_PAGE, LONG_PAGE, MODULE_PAGE, test } from "./support";
 
 /** The marker line's distance from the top of the viewport, as a share of the viewport's height. */
 const LINE_SHARE = 0.05;
@@ -174,6 +174,30 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
     expect(result.problems).toEqual([]);
   });
 }
+
+test("the pane scrolls the mark into view, and the page holds its position", async ({ page }) => {
+  await page.goto(LONG_PAGE);
+  await clientReady(page);
+
+  const pane = page.locator(".pane-right");
+  const heights = await pane.evaluate((element) => ({ scroll: element.scrollHeight, client: element.clientHeight }));
+  expect(heights.scroll, "the outline is taller than the pane").toBeGreaterThan(heights.client);
+
+  for (const id of ["long_30", "long_15", "long_01", "long_25"]) {
+    await scrollTo(page, id);
+    const position = await page.evaluate(() => window.scrollY);
+    await expect(outline(page, ".pane-right", id)).toHaveClass(/in-view/);
+
+    const inside = await page.evaluate((target) => {
+      const pane = document.querySelector(".pane-right")!.getBoundingClientRect();
+      const mark = document.querySelector(`.pane-right a.pane-item[href="#${target}"]`)!.getBoundingClientRect();
+      return mark.top >= pane.top && mark.bottom <= pane.bottom;
+    }, id);
+
+    expect(inside, `${id} sits inside the pane's visible rectangle`).toBe(true);
+    expect(await page.evaluate(() => window.scrollY)).toBe(position);
+  }
+});
 
 test("the last declaration can reach the marker", async ({ page }) => {
   await page.goto(MODULE_PAGE);

@@ -123,6 +123,23 @@ let private sectionInView (sections: Element array) : Element option =
     else
         Some (inBand |> Array.minBy top)
 
+/// Scrolls an outline link's pane, and the pane alone, to bring the link inside the pane's visible rectangle.
+let private keepInPane (link: Element) =
+    match link.closest ".pane" with
+    | null -> ()
+    | pane ->
+        let paneBox = pane.getBoundingClientRect ()
+        let linkBox = link.getBoundingClientRect ()
+
+        if linkBox.top < paneBox.top then
+            pane.scrollTop <-
+                pane.scrollTop
+                + int (linkBox.top - paneBox.top - markMargin)
+        elif linkBox.bottom > paneBox.bottom then
+            pane.scrollTop <-
+                pane.scrollTop
+                + int (linkBox.bottom - paneBox.bottom + markMargin)
+
 /// Marks the outline links of a section in the pane and the drawer. A section with no outline link leaves the mark.
 let private markOutline (section: string) =
     let links = all """.pane-item[href^="#"]"""
@@ -136,6 +153,7 @@ let private markOutline (section: string) =
             if link.getAttribute "href" = href then
                 link.classList.add "in-view"
                 link.setAttribute ("aria-current", "location")
+                keepInPane link
             else
                 link.classList.remove "in-view"
                 link.removeAttribute "aria-current"
