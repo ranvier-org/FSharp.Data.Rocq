@@ -378,7 +378,30 @@ module Rocq =
 
         cards
 
+    /// Reports written pages with no island root. The hook's `Rendered` text precedes asset transforms, so the check reads the files.
+    let private checkHydrationMarkers (context: HookContext) =
+        let stripped =
+            context.Rendered
+            |> List.filter (fun (page, _) -> page.Format = ".rocqpage")
+            |> List.map (fun (page, _) -> RelativePath.value (Url.outputPath page.Route))
+            |> List.filter (fun path ->
+                let file = AbsolutePath.value (AbsolutePath.combine context.OutputDirectory [ path ])
+
+                File.Exists file
+                && not ((File.ReadAllText file).Contains RocqReader.RootMarker))
+
+        match stripped with
+        | [] -> ()
+        | first :: _ ->
+            context.Diagnostics.Add (
+                Diagnostic.error
+                    "hydration-markers-stripped"
+                    $"{stripped.Length} written pages, the first {first}, have no hydration root comments. Cards, search, the look switch and the right pane's lists require them."
+                |> Diagnostic.withHint "Keep the comments: Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false)"
+            )
+
     let private writeData (options: RocqOptions) (context: HookContext) =
+        checkHydrationMarkers context
         let loaded = loadCached context.Site context.ProjectRoot options
 
         match loaded.Project with

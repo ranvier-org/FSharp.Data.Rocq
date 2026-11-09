@@ -646,9 +646,10 @@ let private tests' =
 
                 Expect.equal
                     (errors result
+                     |> List.filter (fun d -> d.Code <> "rocq/hydration-markers-stripped")
                      |> List.map (fun d -> d.Code + ": " + d.Message))
                     []
-                    "no diagnostics"
+                    "no other diagnostics"
 
                 let project = FixtureFiles.fixtureProject ()
 
@@ -689,6 +690,36 @@ let private tests' =
                             for proof in blockProofs do
                                 Expect.isTrue (proofs.Contains (text proof.Html)) $"{file.Module}#{anchor} proof"
                         | _ -> ())
+
+        testCase "each font licence opens with the copyright notice of its font"
+        <| fun () ->
+            let fonts =
+                Path.Combine (FixtureFiles.repoRoot (), "navigator", "Nacara.Plugin.Rocq", "assets", "fonts")
+
+            for name, holder in
+                [
+                    "Inter", "The Inter Project Authors"
+                    "JetBrainsMono", "The JetBrains Mono Project Authors"
+                    "SourceSerif4", "Adobe Systems Incorporated"
+                ] do
+                let notice = (File.ReadAllLines (Path.Combine (fonts, $"OFL-{name}.txt")))[0]
+                Expect.stringContains notice holder name
+
+        testCase "host: a build that strips the hydration root markers fails with a diagnostic and a hint"
+        <| fun () ->
+            let stripped (minify: Site -> Site) =
+                withRoot (fun root ->
+                    (buildAt root (minify (siteWith (fixtureOptions ())))).Diagnostics
+                    |> List.filter (fun diagnostic -> diagnostic.Code = "rocq/hydration-markers-stripped"))
+
+            match stripped Nuglify.minifyHtml with
+            | [ diagnostic ] ->
+                Expect.equal diagnostic.Severity Severity.Error "an error"
+                Expect.stringContains diagnostic.Hint.Value "htmlRemoveComments false" "the hint"
+            | other -> failtest $"expected one diagnostic: {other}"
+
+            Expect.isEmpty (stripped (Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false))) "comments kept"
+            Expect.isEmpty (stripped id) "no minifier"
 
         testCase "host: htmlRemoveComments false keeps the hydration root markers default minifying removes"
         <| fun () ->

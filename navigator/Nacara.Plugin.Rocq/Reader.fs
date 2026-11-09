@@ -53,6 +53,10 @@ module internal RocqReader =
     [<Literal>]
     let Split = "<!--rocq:split-->"
 
+    /// The comment `Server.render` writes at the root of each island.
+    [<Literal>]
+    let RootMarker = "<!--[r-->"
+
     let embedded (name: string) : byte array =
         use stream =
             Assembly.GetExecutingAssembly().GetManifestResourceStream($"Nacara.Plugin.Rocq.assets.%s{name}")

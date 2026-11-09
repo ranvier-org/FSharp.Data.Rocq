@@ -98,8 +98,9 @@ dotnet run -- rocq-capture --rocq "rocq" --out facts.json
 
 Before building the plugin itself, run `navigator/build-client.sh`, which compiles the client bundle the plugin embeds.
 
-**Minifying HTML:** default `Nuglify.minifyHtml` removes the comments that mark hydration roots. The page stays readable and
-foldable, but cards, search and the look switch stop working. Keep the comments:
+**Minifying HTML:** default `Nuglify.minifyHtml` removes the comments that mark hydration roots. Cards, search, the look switch
+and the right pane's Uses and Used by lists stop working, so the build fails with `rocq/hydration-markers-stripped`. Keep the
+comments:
 
 ```fsharp
 |> Nuglify.minifyHtmlWith (Nuglify.htmlRemoveComments false)
