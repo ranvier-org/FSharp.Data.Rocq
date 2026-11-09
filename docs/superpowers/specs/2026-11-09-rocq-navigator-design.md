@@ -10,10 +10,10 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 
 | Primitive | Job |
 |---|---|
-| `Signal` | Current look, light or dark mode, hovered or focused reference, search text, search open, section in view |
+| `Signal` | Current look, light or dark mode, each reading setting, the settings surface and its open state, hovered or focused reference, the chip whose dialog is wanted and shown, search text, search open, section in view |
 | `createMemo` / `createMemoWithComparer` | Search results from the text; the hover card's symbol from the hovered reference, skipping unchanged symbols |
 | `createProjection` | Keyed rows of the search results |
-| `createEffect` | Writes look and mode to the root element |
+| `createEffect` / `createEffectOn` | Writes look, mode and the reference placement to the root element, a fold setting to its folds, and opens and closes the settings dialog when its signal changes |
 | `createRoot`, `Owner`, `onCleanup` | Lifetime of each hydrated island and its listeners |
 
 **View-owned state:**
@@ -22,10 +22,16 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 |---|---|
 | DOM nodes of the server-rendered article | DOM state; the article is static HTML |
 | The one delegated `pointerover`/`focusin` listener on the article | Event delegation |
+| The stateless `click` listener on the document for settings triggers and a click outside the popover | Event delegation |
+| `data-lists` on the root: `pane`, `badges`, or absent under definitions | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
+| `open` on `details`, and `data-closing` during a fold's closing motion | DOM state; the stylesheet and the browser read them (owner's agreement, 2026-11-09) |
+| `.current-decl` on the section in view. `aria-current` stays on the outline links | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
+| `<dialog>` open state, and the opener that focus returns to | Neither has a core equivalent (owner's agreement, 2026-11-09) |
+| `data-surface` on the settings dialog, bound to a signal | The last value written to a DOM target; the stylesheet reads it |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
 | Server HTML | Written by the build |
 
-Saved look and mode live in `localStorage`, which is browser storage. A signal holds the current values.
+Saved look, mode and reading settings live in `localStorage`, which is browser storage, one key per setting. Signals hold the current values and start from the saved ones.
 
 The view adds no ownership tree, reconciler, selection cache or commit queue.
 
@@ -54,8 +60,9 @@ comments are not attached to anything. The `proofs/docs.sh` pipeline already pat
 ## Goals
 
 1. Every module reads top to bottom as headings, doc prose, statements and folded proofs.
-2. Every reference in statements, proofs and doc code has a card on hover or keyboard focus, and activating it goes to the
-   definition. The card shows the type or source header, the attached doc, the module and the mention count.
+2. Every reference in statements, proofs and doc code has a card on hover. A reference that is a link also opens its card on
+   keyboard focus, and activating it goes to the definition. The card shows the type or source header, the attached doc, the
+   module and the mention count.
 3. A reader finds any declaration in under a few keystrokes with `Ctrl+K` or `/`.
 4. The site opens on the Guarantees page: what the proofs promise, in plain language, grouped by module.
 5. Each declaration shows what it uses and what uses it.
@@ -113,8 +120,10 @@ Two optional `navigator.json` settings fold a statement's code body, and both ar
 makes the rendered first line of every multi-line body the fold for the rest, starting open. `"collapseCodeOver": <lines>`
 does the same for a body longer than that, starting closed. A folded body shows its first line and its length.
 
-A page's imports collect in one closed block after its opening heading and prose. Source lines are blocks whose wrapped
-text hangs four columns past their own indent, and copied text stays exact.
+A page's imports collect in one closed block after its opening heading and prose: imports and `Open Scope` forms at file top
+level, before the first scope or declaration. Any other, including a `Local` or `Global` form inside a `Section` or `Module`, stays in
+place as compact code with its indent bytes. Source lines are blocks whose wrapped text hangs four columns past their own indent, and
+copied text stays exact.
 
 `Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
 
@@ -126,10 +135,50 @@ a reference.
 **Right pane.** Outline of the page, with the section in view marked. For the declaration in view, "Uses" and "Used by" from
 `CrossReferences`.
 
+**Reading position.** The section in view follows a line that moves through the viewport as the page scrolls:
+`progress = scrollTop / (scrollHeight - clientHeight)`, 0 when nothing scrolls, and `line = clientHeight * progress`. The line
+is at the view's top at the page's start, its middle halfway and its bottom at the end. The section in view is the last to
+start at or above the line, else the first to start inside the viewport, else none. A jump lands its target at `landingMargin`
+while the line may be far below, so a `location.hash` target whose top lies within 6 px of the landing position is the section
+in view. Scrolling away releases it, with no flag. Updates run on a passive `scroll` listener, `hashchange`, `resize`, and a
+`ResizeObserver` on the article for folds that change the page's height. Measured on `Ranvier.Pure.Check` (197 sections, about
+1,400 cards): 0.3 ms median and 1.1 ms at most per update with layout clean, and 2.1 ms median and 3.2 ms at most for a jump that
+changes the section and pays for the layout.
+
 **Cross-references without JavaScript (the author's call).** Each declaration's lists are static HTML, in a `<details>`
-under its statement. On wide screens with JavaScript, the section-in-view island copies the current declaration's lists into
-the right pane and hides the inline ones. Lists show the first 8 entries, with the rest in a nested `<details>`, so there is
-no separate list page.
+under its statement. Lists show the first 8 entries, with the rest in a nested `<details>`, so there is no separate list page.
+
+**Reference placements.** The `References` setting picks one above 900 px. Below 900 px the lists stay inline folds and the
+setting's row is hidden. The head script applies the saved value before first paint through `data-lists`. A client that fails
+to start removes `data-lists`, so the inline lists return for every value.
+
+| Placement | `data-lists` | Rendering |
+|---|---|---|
+| Pinned (default) | `pane` | The bottom region of the right pane, always in view, at most 46vh, with its own scroll. A header names the definition beside a 3 px `--link` bar, and the section in view carries the same bar inside its panel through `.current-decl`. A definition with no lists shows one quiet line. A heading in view leaves the declaration before it while any of it is on screen, and otherwise shows the quiet line, so a jump never shows a stale name. |
+| Badges | `badges` | A server-rendered `uses N · used by M` chip per definition with any entries, a real `<button>` outside the `pre`, at 10 px, in the panel's background and border colours, clear of the caret and line-count column. `.decl` spacing grows in this mode only, so a chip never touches the previous panel. The chip opens a dialog with the definition's name and lists on hover, keyboard focus and tap. It reuses the card's hover delay and placement, and it ends at the chip's right edge, so it never covers the definition's caret. It stays open while the pointer is on it or on a card opened from it. Enter moves focus into it, Tab past its end returns to the chip, and Esc closes the top layer and returns focus. |
+| Under definitions | absent | The inline `details.refs`, visible. A `References open` setting (Closed by default) shows only in this placement and below 900 px. |
+
+**Settings.** One `<dialog>` in one island, `settings`, hosted outside the panes. Plain `<button data-settings-open>` triggers sit in
+a footer pinned to the bottom of the left pane, and at the end of the Modules drawer below 900 px. They stay hidden with `visibility`
+until `data-client=ready`, which keeps their space. Each opening picks the surface with `matchMedia`:
+
+| Condition | Surface |
+|---|---|
+| Width at most 600 px | Dialog: `showModal`, centred, dimmed backdrop |
+| `(pointer: coarse)`, wider than 600 px | Side panel: `showModal`, full height at the inline end, light backdrop; a tap outside closes |
+| Fine pointer, wider than 900 px | Popover: non-modal `show`, rising from the footer; a click outside and Esc close |
+| Fine pointer, 601 to 900 px | Dialog, since the footer is inside a drawer |
+
+A resize that changes the row re-picks the surface. Focus moves into the surface on opening and returns to the trigger on closing.
+
+Controls apply live and save per key in `localStorage`: Look (Family, Journal) and Mode (Auto, Light, Dark), on their existing keys;
+Definitions (Open, Closed, Close long ones with a line count; unset leaves the site's `collapseCodeOver` output standing); Proofs and
+Imports (Closed, Open); References and References open, as above. Reset clears every saved key and restores the server's state with no
+reload, using the site's limit from `data-collapse-over` on the body. Invalid values and blocked storage fall back to defaults.
+
+Look, mode and `data-lists` apply in the head script. Fold settings need the elements, so a small inline script directly after the
+article sets `open` from the saved values, and only when a value is saved. A jump to a target inside a closed fold, or to a definition
+whose own body is closed, opens that fold.
 
 **Left pane.** Modules in `_CoqProject` order, grouped by directory, with declaration counts.
 
@@ -148,7 +197,8 @@ scroll; long code wraps.
 Local binders show their inferred type where the capture has it. A reference outside the project (`stdpp`, `Corelib`) shows
 its qualified name and "external"; those libraries are not documented or linked.
 
-Cards open after about 120 ms, stay open while the pointer is on them, close on `Esc`, and are reachable by keyboard.
+Cards open after about 120 ms, stay open while the pointer is on them, and close on `Esc`. Keyboard focus opens a card for a
+reference that is a link. A reference rendered as a span has no link and stays unfocusable.
 
 ## Data
 
@@ -190,7 +240,7 @@ them, which is what keeps source text byte-exact. `Rocq.reader` is the layout. I
 semantic article. Problems are build diagnostics named `rocq/...`, and `--strict` is Nacara's own.
 
 **Islands.** The article is server-only HTML with no hydration, because a 60 KB module is large and static. Hydrated
-islands: search dialog, look and mode switch, hover card layer, section-in-view marker. A failure in the client leaves a
+islands: search dialog, settings, hover card layer, section-in-view marker. A failure in the client leaves a
 fully readable page.
 
 `Server.renderDocument` and page declarations assume one host, and hydration removes marked head entries it did not adopt.
@@ -239,7 +289,7 @@ Run on the fixture in CI and on the proofs as a corpus:
 3. The bytes of each statement and proof on the page equal the `.v` span.
 4. Every Guarantees entry matches an independent scan of the comments.
 5. Browser checks under Chromium, for both looks and both modes: card opens by hover and by keyboard, search finds a
-   declaration and navigates, fold opens, switch persists across pages, no hydration mismatch reported, no console errors.
+   declaration and navigates, fold opens, look and mode persist across pages, no hydration mismatch reported, no console errors.
 6. With JavaScript off, a module page reads, folds and links.
 7. At 375 px there is no horizontal page scroll.
 8. Text meets WCAG AA contrast in all four look and mode combinations.
