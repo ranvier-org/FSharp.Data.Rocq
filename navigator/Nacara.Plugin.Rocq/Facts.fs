@@ -394,7 +394,10 @@ module Facts =
                 Assumptions =
                     match element.TryGetProperty "assumptions" with
                     | true, value when value.ValueKind = JsonValueKind.Null -> None
-                    | true, value when value.ValueKind = JsonValueKind.Array && value.GetArrayLength () > 0 ->
+                    | true, value when
+                        value.ValueKind = JsonValueKind.Array
+                        && value.GetArrayLength () > 0
+                        ->
                         value.EnumerateArray ()
                         |> Seq.map (fun axiom -> axiom.GetString ())
                         |> Array.ofSeq

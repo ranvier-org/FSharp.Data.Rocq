@@ -249,7 +249,11 @@ let tests =
             testCase "an empty suffix or marker is absent"
             <| fun () ->
                 withJsonFile "{ \"falsifiedSuffix\": \"\", \"checkMarker\": \"\" }" (fun path ->
-                    Expect.equal (Config.read path |> Result.map (fun config -> config.FalsifiedSuffix, config.CheckMarker)) (Ok (None, None)) "both absent")
+                    Expect.equal
+                        (Config.read path
+                         |> Result.map (fun config -> config.FalsifiedSuffix, config.CheckMarker))
+                        (Ok (None, None))
+                        "both absent")
 
             testCase "a null type is absent, null assumptions are absent, and an empty assumption list is closed"
             <| fun () ->

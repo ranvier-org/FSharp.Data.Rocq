@@ -66,10 +66,7 @@ let tests =
             <| fun () ->
                 let parent = entry "rtree"
 
-                let constructorEntry =
-                    { entry "r" with
-                        Href = parent.Href
-                    }
+                let constructorEntry = { entry "r" with Href = parent.Href }
 
                 Expect.equal (names (rank [| parent; constructorEntry |] "r")) [ "r" ] "the exact name wins"
 

@@ -169,6 +169,10 @@ let private showLists (section: string) =
             match target.querySelector $""".ref-list[data-list="%s{name}"]""" with
             | null -> replaceChildren slot [||]
             | list -> replaceChildren slot [| list.cloneNode true |]
+
+        match document.querySelector cardHost with
+        | null -> ()
+        | host -> dispatch host listsReplaced
     | _ -> ()
 #endif
 
@@ -187,10 +191,6 @@ let private createSwitch (_: Setup) () =
     Api.createEffect (fun () -> document.documentElement.setAttribute ("data-mode", mode.Value))
 #else
     let look = Api.createSignal defaultLook
-
-        match document.querySelector cardHost with
-        | null -> ()
-        | host -> dispatch host listsReplaced
     let mode = Api.createSignal defaultMode
 #endif
     { Look = look; Mode = mode }
@@ -461,6 +461,7 @@ let private createCards (_: Setup) () =
                 reference.removeAttribute "aria-describedby"
                 document.removeEventListener ("keydown", onKey)))
 
+    // A link inside the card's doc is the card's own content, not a reference to open.
     let referenceOf (event: Event) =
         let target = unbox<Element> event.target
 
@@ -483,6 +484,8 @@ let private createCards (_: Setup) () =
 
     let onEvent (event: Event) =
         match event.``type``, referenceOf event with
+        | name, _ when name = listsReplaced -> closeIfDisconnected ()
+        | "pointerover", None -> closeIfDisconnected ()
         | "pointerover", Some reference when not (isTouch event) -> hover reference
         | "pointerout", Some _ when not (isTouch event) -> wanted.Value <- None
         | "focusin", Some reference when (unbox<Element> event.target).matches ":focus-visible" -> openNow reference
@@ -495,15 +498,12 @@ let private createCards (_: Setup) () =
             isTouch event
             && isNull ((unbox<Element> event.target).closest ".card")
             ->
-    // A link inside the card's doc is the card's own content, not a reference to open.
             close ()
         | _ -> ()
 
     match document.querySelector cardHost with
     | null -> ()
     | host ->
-        | name, _ when name = listsReplaced -> closeIfDisconnected ()
-        | "pointerover", None -> closeIfDisconnected ()
         let listener: EventListener = unbox onEvent
 
         let events =
@@ -570,6 +570,13 @@ let private badgeClass (face: CardFace) =
     | Some (Model.Rests _) -> "badge axioms"
     | None -> "badge"
 
+/// A card for a declaration or a file carries no count of mentions.
+let private hasMentions (face: CardFace) =
+    not (
+        face.Card.Key.StartsWith "d"
+        || face.Card.Key.StartsWith "f"
+    )
+
 let private metaOf (face: CardFace) =
     if not face.FromFile then
         ""
@@ -592,13 +599,6 @@ let cardLayer: Component<unit> =
             shownWhen (fun _ -> true),
             Events.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
             Events.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
-/// A card for a declaration or a file carries no count of mentions.
-let private hasMentions (face: CardFace) =
-    not (
-        face.Card.Key.StartsWith "d"
-        || face.Card.Key.StartsWith "f"
-    )
-
         ) {
             p (Attrs.className "card-head") {
                 a (

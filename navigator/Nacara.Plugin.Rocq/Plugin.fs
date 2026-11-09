@@ -385,7 +385,8 @@ module Rocq =
             |> List.filter (fun (page, _) -> page.Format = ".rocqpage")
             |> List.map (fun (page, _) -> RelativePath.value (Url.outputPath page.Route))
             |> List.filter (fun path ->
-                let file = AbsolutePath.value (AbsolutePath.combine context.OutputDirectory [ path ])
+                let file =
+                    AbsolutePath.value (AbsolutePath.combine context.OutputDirectory [ path ])
 
                 File.Exists file
                 && not ((File.ReadAllText file).Contains RocqReader.RootMarker))
