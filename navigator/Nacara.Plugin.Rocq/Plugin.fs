@@ -378,7 +378,7 @@ module Rocq =
 
         cards
 
-    /// Reports written pages with no island root. The hook's `Rendered` text precedes asset transforms, so the check reads the files.
+    /// <summary>Reports written pages with no island root. The hook's <c>Rendered</c> text precedes asset transforms, so the check reads the files.</summary>
     let private checkHydrationMarkers (context: HookContext) =
         let stripped =
             context.Rendered

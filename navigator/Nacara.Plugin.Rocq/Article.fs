@@ -44,7 +44,7 @@ type Block =
     | Quiet of decl: int * anchor: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
     /// A sentence outside any declaration, or the whitespace between two blocks.
     | Command of html: string
-    /// A sentence of the Import category or an <c>Open Scope</c>. A page shows its imports together.
+    /// A sentence the file's imports block collects. A page shows its imports together.
     | Import of html: string
     /// A comment attached to no declaration, or the text around a comment's headings.
     | Prose of html: string
@@ -374,6 +374,34 @@ let internal collectsAsImport (category: Category) (keyword: string option) : bo
     category = Category.Import
     || keyword = Some "Open Scope"
 
+/// <summary>The sentences a file's imports block collects: imports and scope opens at file top level, before the first scope or declaration.</summary>
+let internal collectedImports (model: FileModel) : Set<int> =
+    let boundaries =
+        [
+            for declaration in model.Declarations do
+                declaration.Extent.Start
+
+            for sentence in model.Sentences do
+                if
+                    sentence.Category = Category.Section
+                    || sentence.Category = Category.Module
+                then
+                    sentence.Span.Start
+        ]
+
+    let boundary =
+        if boundaries.IsEmpty then
+            Int32.MaxValue
+        else
+            List.min boundaries
+
+    model.Sentences
+    |> Array.filter (fun sentence ->
+        collectsAsImport sentence.Category sentence.Keyword
+        && sentence.Span.Start < boundary)
+    |> Array.map _.Index
+    |> Set.ofArray
+
 type private Item =
     | DeclarationItem of Declaration
     | CommentItem of Comment
@@ -473,6 +501,7 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
         |]
         |> Array.sortBy (fun (start, rank, _) -> start, rank)
 
+    let collected = collectedImports model
     let result = ResizeArray<Block>()
     let mutable cursor = 0
 
@@ -503,7 +532,7 @@ let blocks (project: RocqProject) (links: Links) (fileIndex: int) : Block[] =
                 let html = source cursor sentence.Span.End
 
                 result.Add (
-                    if collectsAsImport sentence.Category sentence.Keyword then
+                    if collected.Contains sentence.Index then
                         Import html
                     else
                         Command html

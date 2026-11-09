@@ -1,6 +1,9 @@
 module Rocq.Navigator.Tests.ArticleTests
 
+open System
+open System.IO
 open System.Net
+open System.Security.Cryptography
 open System.Text
 open System.Text.RegularExpressions
 open Expecto
@@ -17,6 +20,16 @@ let private links =
         Module = fun name -> $"/site/{name}.html"
         Pipeline = Docs.pipeline []
     }
+
+let private collected (text: string) =
+    let model = analyze "M" (Encoding.UTF8.GetBytes text) None
+    let chosen = collectedImports model
+
+    [
+        for sentence in model.Sentences do
+            if chosen.Contains sentence.Index then
+                Encoding.UTF8.GetString (model.Bytes, sentence.Span.Start, sentence.Span.End - sentence.Span.Start)
+    ]
 
 let private guideIndex (project: RocqProject) =
     project.Files
@@ -311,6 +324,62 @@ let tests =
 
             testCase "toHtml: an empty page puts a lone import's block at the end"
             <| fun () -> Expect.stringContains (toHtml [| Import "Import A." |]) "Import A." "shown"
+
+            testCase "collectedImports: a top-level block before the first declaration, and only that"
+            <| fun () ->
+                Expect.equal
+                    (collected "From A Require Import B.\nImport C.\nOpen Scope nat_scope.\nDefinition x := 1.\nImport D.\nOpen Scope list_scope.")
+                    [ "From A Require Import B."; "Import C."; "Open Scope nat_scope." ]
+                    "the block before the declaration"
+
+            testCase "collectedImports: an import inside a section stays in place"
+            <| fun () -> Expect.isEmpty (collected "Section S. Import L. End S.") "inside the section"
+
+            testCase "collectedImports: an import after a module stays in place"
+            <| fun () -> Expect.isEmpty (collected "Module M. End M. Import M.") "after the module"
+
+            testCase "collectedImports: a local scope open inside a section stays in place, and at top level it joins"
+            <| fun () ->
+                Expect.isEmpty (collected "Section S.\n  Local Open Scope nat_scope.\nEnd S.") "inside the section"
+
+                Expect.equal
+                    (collected "Local Open Scope x.\nGlobal Open Scope y.\nDefinition z := 1.")
+                    [ "Local Open Scope x."; "Global Open Scope y." ]
+                    "at top level"
+
+            testCase "blocks: an import after a declaration stays a command with its indent bytes"
+            <| fun () ->
+                let root = Path.Combine (Path.GetTempPath (), Path.GetRandomFileName ())
+                Directory.CreateDirectory root |> ignore
+
+                try
+                    let source = Encoding.UTF8.GetBytes "Import A.\nDefinition x := 1.\n  Import B.\n"
+                    File.WriteAllText (Path.Combine (root, "_CoqProject"), "-Q . T\nM.v\n")
+                    File.WriteAllBytes (Path.Combine (root, "M.v"), source)
+                    let digest = (Convert.ToHexString (MD5.HashData source)).ToLowerInvariant ()
+                    File.WriteAllText (Path.Combine (root, "M.glob"), $"DIGEST {digest}\nFT.M\n")
+
+                    match load (Path.Combine (root, "_CoqProject")) with
+                    | Result.Error failures -> failwith $"%A{failures}"
+                    | Ok project ->
+                        let found = blocks project links 0
+
+                        let imports =
+                            found
+                            |> Array.choose (function
+                                | Import html -> Some (Source.stripTags html)
+                                | _ -> None)
+
+                        let commands =
+                            found
+                            |> Array.choose (function
+                                | Command html when html.Contains "Import" -> Some (Source.stripTags html)
+                                | _ -> None)
+
+                        Expect.equal imports [| "Import A." |] "before the declaration"
+                        Expect.equal commands [| "  Import B." |] "in place, with its indent"
+                finally
+                    Directory.Delete (root, true)
 
             testCase "toHtml: the fixture's import sentence is an Import block"
             <| fun () ->
