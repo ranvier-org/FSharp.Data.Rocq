@@ -391,6 +391,32 @@ let private guarantees =
         rule ".entry h4 a:hover" [ "color", "var(--link)" ]
     ]
 
+let private motion =
+    [
+        Rule.keyframes
+            "rocq-settle"
+            [
+                "from",
+                [
+                    Declaration.create "box-shadow" "0 0 0 3px color-mix(in srgb, var(--link) 35%, transparent)"
+                ]
+                "to", [ Declaration.create "box-shadow" "0 0 0 3px transparent" ]
+            ]
+        Rule.keyframes
+            "rocq-card-in"
+            [
+                "from", [ Declaration.create "opacity" "0"; Declaration.create "translate" "0 3px" ]
+                "to", [ Declaration.create "opacity" "1"; Declaration.create "translate" "0 0" ]
+            ]
+        rule ".decl:target > pre.statement" [ "animation", "rocq-settle 700ms ease-out" ]
+        rule ".card" [ "animation", "rocq-card-in 120ms ease-out" ]
+        Rule.media
+            "(prefers-reduced-motion: reduce)"
+            [
+                rule "*, *::before, *::after" [ "animation", "none !important"; "transition", "none !important" ]
+            ]
+    ]
+
 let private narrow =
     [
         Rule.media
@@ -430,6 +456,7 @@ let modules: CssModule list =
                 @ folds
                 @ badges
                 @ guarantees
+                @ motion
                 @ narrow
         }
     ]

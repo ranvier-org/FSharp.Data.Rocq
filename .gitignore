@@ -10,6 +10,11 @@ tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vok
 tests/FSharp.Data.Rocq.Tests/fixtures/**/*.vos
 tests/FSharp.Data.Rocq.Tests/fixtures/**/.*.aux
 
+# Navigator browser tests: dependencies and Playwright's output.
+navigator/browser/node_modules/
+navigator/browser/test-results/
+navigator/browser/playwright-report/
+
 # Navigator client build output, rebuilt by navigator/build-client.sh.
 navigator/Rocq.Navigator.Client/generated/
 navigator/Rocq.Navigator.Client/node_modules/
