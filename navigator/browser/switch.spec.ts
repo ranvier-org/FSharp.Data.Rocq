@@ -210,8 +210,65 @@ test("every statement sits in a pane, documented or not, and commands stay bare"
       };
     });
 
-  const documented = await paneOf(".decl.documented pre.statement");
+  const documented = await paneOf(".decl.documented .panel");
   expect(documented.border).toBe("1px");
-  expect(await paneOf(".decl.quiet pre.statement")).toEqual(documented);
+  expect(await paneOf(".decl.quiet .panel")).toEqual(documented);
   expect((await paneOf("pre.command")).border).toBe("0px");
+});
+
+test("proofs are the footer of the statement's pane", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+
+  const shape = await page.locator('.decl[id="sum_refl"] .panel').evaluate((pane) => {
+    const rect = pane.getBoundingClientRect();
+    const footer = pane.lastElementChild!;
+    const box = footer.getBoundingClientRect();
+    return {
+      matches: footer.matches("details.proof"),
+      left: box.left - rect.left,
+      right: rect.right - box.right,
+      bottom: rect.bottom - box.bottom,
+      rule: getComputedStyle(footer).borderTopWidth,
+      statementBorder: getComputedStyle(pane.querySelector("pre.statement")!).borderTopWidth,
+    };
+  });
+
+  // Each gap is the pane's own 1px border, so the footer spans the pane edge to edge.
+  expect(shape).toEqual({ matches: true, left: 1, right: 1, bottom: 1, rule: "1px", statementBorder: "0px" });
+});
+
+test("a declaration's admitted proof keeps its warning in the footer", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await expect(page.locator('.decl[id="open_goal"] .panel > details.proof.warning summary')).toContainText("Not proved");
+});
+
+test("a collapsible code body folds, and shows its first line while folded", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const body = page.locator('.decl[id="sum_refl"] .panel > details.body');
+  const statement = body.locator("pre.statement");
+  const peek = body.locator(".peek");
+
+  await expect(body).toHaveJSProperty("open", true);
+  await expect(statement).toBeVisible();
+  await expect(peek).toBeHidden();
+
+  await body.locator("summary").click();
+
+  await expect(body).toHaveJSProperty("open", false);
+  await expect(statement).toBeHidden();
+  await expect(peek).toHaveText("Theorem sum_refl (a b : nat) : a + b = a + b.");
+  await expect(page.locator('.decl[id="sum_refl"] .panel > details.proof summary')).toBeVisible();
+});
+
+test.describe("with JavaScript off", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("a collapsible code body still folds", async ({ page }) => {
+    await page.goto(MODULE_PAGE);
+    const body = page.locator('.decl[id="sum_refl"] .panel > details.body');
+    await body.locator("summary").click();
+    await expect(body.locator("pre.statement")).toBeHidden();
+  });
 });

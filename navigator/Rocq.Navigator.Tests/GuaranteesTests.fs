@@ -21,6 +21,8 @@ let private fixtureConfig =
         FalsifiedSuffix = Some "_falsified"
         CheckMarker = Some "@checked"
         CaptureImports = [||]
+        CollapsibleCode = false
+        CollapseCodeOver = None
     }
 
 let private titled (project: RocqProject) (config: Config) (facts: Facts option) =

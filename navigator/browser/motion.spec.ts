@@ -51,11 +51,57 @@ test("a fold's height runs through Anime to completion and leaves nothing inline
   await expect(fold.locator("pre")).toBeVisible();
 });
 
-test("a fold closes at once, also while it is opening", async ({ page }) => {
+/** Clicks an open fold's summary and records its height each frame, until it has closed and ten frames agree. */
+const closeAndSample = (page: Page) =>
+  page.evaluate(
+    (selector) =>
+      new Promise<{ heights: number[]; openAfterClick: boolean }>((resolve) => {
+        const fold = document.querySelector<HTMLDetailsElement>(selector)!;
+        const heights: number[] = [fold.getBoundingClientRect().height];
+        fold.querySelector("summary")!.click();
+        const openAfterClick = fold.open;
+
+        const sample = () => {
+          heights.push(fold.getBoundingClientRect().height);
+          const last = heights.slice(-10);
+
+          if (last.length === 10 && new Set(last).size === 1 && !fold.open) {
+            resolve({ heights, openAfterClick });
+          } else {
+            requestAnimationFrame(sample);
+          }
+        };
+
+        requestAnimationFrame(sample);
+      }),
+    FOLD,
+  );
+
+test("a fold closes through the same motion and leaves nothing inline", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  await openAndSample(page);
+
+  const { heights, openAfterClick } = await closeAndSample(page);
+  const open = heights[0];
+  const closed = heights[heights.length - 1];
+  const between = new Set(heights.filter((height) => height > closed && height < open));
+
+  expect(openAfterClick).toBe(true);
+  expect(between.size).toBeGreaterThan(2);
+  expect([...heights].sort((a, b) => b - a)).toEqual(heights);
+
+  const fold = page.locator(FOLD).first();
+  await expect(fold).toHaveJSProperty("open", false);
+  expect(await fold.getAttribute("style")).toBeFalsy();
+  expect(await fold.getAttribute("data-closing")).toBeNull();
+});
+
+test("a second click while a fold is opening sends it back closed", async ({ page }) => {
   await page.goto(MODULE_PAGE);
   await clientReady(page);
 
-  const closed = await page
+  const height = await page
     .locator(FOLD)
     .first()
     .evaluate((fold: HTMLDetailsElement) => {
@@ -63,14 +109,44 @@ test("a fold closes at once, also while it is opening", async ({ page }) => {
       const summary = fold.querySelector("summary")!;
       summary.click();
       summary.click();
-      return { height, after: fold.getBoundingClientRect().height, open: fold.open };
+      return height;
     });
 
-  expect(closed.open).toBe(false);
-  expect(closed.after).toBe(closed.height);
+  const fold = page.locator(FOLD).first();
+  await expect(fold).toHaveJSProperty("open", false);
+  await expect.poll(() => fold.getAttribute("style")).toBeFalsy();
+  expect(await fold.evaluate((element) => element.getBoundingClientRect().height)).toBe(height);
+});
 
-  await page.waitForTimeout(400);
-  expect(await page.locator(FOLD).first().getAttribute("style")).toBeFalsy();
+test("a second click while a fold is closing sends it back open", async ({ page }) => {
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+  await openAndSample(page);
+
+  const fold = page.locator(FOLD).first();
+  await fold.evaluate((element: HTMLDetailsElement) => {
+    const summary = element.querySelector("summary")!;
+    summary.click();
+    summary.click();
+  });
+
+  await expect.poll(() => fold.getAttribute("style")).toBeFalsy();
+  await expect(fold).toHaveJSProperty("open", true);
+  expect(await fold.getAttribute("data-closing")).toBeNull();
+  await expect(fold.locator("pre")).toBeVisible();
+});
+
+test("reduced motion closes a fold at once", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(MODULE_PAGE);
+  await clientReady(page);
+
+  const summary = page.locator(`${FOLD} summary`).first();
+  await summary.click();
+  await summary.click();
+
+  await expect(page.locator(FOLD).first()).toHaveJSProperty("open", false);
+  expect(await runningAnimations(page)).toBe(0);
 });
 
 test("the keyboard opens a fold", async ({ page }) => {
@@ -105,7 +181,7 @@ test("the target settles after a jump", async ({ page }) => {
   await page.goto(`${MODULE_PAGE}#sum_refl`);
 
   const running = await page
-    .locator(".decl:target > pre.statement")
+    .locator(".decl:target > .panel")
     .evaluate((statement) => statement.getAnimations().map((animation) => (animation as CSSAnimation).animationName));
 
   expect(running).toEqual(["rocq-settle"]);

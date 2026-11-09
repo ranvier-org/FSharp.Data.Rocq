@@ -80,6 +80,8 @@ let private declarationBlock (blocks: Block[]) (anchor: string) =
         | Quiet (_, name, _, _, _) -> name = anchor
         | _ -> false)
 
+let private noRefs = { Uses = [||]; UsedBy = [||] }
+
 let private item (index: int) =
     {
         Name = $"name{index}"
@@ -224,6 +226,51 @@ let tests =
                 let html = toHtml [| declarationBlock blocks "sum_refl" |]
                 Expect.stringContains html """<details class="proof"><summary>Qed</summary>""" "closed, with the ending"
                 Expect.isFalse (html.Contains "<details open") "nothing starts open"
+
+            testCase "toHtml: a statement and its proofs share a pane, with the proofs last"
+            <| fun () ->
+                let _, blocks = guideBlocks ()
+                let html = toHtml [| declarationBlock blocks "sum_refl" |]
+                let pane = html.IndexOf """<div class="panel"><pre class="statement">"""
+                Expect.isGreaterThan pane -1 "the statement opens the pane"
+                Expect.isGreaterThan (html.IndexOf """<details class="proof">""") pane "the proof is after the statement"
+                Expect.stringContains html "</details></div>" "the proof closes the pane"
+
+            testCase "toHtmlWith: code bodies stay plain unless an option asks otherwise"
+            <| fun () ->
+                let html = toHtmlWith Config.none (fun _ -> "") [| Quiet (0, "a", "one\ntwo\nthree\n", [||], noRefs) |]
+                Expect.isFalse (html.Contains "details") "no fold"
+
+            testCase "toHtmlWith: collapsibleCode folds every body, starting open"
+            <| fun () ->
+                let config = { Config.none with CollapsibleCode = true }
+                let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "\n  one &lt; x\ntwo\n", [||], noRefs) |]
+
+                Expect.stringContains
+                    html
+                    """<details class="body" open><summary><code class="peek">one &lt; x</code><span class="lines">2 lines</span></summary><pre class="statement"><code>"""
+                    "an open fold, labelled with the first line and the length"
+
+            testCase "toHtmlWith: collapseCodeOver starts a body closed only past the limit"
+            <| fun () ->
+                let config = { Config.none with CollapseCodeOver = Some 2 }
+
+                let page (statement: string) =
+                    toHtmlWith config (fun _ -> "") [| Quiet (0, "a", statement, [||], noRefs) |]
+
+                Expect.isFalse ((page "one\ntwo\n").Contains "details") "at the limit"
+                Expect.stringContains (page "one\ntwo\nthree\n") """<details class="body"><summary>""" "past the limit"
+
+            testCase "toHtmlWith: a long body starts closed when every body is collapsible"
+            <| fun () ->
+                let config =
+                    { Config.none with
+                        CollapsibleCode = true
+                        CollapseCodeOver = Some 1
+                    }
+
+                let html = toHtmlWith config (fun _ -> "") [| Quiet (0, "a", "one\ntwo\n", [||], noRefs) |]
+                Expect.stringContains html """<details class="body"><summary>""" "closed"
 
             testCase "toHtml: Admitted carries the warning class and text"
             <| fun () ->

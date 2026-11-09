@@ -105,9 +105,13 @@ and never show a passing badge. An Admitted theorem's `Print Assumptions` result
 | Heading comment `(** * x *)` | A heading at that level |
 | Declaration with an attached doc | Doc prose, then the statement |
 | Declaration with no attached doc | The statement in the same pane as a documented item, with no prose |
-| `Proof. ... Qed.` | `<details>`, closed, labelled with its ending (`Qed`, `Defined`, `Admitted`) |
+| `Proof. ... Qed.` | `<details>` in the footer of the statement's pane, closed, labelled with its ending (`Qed`, `Defined`, `Admitted`) |
 | Other commands (`Import`, `Section`, `Instance`, ...) | Compact code; the file stays complete |
 | Comment attached to nothing | Prose in place |
+
+Two optional `navigator.json` settings fold a statement's code body, and both are off without them. `"collapsibleCode": true`
+gives every body a fold that starts open. `"collapseCodeOver": <lines>` gives a body longer than that a fold that starts
+closed. A folded body shows its first line and its length.
 
 `Admitted` shows a visible warning. Every byte of the `.v` appears on the page, apart from comments rendered as prose.
 
@@ -204,7 +208,7 @@ stylesheet. An inline script sets the attributes before first paint, to avoid a 
 **Fonts.** Self-hosted, free-licensed: Inter, JetBrains Mono, and a serif for Journal. Unicode in proofs (`∀ ∧ → ∅ ∘`) must
 render in the mono face.
 
-**Motion.** Only where it keeps a reader's place: card appearance, fold opening, and the target settling after a jump. With
+**Motion.** Only where it keeps a reader's place: card appearance, folds opening and closing, and the target settling after a jump. With
 `prefers-reduced-motion` all are instant. Use `Ranvier.View.Anime` when the bundle cost is acceptable and the versions
 resolve; otherwise CSS transitions, and say so. Fold height is the case CSS handles worst.
 

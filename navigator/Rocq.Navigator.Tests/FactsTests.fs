@@ -213,7 +213,7 @@ let tests =
                 finally
                     File.Delete path
 
-            testCase "the fixture config reads its three fields"
+            testCase "the fixture config reads its fields"
             <| fun () ->
                 let config =
                     Config.read (Path.Combine (FixtureFiles.fixtureDir (), "navigator.json"))
@@ -225,8 +225,27 @@ let tests =
                             FalsifiedSuffix = Some "_falsified"
                             CheckMarker = Some "@checked"
                             CaptureImports = [| "Fixture.Guide" |]
+                            CollapsibleCode = true
+                            CollapseCodeOver = None
                         })
                     "every field is read"
+
+            testCase "collapseCodeOver reads a positive whole number and rejects anything else"
+            <| fun () ->
+                let path =
+                    Path.Combine (Path.GetTempPath (), "rocq-navigator-" + Guid.NewGuid().ToString "N" + ".json")
+
+                let readWith (value: string) =
+                    File.WriteAllText (path, "{ \"collapseCodeOver\": " + value + " }")
+                    Config.read path
+
+                try
+                    Expect.equal (readWith "30" |> Result.map _.CollapseCodeOver) (Ok (Some 30)) "a limit"
+
+                    for bad in [ "0"; "-1"; "1.5"; "\"30\"" ] do
+                        Expect.isError (readWith bad) bad
+                finally
+                    File.Delete path
 
             testCase "the capture script requires each file, imports the config's modules, and separates each command"
             <| fun () ->

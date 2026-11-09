@@ -35,7 +35,10 @@ let private clearFold (fold: HTMLElement) =
     fold.style.removeProperty "height" |> ignore
     fold.style.removeProperty "overflow" |> ignore
 
-/// Animates a fold's height as it opens. A fold closes at once. Reduced motion leaves the native toggle.
+/// Marks a fold whose closing height is running. It stays open until the height finishes.
+let private closingAttribute = "data-closing"
+
+/// Animates a fold's height both ways. A click during a run reverses it from the current height. Reduced motion leaves the native toggle.
 let private animateFolds (graph: Graph) =
     graph.Run (fun () ->
         Api.createRoot (fun _ ->
@@ -52,28 +55,39 @@ let private animateFolds (graph: Graph) =
 
                     if
                         not (isNull summary)
-                        && summary.parentElement.matches "details.proof, details.refs, details.more"
+                        && summary.parentElement.matches "details.proof, details.refs, details.more, details.body"
                     then
                         let fold = unbox<HTMLDetailsElement> summary.parentElement
                         let target: Targets = unbox fold
+                        let closing = fold.``open`` && not (fold.hasAttribute closingAttribute)
+                        let current = fold.getBoundingClientRect().height
+                        Utils.remove target
+                        clearFold fold
+                        fold.removeAttribute closingAttribute
 
-                        if fold.``open`` then
-                            Utils.remove target
-                            clearFold fold
-                        elif policy.Value = Reactive.Full then
+                        if policy.Value = Reactive.Full then
                             event.preventDefault ()
-                            let closed = fold.getBoundingClientRect().height
+                            fold.``open`` <- not closing
+                            let goal = fold.getBoundingClientRect().height
                             fold.``open`` <- true
-                            let opened = fold.getBoundingClientRect().height
                             fold.style.setProperty ("overflow", "clip")
+
+                            if closing then
+                                fold.setAttribute (closingAttribute, "")
 
                             Anime.animate (
                                 target,
                                 Anim (
-                                    height = Value.fromTo (Value.op_Implicit closed, Value.op_Implicit opened),
+                                    height = Value.fromTo (Value.op_Implicit current, Value.op_Implicit goal),
                                     duration = 180,
                                     ease = Ease.outQuad,
-                                    onComplete = fun _ -> clearFold fold
+                                    onComplete =
+                                        fun _ ->
+                                            if closing then
+                                                fold.removeAttribute closingAttribute
+                                                fold.``open`` <- false
+
+                                            clearFold fold
                                 )
                             )
                             |> ignore

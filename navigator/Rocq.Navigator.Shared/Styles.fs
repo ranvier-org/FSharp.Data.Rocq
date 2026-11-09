@@ -293,13 +293,22 @@ let private code =
                 "font-size", "12px"
                 "color", "var(--soft)"
             ]
-        rule ".decl:target > pre.statement" [ "border-color", "var(--link)" ]
+        rule
+            ".panel"
+            [
+                "background", "var(--side)"
+                "border", "1px solid var(--line)"
+                "border-radius", "var(--radius)"
+                "margin", "0 0 8px"
+            ]
+        rule ".page .panel pre" [ "background", "transparent"; "border", "0"; "border-radius", "0"; "margin", "0" ]
+        rule ".decl:target > .panel" [ "border-color", "var(--link)" ]
     ]
 
 let private folds =
     [
         rule
-            "details.proof > summary, details.refs > summary, details.more > summary"
+            "details.proof > summary, details.refs > summary, details.more > summary, details.body > summary"
             [
                 "font", $"12px/1.8 {ui}"
                 "color", "var(--dim)"
@@ -307,12 +316,32 @@ let private folds =
                 "list-style", "none"
                 "user-select", "none"
             ]
-        rule "details.proof > summary::-webkit-details-marker, details.refs > summary::-webkit-details-marker" [ "display", "none" ]
+        rule
+            "details.proof > summary::-webkit-details-marker, details.refs > summary::-webkit-details-marker, details.body > summary::-webkit-details-marker"
+            [ "display", "none" ]
         rule "details.proof > summary::before" [ "content", "\"▸ Proof · \"" ]
-        rule "details.proof[open] > summary::before" [ "content", "\"▾ Proof · \"" ]
+        rule "details.proof[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Proof · \"" ]
         rule "details.refs > summary::before" [ "content", "\"▸ \"" ]
-        rule "details.refs[open] > summary::before" [ "content", "\"▾ \"" ]
+        rule "details.refs[open]:not([data-closing]) > summary::before" [ "content", "\"▾ \"" ]
         rule "details.proof.warning > summary" [ "color", "var(--warn)" ]
+        rule ".panel > details.proof" [ "border-top", "1px solid var(--line)" ]
+        rule ".panel > details > summary" [ "padding", "2px 12px" ]
+        rule ".panel > details > summary:hover" [ "color", "var(--ink)" ]
+        rule "details.body > summary" [ "display", "flex"; "gap", "1ch"; "align-items", "baseline" ]
+        rule "details.body > summary::before" [ "content", "\"▸\""; "flex", "none" ]
+        rule "details.body[open]:not([data-closing]) > summary::before" [ "content", "\"▾ Code\"" ]
+        rule
+            ".peek"
+            [
+                "font", $"12px/1.8 {mono}"
+                "color", "var(--ink)"
+                "min-width", "0"
+                "overflow", "hidden"
+                "text-overflow", "ellipsis"
+                "white-space", "nowrap"
+            ]
+        rule "details.body[open]:not([data-closing]) .peek" [ "display", "none" ]
+        rule ".lines" [ "flex", "none"; "margin-left", "auto" ]
         rule ".warning-text" [ "font-weight", "600"; "margin-left", "0.35rem" ]
         rule ".decl.quiet details.proof, .decl.quiet details.refs" [ "margin-left", "0" ]
         rule ".ref-list" [ "margin", "0.25rem 0 0.5rem" ]
@@ -547,7 +576,7 @@ let private motion =
                 "from", [ Declaration.create "opacity" "0"; Declaration.create "translate" "0 3px" ]
                 "to", [ Declaration.create "opacity" "1"; Declaration.create "translate" "0 0" ]
             ]
-        rule ".decl:target > pre.statement" [ "animation", "rocq-settle 700ms ease-out" ]
+        rule ".decl:target > .panel" [ "animation", "rocq-settle 700ms ease-out" ]
         rule ".card:not([hidden])" [ "animation", "rocq-card-in 120ms ease-out" ]
         Rule.media
             "(prefers-reduced-motion: reduce)"

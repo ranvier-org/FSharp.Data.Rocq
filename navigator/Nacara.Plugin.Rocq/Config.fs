@@ -13,6 +13,10 @@ type Config =
         CheckMarker: string option
         /// The modules imported before capture, which select the notations Rocq prints.
         CaptureImports: string[]
+        /// Gives every declaration's code body a fold, starting open.
+        CollapsibleCode: bool
+        /// The most lines a code body shows on load. A longer body gets a fold, starting closed.
+        CollapseCodeOver: int option
     }
 
 /// <summary>Reads <c>navigator.json</c>.</summary>
@@ -23,6 +27,8 @@ module Config =
             FalsifiedSuffix = None
             CheckMarker = None
             CaptureImports = [||]
+            CollapsibleCode = false
+            CollapseCodeOver = None
         }
 
     /// <summary>Reads the file at <c>path</c>. Returns <c>Error</c> naming the path when it is missing or malformed.</summary>
@@ -48,6 +54,18 @@ module Config =
                                     item.GetString ()
                             |]
                         | _ -> [||]
+                    CollapsibleCode =
+                        match root.TryGetProperty "collapsibleCode" with
+                        | true, value -> value.GetBoolean ()
+                        | _ -> false
+                    CollapseCodeOver =
+                        match root.TryGetProperty "collapseCodeOver" with
+                        | true, value when value.ValueKind = JsonValueKind.Null -> None
+                        | true, value ->
+                            match value.ValueKind, value.TryGetInt32 () with
+                            | JsonValueKind.Number, (true, limit) when limit > 0 -> Some limit
+                            | _ -> raise (InvalidOperationException "collapseCodeOver must be a positive whole number")
+                        | _ -> None
                 }
         with
         | :? IOException

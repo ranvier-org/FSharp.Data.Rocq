@@ -209,7 +209,7 @@ module Rocq =
                     }
                     (RocqReader.leftPane links project indexUrl (Some file.Module))
                     (RocqReader.rightPane blocks)
-                    (Article.toHtmlWith badge blocks)
+                    (Article.toHtmlWith config badge blocks)
                 |> GeneratedContent.dependsOn (
                     [ AbsolutePath.create file.FullPath; globOf file ]
                     @ factsFile

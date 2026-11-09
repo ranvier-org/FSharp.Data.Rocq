@@ -560,8 +560,28 @@ let private appendRefs (out: StringBuilder) (refs: RefLists) =
         appendRefList out "used-by" "Used by" refs.UsedBy
         out.Append "</details>" |> ignore
 
+let private appendStatement (out: StringBuilder) (config: Config) (statement: string) =
+    let code = $"""<pre class="statement"><code>{statement}</code></pre>"""
+    let lines = (Source.stripTags statement).Trim().Split '\n'
+
+    let long =
+        config.CollapseCodeOver
+        |> Option.exists (fun limit -> lines.Length > limit)
+
+    if config.CollapsibleCode || long then
+        let state = if long then "" else " open"
+        let unit = if lines.Length = 1 then "line" else "lines"
+
+        out.Append (
+            $"""<details class="body"{state}><summary><code class="peek">{encode (lines[0].TrimEnd ())}</code><span class="lines">{lines.Length} {unit}</span></summary>{code}</details>"""
+        )
+        |> ignore
+    else
+        out.Append code |> ignore
+
 let private appendDeclaration
     (out: StringBuilder)
+    (config: Config)
     (className: string)
     (anchor: string)
     (badge: string)
@@ -570,21 +590,25 @@ let private appendDeclaration
     (proofs: ProofBlock[])
     (refs: RefLists)
     =
-    out.Append ($"""<section class="decl {className}" id="{encode anchor}">{badge}{doc}<pre class="statement"><code>{statement}</code></pre>""")
+    out.Append ($"""<section class="decl {className}" id="{encode anchor}">{badge}{doc}<div class="panel">""")
     |> ignore
+
+    appendStatement out config statement
 
     for proof in proofs do
         appendProof out proof
 
+    out.Append "</div>" |> ignore
     appendRefs out refs
     out.Append "</section>" |> ignore
 
 let private leadingBold = Regex @"^<p><strong>(.*?)</strong></p>"
 
 /// <summary>The HTML of a page's blocks. Proofs and reference lists fold with <c>details</c> and need no script.</summary>
+/// <param name="config">The settings selecting which code bodies fold.</param>
 /// <param name="badge">The badge markup of a documented declaration, by its index in <c>RocqProject.Declarations</c>. Empty for none.</param>
 /// <param name="blocks">The page's blocks in order.</param>
-let toHtmlWith (badge: int -> string) (blocks: Block[]) : string =
+let toHtmlWith (config: Config) (badge: int -> string) (blocks: Block[]) : string =
     let out = StringBuilder ()
 
     for block in blocks do
@@ -594,8 +618,8 @@ let toHtmlWith (badge: int -> string) (blocks: Block[]) : string =
             |> ignore
         | Documented (decl, anchor, doc, statement, proofs, refs) ->
             let titled = leadingBold.Replace (doc, """<p class="decl-title">$1</p>""")
-            appendDeclaration out "documented" anchor (badge decl) $"""<div class="doc">{titled}</div>""" statement proofs refs
-        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out "quiet" anchor "" "" statement proofs refs
+            appendDeclaration out config "documented" anchor (badge decl) $"""<div class="doc">{titled}</div>""" statement proofs refs
+        | Quiet (_, anchor, statement, proofs, refs) -> appendDeclaration out config "quiet" anchor "" "" statement proofs refs
         | Command html when String.IsNullOrWhiteSpace html -> out.Append html |> ignore
         | Command html ->
             out.Append ($"""<pre class="command"><code>{html}</code></pre>""")
@@ -606,6 +630,6 @@ let toHtmlWith (badge: int -> string) (blocks: Block[]) : string =
 
     out.ToString ()
 
-/// <summary>The HTML of a page's blocks, with no badges.</summary>
+/// <summary>The HTML of a page's blocks, with no badges and every code body plain.</summary>
 let toHtml (blocks: Block[]) : string =
-    toHtmlWith (fun _ -> "") blocks
+    toHtmlWith Config.none (fun _ -> "") blocks
