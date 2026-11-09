@@ -1,5 +1,5 @@
 import type { Browser, Page } from "@playwright/test";
-import { clientReady, expect, GUARANTEES_PAGE, MODULE_PAGE, OTHER_PAGE, test } from "./support";
+import { clientReady, expect, GUARANTEES_PAGE, MODULE_PAGE, observe, OTHER_PAGE, test } from "./support";
 
 const KEYS = {
   look: "rocq-navigator-look",
@@ -53,9 +53,10 @@ const box = (page: Page) => surface(page).evaluate((element) => {
   };
 });
 
-const touchPage = async (browser: Browser, viewport: { width: number; height: number }) => {
+const touchPage = async (browser: Browser, problems: string[], viewport: { width: number; height: number }) => {
   const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
   const page = await context.newPage();
+  observe(page, problems);
   return { context, page };
 };
 
@@ -140,8 +141,7 @@ test.describe("the surface follows the viewport", () => {
 
   for (const viewport of [{ width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
     test(`a coarse pointer at ${viewport.width} px gets a side panel, and a tap outside closes it`, async ({ browser, problems }) => {
-      const { context, page } = await touchPage(browser, viewport);
-      page.on("pageerror", (error) => problems.push(`exception: ${error.message}`));
+      const { context, page } = await touchPage(browser, problems, viewport);
       await page.goto(MODULE_PAGE);
       await clientReady(page);
       expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
@@ -155,14 +155,21 @@ test.describe("the surface follows the viewport", () => {
       expect(Math.round(placed.bottom)).toBe(placed.height);
       expect(Math.round(placed.right)).toBe(placed.width);
 
+      // A tap on the panel's blank space, below its last control, leaves it open.
+      const last = (await surface(page).locator(".settings-note").boundingBox())!;
+      expect(last.y + last.height + 20, "the panel has blank space").toBeLessThan(placed.bottom);
+      await page.touchscreen.tap(placed.right - 20, placed.bottom - 10);
+      await page.waitForTimeout(100);
+      await expect(surface(page)).toBeVisible();
+
       await page.touchscreen.tap(10, 300);
       await expect(surface(page)).toBeHidden();
       await context.close();
     });
   }
 
-  test("a coarse pointer at most 600 px gets the dialog", async ({ browser }) => {
-    const { context, page } = await touchPage(browser, { width: 500, height: 800 });
+  test("a coarse pointer at most 600 px gets the dialog", async ({ browser, problems }) => {
+    const { context, page } = await touchPage(browser, problems, { width: 500, height: 800 });
     await page.goto(MODULE_PAGE);
     await clientReady(page);
     await openSettings(page);
@@ -186,6 +193,33 @@ test.describe("the surface follows the viewport", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect.poll(async () => (await box(page)).surface).toBe("popover");
     expect((await box(page)).modal).toBe(false);
+  });
+
+  test("Esc after a resize hides the opener returns focus to the visible trigger", async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 700 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await openSettings(page);
+    await expect(drawerTrigger(page)).toBeVisible();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect.poll(async () => (await box(page)).surface).toBe("popover");
+    await page.keyboard.press("Escape");
+    await expect(surface(page)).toBeHidden();
+    await expect(paneTrigger(page)).toBeFocused();
+  });
+
+  test("Esc after a resize into a closed drawer returns focus to the drawer's summary", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await openSettings(page);
+
+    await page.setViewportSize({ width: 800, height: 700 });
+    await expect.poll(async () => (await box(page)).surface).toBe("dialog");
+    await page.keyboard.press("Escape");
+    await expect(surface(page)).toBeHidden();
+    await expect(page.locator(".drawer > summary", { hasText: "Modules" })).toBeFocused();
   });
 });
 
@@ -263,6 +297,27 @@ test.describe("controls", () => {
 
     await choice(page, "Proofs", "Closed").click();
     await expect(proof).toHaveJSProperty("open", false);
+  });
+
+  test("the pressed choice still writes: a proof opened by hand closes on Closed", async ({ page }) => {
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    const proof = page.locator("article details.proof").first();
+    await proof.evaluate((fold) => ((fold as HTMLDetailsElement).open = true));
+
+    await openSettings(page);
+    await expect(choice(page, "Proofs", "Closed")).toHaveAttribute("aria-pressed", "true");
+    await choice(page, "Proofs", "Closed").click();
+    await expect(proof).toHaveJSProperty("open", false);
+  });
+
+  test("a fold the reader or a jump opened stays open while the page starts", async ({ page }) => {
+    await save(page, { [KEYS.proofs]: "closed" });
+    await page.goto(MODULE_PAGE);
+    await page.locator("article details.proof").first().evaluate((fold) => ((fold as HTMLDetailsElement).open = true));
+    await clientReady(page);
+    await page.waitForTimeout(100);
+    await expect(page.locator("article details.proof").first()).toHaveJSProperty("open", true);
   });
 
   test("imports apply live and survive a reload", async ({ page }) => {
@@ -388,6 +443,18 @@ test.describe("controls", () => {
     await expect(page.locator(".refs-chip").first()).toBeHidden();
   });
 
+  test("below 900 px the references open row shows and applies, whatever placement is saved", async ({ page }) => {
+    await save(page, { [KEYS.references]: "pane" });
+    await page.setViewportSize({ width: 800, height: 700 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await openSettings(page);
+
+    await expect(group(page, "References open")).toBeVisible();
+    await choice(page, "References open", "Open").click();
+    await expect(page.locator("details.refs").first()).toHaveJSProperty("open", true);
+  });
+
   test("the look and mode keep their keys, and all four pairs open without error", async ({ page }) => {
     await page.goto(MODULE_PAGE);
     await clientReady(page);
@@ -478,6 +545,20 @@ test.describe("Reset", () => {
     await openSettings(page);
     await surface(page).getByRole("button", { name: "Reset to the site's defaults" }).click();
     await expect(proof).toHaveJSProperty("open", false);
+  });
+
+  test("restores a fold the site's limit closes", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await save(page, { [KEYS.definitions]: "open" });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await page.evaluate(() => document.body.setAttribute("data-collapse-over", "1"));
+
+    const fold = page.locator("article details.body").first();
+    await expect(fold).toHaveJSProperty("open", true);
+    await openSettings(page);
+    await surface(page).getByRole("button", { name: "Reset to the site's defaults" }).click();
+    await expect(fold).toHaveJSProperty("open", false);
   });
 });
 
@@ -587,6 +668,9 @@ test.describe("before first paint", () => {
     await clientReady(page);
     await page.waitForTimeout(300);
 
+    const folds = page.locator("article details.body");
+    expect(await folds.count()).toBeGreaterThan(0);
+    expect(await folds.evaluateAll((all) => all.every((fold) => !(fold as HTMLDetailsElement).open))).toBe(true);
     expect(await page.evaluate(() => (window as any).__shifts)).toEqual([]);
   });
 
@@ -644,17 +728,28 @@ test.describe("fold targets", () => {
     await expect(fold).toHaveJSProperty("open", true);
   });
 
-  test("a target inside a closed fold opens the fold", async ({ page }) => {
+  test("a second click on a link to the current hash opens the fold again", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await save(page, closed);
     await page.goto(MODULE_PAGE);
     await clientReady(page);
+    const target = await page.locator(".decl:has(> .panel > details.body)[id]").first().getAttribute("id");
+    const fold = page.locator(`[id="${target}"] > .panel > details.body`);
+    await page.evaluate((id) => {
+      const anchor = document.createElement("a");
+      anchor.className = "to-target";
+      anchor.href = `#${id}`;
+      anchor.textContent = "to the definition";
+      anchor.style.cssText = "position: fixed; top: 0; left: 300px; z-index: 99";
+      document.body.append(anchor);
+    }, target);
+    const link = page.locator("a.to-target");
 
-    await page.evaluate(() => {
-      const fold = document.querySelector<HTMLDetailsElement>("article details.proof")!;
-      fold.open = false;
-      fold.querySelector("pre")!.id = "inside-the-proof";
-      location.hash = "inside-the-proof";
-    });
+    await link.click();
+    await expect(fold).toHaveJSProperty("open", true);
 
-    await expect(page.locator("article details.proof").first()).toHaveJSProperty("open", true);
+    await fold.evaluate((element) => ((element as HTMLDetailsElement).open = false));
+    await link.click();
+    await expect(fold).toHaveJSProperty("open", true);
   });
 });

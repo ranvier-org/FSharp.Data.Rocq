@@ -88,7 +88,7 @@ let foldClosed = "closed"
 [<Literal>]
 let foldLong = "long"
 
-/// The line count "Close long ones" starts from.
+/// The initial line count of "Close long ones".
 [<Literal>]
 let defaultDefinitionsOver = 40
 
@@ -320,27 +320,37 @@ let private writeListsHead (region: Element) (declaration: Element option) =
             name.textContent <- ""
             empty.textContent <- "No definition in view."
 
-/// The declaration whose lists a heading in view leaves showing: the one before it, while any of it is on screen.
-let private declarationBefore (heading: Element) =
+/// The declaration owning the lists for a section in view: the section itself when a declaration. For a heading, the previous
+/// declaration while any of it is on screen, otherwise the first declaration with any part in the viewport.
+let private listsOwnerOf (declarations: Element array) (section: Element option) =
+    let onScreen (declaration: Element) =
+        let box = declaration.getBoundingClientRect ()
+
+        box.bottom > 0.0
+        && box.top < float document.documentElement.clientHeight
+
     let rec before (element: Element) =
         match element.previousElementSibling with
         | null -> None
         | previous when previous.matches ".decl" -> Some previous
         | previous -> before previous
 
-    before heading
-    |> Option.filter (fun declaration -> declaration.getBoundingClientRect().bottom > 0.0)
+    match section with
+    | None -> None
+    | Some current when current.matches ".decl" -> section
+    | Some heading ->
+        before heading
+        |> Option.filter onScreen
+        |> Option.orElseWith (fun () -> declarations |> Array.tryFind onScreen)
 
-/// Copies a declaration's lists into the right pane's pinned region. The drawer's slots stay empty: below 900 px the lists stay inline.
-let private showLists (section: string) =
+/// Copies the named declaration's lists into the right pane's pinned region. The drawer's slots stay empty: below 900 px the lists stay inline.
+let private showLists (declaration: string) =
     match document.querySelector ".pane-right .pinned" with
     | null -> ()
     | pinned ->
         let owner =
-            match document.getElementById section with
-            | null -> None
-            | target when target.matches ".decl" -> Some target
-            | target -> declarationBefore target
+            document.getElementById declaration
+            |> Option.ofObj
 
         writeListsHead pinned owner
         copyLists owner (all ".pane-right [data-slot]")
@@ -348,6 +358,14 @@ let private showLists (section: string) =
         match document.querySelector cardHost with
         | null -> ()
         | host -> dispatch host listsReplaced
+
+/// Keeps each outline mark in its pane, above the pinned region.
+let private keepMarkInPane () =
+    for mark in all ".pane-right .pane-item.in-view" do
+        keepInPane mark
+
+[<Emit("(() => { const t = $0.target; const a = t instanceof Element ? t.closest('a[href]') : null; return a !== null && a.hash !== '' && a.pathname === location.pathname && a.hash === location.hash })()")>]
+let private linksToCurrentHash (event: obj) : bool = jsNative
 
 /// Opens every fold holding the location's hash target. A declaration's own definition fold opens with it.
 let private revealTarget () =
@@ -375,6 +393,7 @@ let private revealTarget () =
 let private createMarker (_: Setup) () =
 #if FABLE_COMPILER
     let section = Api.createSignal ""
+    let listsOwner = Api.createSignal ""
 
     let outlined =
         all """.pane-right .pane-item[href^="#"]"""
@@ -387,11 +406,19 @@ let private createMarker (_: Setup) () =
 
     let sections = all "article.page [id]" |> Array.filter isSection
 
+    let declarations =
+        sections
+        |> Array.filter (fun element -> element.matches ".decl")
+
+    let idOf (element: Element option) =
+        match element with
+        | Some element -> element.id
+        | None -> ""
+
     let update () =
-        section.Value <-
-            match sectionInView isSection sections with
-            | Some current -> current.id
-            | None -> ""
+        let current = sectionInView isSection sections
+        section.Value <- idOf current
+        listsOwner.Value <- idOf (listsOwnerOf declarations current)
 
     let onHash () =
         revealTarget ()
@@ -399,6 +426,26 @@ let private createMarker (_: Setup) () =
 
     for name, handler in [ "scroll", update; "resize", update; "hashchange", onHash ] do
         Api.onCleanup (listenPassive (windowObject ()) name handler)
+
+    // A link to the hash already in the URL fires no `hashchange`. A touch preview's `preventDefault` leaves the fold closed.
+    let onClick: EventListener =
+        unbox (fun (event: Event) ->
+            if
+                not event.defaultPrevented
+                && linksToCurrentHash event
+            then
+                revealTarget ())
+
+    document.addEventListener ("click", onClick)
+    Api.onCleanup (fun () -> document.removeEventListener ("click", onClick))
+
+    // The pinned region's height changes with its lists, its placement and the viewport.
+    match document.querySelector ".pane-right .pinned" with
+    | null -> ()
+    | pinned ->
+        let observer = sizeObserver keepMarkInPane
+        observer.observe pinned
+        Api.onCleanup observer.disconnect
 
     // A fold changing the page's height moves the line with no scroll event.
     match document.querySelector "article.page" with
@@ -412,16 +459,18 @@ let private createMarker (_: Setup) () =
         let current = section.Value
 
         Api.untrack (fun () ->
-            markSection current
-
             if current <> "" then
                 markOutline current
 
-            showLists current
+            keepMarkInPane ()))
 
-            // New lists can change the pinned region's height, so the mark's place follows them.
-            for mark in all ".pane-right .pane-item.in-view" do
-                keepInPane mark))
+    Api.createEffect (fun () ->
+        let owner = listsOwner.Value
+
+        Api.untrack (fun () ->
+            markSection owner
+            showLists owner
+            keepMarkInPane ()))
 
     onHash ()
 #endif
@@ -577,7 +626,7 @@ let private placeLayer (id: string) (endsAtRight: bool) (anchor: Element) =
 let private placeCard (reference: Element) =
     placeLayer cardId false reference
 
-/// Moves a chip's dialog beside the chip, ending at the chip's right edge. The definition's caret lies further right.
+/// Moves a chip's dialog beside the chip, ending at the chip's right edge, clear of the definition's caret.
 let private placeChipDialog (chip: Element) =
     placeLayer chipDialogId true chip
 
@@ -1321,8 +1370,8 @@ type SettingsInstance =
         DefinitionsOver: Signal<int>
         Proofs: Signal<string>
         Imports: Signal<string>
-        /// The surface of the current opening: `popover`, `panel` or `dialog`.
-        Surface: Signal<string>
+        /// Writes a fold setting's chosen value to its folds, by the setting's key. Other keys change no fold.
+        WriteFolds: string -> string -> unit
         Attach: obj -> (unit -> unit)
         Close: unit -> unit
         OnClosed: unit -> unit
@@ -1352,6 +1401,9 @@ let private mediaMatches (query: string) : bool = jsNative
 
 [<Emit("$0.show()")>]
 let private showDialog (dialog: obj) : unit = jsNative
+
+[<Emit("$0.checkVisibility()")>]
+let private isVisible (element: Element) : bool = jsNative
 
 [<Emit("$0.target === $0.currentTarget")>]
 let private targetIsCurrent (event: obj) : bool = jsNative
@@ -1424,6 +1476,18 @@ let private surfaceNow () =
     elif mediaMatches "(pointer: coarse)" then surfacePanel
     elif mediaMatches "(min-width: 901px)" then surfacePopover
     else surfaceDialog
+
+/// Focuses the opener or, when a resize has hidden it, the visible settings trigger or else the Modules drawer's summary.
+let private focusSettingsTrigger (opener: obj) =
+    [
+        if not (isNull opener) then
+            unbox<Element> opener
+
+        yield! all $"[{settingsTriggerAttribute}]"
+        yield! all ".drawer > summary"
+    ]
+    |> List.tryFind isVisible
+    |> Option.iter focus
 #endif
 
 let private createSettings (_: Setup) () : SettingsInstance =
@@ -1442,7 +1506,6 @@ let private createSettings (_: Setup) () : SettingsInstance =
     let definitionsOver = Api.createSignal (storedOver ())
     let proofs = Api.createSignal (storedChoice proofsKey foldStates foldClosed)
     let imports = Api.createSignal (storedChoice importsKey foldStates foldClosed)
-    let surface = Api.createSignal surfacePopover
     let isOpen = Api.createSignal false
     let dialog = ref null
     let opener = ref null
@@ -1455,17 +1518,6 @@ let private createSettings (_: Setup) () : SettingsInstance =
             document.documentElement.removeAttribute "data-lists"
         else
             document.documentElement.setAttribute ("data-lists", references.Value))
-
-    // The inline script after the article wrote the saved states. A first run would close a fold the reader or a jump has opened.
-    let onChange (read: unit -> 'T) (apply: 'T -> unit) =
-        let first = ref true
-
-        Api.createEffectOn read (fun value -> if first.Value then first.Value <- false else apply value)
-
-    onChange (fun () -> proofs.Value) (setFolds "article details.proof")
-    onChange (fun () -> imports.Value) (setFolds "article details.imports")
-    onChange (fun () -> referencesOpen.Value) (setFolds "article details.refs")
-    onChange (fun () -> definitions.Value, definitionsOver.Value) (fun (state, over) -> setDefinitions state over)
 
     let numberInput () =
         if isNull dialog.Value then
@@ -1481,9 +1533,12 @@ let private createSettings (_: Setup) () : SettingsInstance =
             if parseCount (inputText input) <> over then
                 setInputValue input (string over)))
 
+    let surface () =
+        (unbox<Element> dialog.Value).getAttribute "data-surface"
+
     let present () =
         let next = surfaceNow ()
-        surface.Value <- next
+        (unbox<Element> dialog.Value).setAttribute("data-surface", next)
 
         if next = surfacePopover then
             showDialog dialog.Value
@@ -1499,14 +1554,14 @@ let private createSettings (_: Setup) () : SettingsInstance =
                 if dialogIsOpen dialog.Value then
                     closeDialog dialog.Value
 
-                refocus opener.Value)
+                focusSettingsTrigger opener.Value)
 
     // A rotation or resize can change the surface, and each surface opens differently.
     Api.createEffect (fun () ->
         if isOpen.Value then
             let onResize () =
                 if
-                    surfaceNow () <> surface.Value
+                    surfaceNow () <> surface ()
                     && dialogIsOpen dialog.Value
                 then
                     closeDialog dialog.Value
@@ -1531,7 +1586,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
         | null ->
             if
                 isOpen.Value
-                && surface.Value = surfacePopover
+                && surface () = surfacePopover
                 && isNull (target.closest ".settings")
             then
                 isOpen.Value <- false
@@ -1555,7 +1610,14 @@ let private createSettings (_: Setup) () : SettingsInstance =
         DefinitionsOver = definitionsOver
         Proofs = proofs
         Imports = imports
-        Surface = surface
+        WriteFolds =
+            fun key value ->
+                match key with
+                | key when key = proofsKey -> setFolds "article details.proof" value
+                | key when key = importsKey -> setFolds "article details.imports" value
+                | key when key = referencesOpenKey -> setFolds "article details.refs" value
+                | key when key = definitionsKey -> setDefinitions value definitionsOver.Value
+                | _ -> ()
         Attach =
             fun element ->
                 dialog.Value <- element
@@ -1579,6 +1641,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
                 if isLineCount text then
                     save definitionsOverKey text
                     definitionsOver.Value <- parseCount text
+                    setDefinitions definitions.Value definitionsOver.Value
         Reset =
             fun () ->
                 for key in
@@ -1602,7 +1665,6 @@ let private createSettings (_: Setup) () : SettingsInstance =
                 definitionsOver.Value <- defaultDefinitionsOver
                 proofs.Value <- foldClosed
                 imports.Value <- foldClosed
-                // A fold the reader opened by hand changes no signal.
                 setFolds "article details.proof" foldClosed
                 setFolds "article details.imports" foldClosed
                 setFolds "article details.refs" foldClosed
@@ -1618,7 +1680,7 @@ let private createSettings (_: Setup) () : SettingsInstance =
         DefinitionsOver = Api.createSignal defaultDefinitionsOver
         Proofs = Api.createSignal foldClosed
         Imports = Api.createSignal foldClosed
-        Surface = Api.createSignal surfacePopover
+        WriteFolds = fun _ _ -> ()
         Attach = fun _ -> ignore
         Close = ignore
         OnClosed = ignore
@@ -1636,7 +1698,8 @@ let private choice (select: SettingsInstance -> Signal<string>) (key: string) (v
 #if FABLE_COMPILER
             save key value
 #endif
-            (select instance).Value <- value)
+            (select instance).Value <- value
+            instance.WriteFolds key value)
     ) {
         label
     }
@@ -1648,7 +1711,6 @@ let settings: Component<unit> =
         (dialog (
             Attrs.className "settings",
             Attrs.aria ("label", "Reading settings"),
-            Attrs.attribute ("data-surface", (fun (instance: SettingsInstance) -> Some instance.Surface.Value)),
             Hooks.mounted (fun (instance: SettingsInstance) element -> instance.Attach (box element)),
             Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
             Events.onClose (fun instance _ -> instance.OnClosed ())

@@ -8,7 +8,7 @@
 
 | Primitive | Job | Task |
 |---|---|---|
-| `Signal` | Look, mode, each reading setting, the settings surface and open state, hovered or focused reference, the chip dialog's wanted and shown chip, search text, search open, section in view | 10, 11, 12 |
+| `Signal` | Look, mode, each reading setting, the settings' open state, hovered or focused reference, the chip dialog's wanted and shown chip, search text, search open, section in view, the declaration owning the lists | 10, 11, 12 |
 | `createMemo` / `createMemoWithComparer` | Search results from the text; the card's symbol from the hovered reference, skipping unchanged symbols | 11, 12 |
 | `createProjection` | Keyed rows of the search results | 12 |
 | `createEffect` / `createEffectOn` | Applies a setting's value to the DOM; opens and closes the settings dialog when its signal changes | 10 |
@@ -22,14 +22,16 @@
 | The one delegated card listener on `.shell` (`pointerover`, `pointerout`, `focusin`, `focusout`, touch `click`, and the stateless DOM event `rocq-lists-replaced`), and a `keydown` listener on the document while a card or chip dialog is open | Event delegation (owner's agreement, 2026-11-09) |
 | The stateless `click` listener on the article for fold motion | Event delegation (owner's agreement, 2026-11-09) |
 | The stateless `keydown` listener on the document for Ctrl+K and `/` | Event delegation (owner's agreement, 2026-11-09) |
-| The stateless `click` listener on the document for settings triggers and a click outside the popover | Event delegation (owner's agreement, 2026-11-09) |
+| The stateless `click` listeners on the document for settings triggers, a click outside the popover, and a link to the hash already in the URL | Event delegation (owner's agreement, 2026-11-09) |
 | `opener`: the element focus returns to when a dialog closes, and `<dialog>` open state | No core equivalent (owner's agreement, 2026-11-09) |
 | `data-closing` on a fold during its closing motion | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | `data-lists` on the root: `pane`, `badges`, or absent under definitions | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | `open` on `details` | DOM state; the stylesheet and the browser read it (owner's agreement, 2026-11-09) |
-| `.current-decl` on the section in view; `aria-current` stays on the outline links | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
+| `.current-decl` on the declaration owning the lists; `aria-current` stays on the outline links, at the section in view | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
+| `data-surface` on the settings dialog, written at each opening | DOM state read by the stylesheet. Awaiting the owner's confirmation |
 | Server HTML | Written by the build |
+| `data-name` on a declaration whose anchor is not its name, and `data-collapse-over` on the body | Server HTML, read by the client; no client value holds them. Awaiting the owner's confirmation |
 
 Saved look, mode and reading settings live in `localStorage`, which is browser storage, and signals start from them. Anything beyond this list needs the owner's agreement first: raise it as a question naming the core primitive and the behaviour it lacks.
 

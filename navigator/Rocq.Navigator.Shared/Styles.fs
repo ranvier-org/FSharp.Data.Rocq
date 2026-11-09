@@ -588,6 +588,7 @@ let private islands =
                 "border-inline-start-width", "1px"
                 "border-radius", "0"
             ]
+        rule ".settings[data-surface=\"panel\"] .settings-body" [ "min-height", "100%"; "box-sizing", "border-box" ]
         rule ".settings[data-surface=\"panel\"]::backdrop" [ "background", "rgba(0, 0, 0, 0.15)" ]
         rule
             ".settings[data-surface=\"dialog\"]"

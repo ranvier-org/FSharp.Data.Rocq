@@ -83,24 +83,56 @@ test.describe("pinned", () => {
     await expect(pinned(page).locator("[data-slot] .ref-list")).toHaveCount(0);
   });
 
-  test("a heading after a jump shows no stale name, and a heading after its definition keeps it", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 500 });
+  const heading = "h-theorems";
+  const inViewOutline = (page: Page) => page.locator(".pane-right a.in-view");
+
+  test("a heading keeps the previous definition while any of it is on screen", async ({ page }) => {
     await page.goto(MODULE_PAGE);
     await clientReady(page);
 
-    const headings = await page.locator("article h2[id], article h3[id]").evaluateAll((elements) => elements.map((element) => element.id));
-    expect(headings.length).toBeGreaterThan(0);
-    await jump(page, headings[0]);
-    await expect(page.locator(`[id="${headings[0]}"]`)).toHaveClass(/current-decl/);
+    await page.evaluate((id) => {
+      const root = document.documentElement;
+      const span = root.scrollHeight - root.clientHeight;
+      const top = document.getElementById(id)!.getBoundingClientRect().top + scrollY;
+      scrollTo(0, Math.ceil(top / (1 + root.clientHeight / span)) + 1);
+    }, heading);
 
-    const owner = await page.evaluate((id) => {
-      let element = document.getElementById(id)!.previousElementSibling;
-      while (element && !element.matches(".decl")) element = element.previousElementSibling;
-      return element && element.getBoundingClientRect().bottom > 0 ? element.id : "";
-    }, headings[0]);
+    await expect(inViewOutline(page)).toHaveAttribute("href", `#${heading}`);
+    await expect(inViewOutline(page)).toHaveAttribute("aria-current", "location");
+    await expect(pinned(page).locator(".lists-name")).toHaveText('Notation "∅" := (False).');
+    await expect(page.locator(".current-decl")).toHaveAttribute("data-name", 'Notation "∅" := (False).');
+  });
 
-    await expect(pinned(page).locator(".lists-name")).toHaveText(owner);
-    if (owner === "") await expect(pinned(page).locator(".lists-empty")).toHaveText("No definition in view.");
+  test("a heading shows the first definition in the viewport once the previous one has left", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 500 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await jump(page, heading);
+
+    await expect(inViewOutline(page)).toHaveAttribute("href", `#${heading}`);
+    await expect(pinned(page).locator(".lists-name")).toHaveText("sum_refl");
+    await expect(page.locator(".current-decl")).toHaveAttribute("id", "sum_refl");
+  });
+
+  test("a heading with no definition in the viewport shows the empty line", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 60 });
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+    await jump(page, heading);
+
+    await expect(inViewOutline(page)).toHaveAttribute("href", `#${heading}`);
+    await expect(pinned(page).locator(".lists-empty")).toHaveText("No definition in view.");
+    await expect(pinned(page).locator(".lists-name")).toHaveText("");
+    await expect(page.locator(".current-decl")).toHaveCount(0);
+  });
+
+  test("the page's top, opening with a heading, shows the first definition on screen", async ({ page }) => {
+    await page.goto(MODULE_PAGE);
+    await clientReady(page);
+
+    await expect(inViewOutline(page)).toHaveAttribute("href", "#h-guide");
+    await expect(pinned(page).locator(".lists-name")).toHaveText('Notation "∀ x .. y , P" := (forall x, .. (forall y, P) ..)');
+    await expect(pinned(page).locator(".lists-empty")).not.toHaveText("No definition in view.");
   });
 
   test("a reader scrolling the lists keeps their position through a section change, and the pane stays put", async ({ page }) => {
@@ -164,6 +196,28 @@ test.describe("pinned", () => {
     const mark = (await page.locator(".pane-right a.in-view").boundingBox())!;
     const region = (await pinned(page).boundingBox())!;
     expect(mark.y + mark.height).toBeLessThanOrEqual(region.y + 1);
+  });
+
+  test("switching to Pinned keeps the mark above the region that appears", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 500 });
+    await place(page, "under");
+    await page.goto(LONG_PAGE);
+    await clientReady(page);
+
+    const last = await page.locator(".pane-right a.pane-item").last().getAttribute("href");
+    await jump(page, last!.slice(1));
+    await expect(page.locator(".pane-right a.in-view")).toHaveAttribute("href", last!);
+
+    await page.locator(".pane-left [data-settings-open]").click();
+    await page.locator("dialog.settings").getByRole("group", { name: "References", exact: true }).getByRole("button", { name: "Pinned", exact: true }).click();
+    await expect(pinned(page)).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const mark = (await page.locator(".pane-right a.in-view").boundingBox())!;
+        return mark.y + mark.height - (await pinned(page).boundingBox())!.y;
+      })
+      .toBeLessThanOrEqual(1);
   });
 });
 
@@ -233,7 +287,7 @@ test.describe("badges", () => {
     expect(overlaps((await chip.boundingBox())!, caret)).toBe(false);
     expect(overlaps((await chipDialog(page).boundingBox())!, caret)).toBe(false);
 
-    const covered = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("summary") !== null, {
+    const covered = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest("summary"), {
       x: caret.x + caret.width - 12,
       y: caret.y + 18,
     });

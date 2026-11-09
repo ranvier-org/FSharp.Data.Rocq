@@ -44,7 +44,7 @@ type Block =
     | Quiet of decl: int * anchor: string * statementHtml: string * proofs: ProofBlock[] * refs: RefLists
     /// A sentence outside any declaration, or the whitespace between two blocks.
     | Command of html: string
-    /// A sentence the file's imports block collects. A page shows its imports together.
+    /// A sentence collected into the file's imports block. A page shows its imports together.
     | Import of html: string
     /// A comment attached to no declaration, or the text around a comment's headings.
     | Prose of html: string
@@ -374,7 +374,7 @@ let internal collectsAsImport (category: Category) (keyword: string option) : bo
     category = Category.Import
     || keyword = Some "Open Scope"
 
-/// <summary>The sentences a file's imports block collects: imports and scope opens at file top level, before the first scope or declaration.</summary>
+/// <summary>The sentences collected into a file's imports block: imports and scope opens at file top level, before the first scope or declaration.</summary>
 let internal collectedImports (model: FileModel) : Set<int> =
     let boundaries =
         [
@@ -694,7 +694,7 @@ let private displayName (anchor: string) (statement: string) =
     else
         repeatSuffix.Replace (anchor, "")
 
-/// A chip is outside the statement's `pre`, so the statement's bytes stay exact.
+/// A button placed outside the statement's `pre`.
 let private appendChip (out: StringBuilder) (refs: RefLists) =
     if refs.Uses.Length + refs.UsedBy.Length > 0 then
         out.Append (

@@ -10,7 +10,7 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 
 | Primitive | Job |
 |---|---|
-| `Signal` | Current look, light or dark mode, each reading setting, the settings surface and its open state, hovered or focused reference, the chip whose dialog is wanted and shown, search text, search open, section in view |
+| `Signal` | Current look, light or dark mode, each reading setting, the settings' open state, hovered or focused reference, the chip whose dialog is wanted and shown, search text, search open, section in view, the declaration owning the lists |
 | `createMemo` / `createMemoWithComparer` | Search results from the text; the hover card's symbol from the hovered reference, skipping unchanged symbols |
 | `createProjection` | Keyed rows of the search results |
 | `createEffect` / `createEffectOn` | Writes look, mode and the reference placement to the root element, a fold setting to its folds, and opens and closes the settings dialog when its signal changes |
@@ -22,14 +22,15 @@ rocqnavi for the Ranvier core proofs, and a Nacara docs site can add it as one m
 |---|---|
 | DOM nodes of the server-rendered article | DOM state; the article is static HTML |
 | The one delegated `pointerover`/`focusin` listener on the article | Event delegation |
-| The stateless `click` listener on the document for settings triggers and a click outside the popover | Event delegation |
+| The stateless `click` listeners on the document for settings triggers, a click outside the popover, and a link to the hash already in the URL | Event delegation |
 | `data-lists` on the root: `pane`, `badges`, or absent under definitions | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | `open` on `details`, and `data-closing` during a fold's closing motion | DOM state; the stylesheet and the browser read them (owner's agreement, 2026-11-09) |
-| `.current-decl` on the section in view. `aria-current` stays on the outline links | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
+| `.current-decl` on the declaration owning the lists. `aria-current` stays on the outline links, at the section in view | DOM state; the stylesheet reads it (owner's agreement, 2026-11-09) |
 | `<dialog>` open state, and the opener that focus returns to | Neither has a core equivalent (owner's agreement, 2026-11-09) |
-| `data-surface` on the settings dialog, bound to a signal | The last value written to a DOM target; the stylesheet reads it |
+| `data-surface` on the settings dialog, written at each opening | DOM state read by the stylesheet. Awaiting the owner's confirmation |
 | Hover card position, measured from the reference's rectangle | The last value written to a DOM target |
 | Server HTML | Written by the build |
+| `data-name` on a declaration whose anchor is not its name, and `data-collapse-over` on the body | Server HTML, read by the client; no client value holds them. Awaiting the owner's confirmation |
 
 Saved look, mode and reading settings live in `localStorage`, which is browser storage, one key per setting. Signals hold the current values and start from the saved ones.
 
@@ -154,7 +155,7 @@ to start removes `data-lists`, so the inline lists return for every value.
 
 | Placement | `data-lists` | Rendering |
 |---|---|---|
-| Pinned (default) | `pane` | The bottom region of the right pane, always in view, at most 46vh, with its own scroll. A header names the definition beside a 3 px `--link` bar, and the section in view carries the same bar inside its panel through `.current-decl`. A definition with no lists shows one quiet line. A heading in view leaves the declaration before it while any of it is on screen, and otherwise shows the quiet line, so a jump never shows a stale name. |
+| Pinned (default) | `pane` | The bottom region of the right pane, always in view, at most 46vh, with its own scroll. A header names the definition beside a 3 px `--link` bar, and the section in view carries the same bar inside its panel through `.current-decl`. A definition with no lists shows one quiet line. With a heading in view, the lists' owner is the previous declaration while any of it is on screen, otherwise the first declaration with any part in the viewport, otherwise none, which shows the quiet line. `.current-decl` follows the owner, and the outline's `aria-current` stays on the section in view. |
 | Badges | `badges` | A server-rendered `uses N · used by M` chip per definition with any entries, a real `<button>` outside the `pre`, at 10 px, in the panel's background and border colours, clear of the caret and line-count column. `.decl` spacing grows in this mode only, so a chip never touches the previous panel. The chip opens a dialog with the definition's name and lists on hover, keyboard focus and tap. It reuses the card's hover delay and placement, and it ends at the chip's right edge, so it never covers the definition's caret. It stays open while the pointer is on it or on a card opened from it. Enter moves focus into it, Tab past its end returns to the chip, and Esc closes the top layer and returns focus. |
 | Under definitions | absent | The inline `details.refs`, visible. A `References open` setting (Closed by default) shows only in this placement and below 900 px. |
 
@@ -169,7 +170,7 @@ until `data-client=ready`, which keeps their space. Each opening picks the surfa
 | Fine pointer, wider than 900 px | Popover: non-modal `show`, rising from the footer; a click outside and Esc close |
 | Fine pointer, 601 to 900 px | Dialog, since the footer is inside a drawer |
 
-A resize that changes the row re-picks the surface. Focus moves into the surface on opening and returns to the trigger on closing.
+A resize that changes the row re-picks the surface. Focus moves into the surface on opening and returns to the trigger on closing, or to the visible trigger or the Modules drawer's summary when a resize has hidden it.
 
 Controls apply live and save per key in `localStorage`: Look (Family, Journal) and Mode (Auto, Light, Dark), on their existing keys;
 Definitions (Open, Closed, Close long ones with a line count; unset leaves the site's `collapseCodeOver` output standing); Proofs and
@@ -178,7 +179,7 @@ reload, using the site's limit from `data-collapse-over` on the body. Invalid va
 
 Look, mode and `data-lists` apply in the head script. Fold settings need the elements, so a small inline script directly after the
 article sets `open` from the saved values, and only when a value is saved. A jump to a target inside a closed fold, or to a definition
-whose own body is closed, opens that fold.
+whose own body is closed, opens that fold, including a second click on a link to the hash already in the URL.
 
 **Left pane.** Modules in `_CoqProject` order, grouped by directory, with declaration counts.
 

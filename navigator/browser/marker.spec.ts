@@ -157,7 +157,7 @@ for (const [minHeight, height] of [[500, 500], [500, 700], [900, 500], [900, 700
         const href = `#${expected.id}`;
         const links = [...document.querySelectorAll('.pane-right .pane-item[href^="#"]')];
 
-        if (document.querySelector(".current-decl")?.id !== expected.id) problems.push(`y=${Math.round(scrollY)}: not on ${expected.id}`);
+        if (expected.matches(".decl") && document.querySelector(".current-decl")?.id !== expected.id) problems.push(`y=${Math.round(scrollY)}: not on ${expected.id}`);
 
         if (links.some((link) => link.getAttribute("href") === href)) {
           const marked = document.querySelector(".pane-right .in-view")?.getAttribute("href");

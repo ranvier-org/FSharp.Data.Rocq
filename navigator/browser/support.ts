@@ -8,26 +8,29 @@ export const LONG_PAGE = `${BASE}Fixture.Long.html`;
 
 type Observed = { problems: string[] };
 
-/** Every test fails on a console error, an uncaught exception, a hydration report, or a request that misses the site. */
+/** Collects a page's console errors, uncaught exceptions, hydration reports and requests that miss the site. */
+export const observe = (page: Page, problems: string[]) => {
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.text().includes("Hydration")) {
+      problems.push(`${message.type()}: ${message.text()}`);
+    }
+  });
+
+  page.on("pageerror", (error) => problems.push(`exception: ${error.message}`));
+
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      problems.push(`${response.status()}: ${response.url()}`);
+    }
+  });
+};
+
+/** Every test fails on what `observe` collects. */
 export const test = base.extend<Observed>({
   problems: [
     async ({ page }, use) => {
       const problems: string[] = [];
-
-      page.on("console", (message) => {
-        if (message.type() === "error" || message.text().includes("Hydration")) {
-          problems.push(`${message.type()}: ${message.text()}`);
-        }
-      });
-
-      page.on("pageerror", (error) => problems.push(`exception: ${error.message}`));
-
-      page.on("response", (response) => {
-        if (response.status() >= 400) {
-          problems.push(`${response.status()}: ${response.url()}`);
-        }
-      });
-
+      observe(page, problems);
       await use(problems);
       expect(problems).toEqual([]);
     },

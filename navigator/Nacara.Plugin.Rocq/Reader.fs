@@ -202,7 +202,7 @@ module internal RocqReader =
                 "})()"
             ]
 
-    /// <summary>The button that opens the settings. The client listens on a common ancestor, so the pane and the drawer share its markup.</summary>
+    /// <summary>The button that opens the settings, in the pane and the drawer alike.</summary>
     let settingsTrigger: string =
         $"""<button type="button" class="settings-trigger" {Islands.settingsTriggerAttribute} aria-haspopup="dialog">⚙ Settings</button>"""
 
