@@ -12,6 +12,7 @@ let main args =
             [
                 FactsTests.tests
                 SourceTests.tests
+                HighlightTests.tests
                 DocsTests.tests
                 ArticleTests.tests
                 GuaranteesTests.tests

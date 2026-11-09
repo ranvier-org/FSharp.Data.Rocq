@@ -555,6 +555,7 @@ The project and navigator.json come from the plugin's options. The project must 
                                     | _ -> { page with Html = page.Body }
                         }
                     |> Registry.asset (WriteText (snd (Styles.compiled ()), RelativePath.create RocqReader.styleAsset))
+                    |> Registry.extra (Highlight.RocqHighlighter () :> IHighlighter)
                     |> Registry.onBuildComplete (writeData options)
                     |> Registry.command (
                         PluginCommand.create "rocq-capture" "Capture types and assumptions from a compiled Rocq project" (capture options)
@@ -581,7 +582,7 @@ The project and navigator.json come from the plugin's options. The project must 
                             |> Diagnostic.withHint "Run navigator/build-client.sh and rebuild; the pages read without it"
                         ))
 
-    /// <summary>The plugin itself: the page format, assets, data files and <c>rocq-capture</c>. The collection produces the pages.</summary>
+    /// <summary>The plugin itself: the page format, assets, data files, colouring for <c>rocq</c> and <c>coq</c> fences, and <c>rocq-capture</c>. The collection produces the pages.</summary>
     /// <param name="options">The same options the collection was given.</param>
     let create (options: RocqOptions) : IPlugin =
         RocqPlugin options

@@ -65,6 +65,20 @@ dotnet run -- rocq-capture --rocq "rocq" --out facts.json
 
 The value of `--rocq` is split into words, so a wrapper works too. The example's facts were captured with Rocq 9.1.0 running in WSL, through `wsl.exe` and `opam exec`.
 
+## Rocq code blocks
+
+The plugin colours Markdown fences marked `rocq` or `coq` on any page of the site, with the lexer and keywords the library uses to read a source file:
+
+```rocq
+(* Comments nest, and a string can hold a closing mark: "*)". *)
+Theorem add_zero : forall n : nat, n + 0 = n.
+Proof.
+  induction n; simpl.
+  - reflexivity.
+  - rewrite IHn. reflexivity.
+Qed.
+```
+
 ## Building the client
 
 The plugin embeds its client bundle. A build from this repository needs the bundle first, and the script compiles it with [Fickl](https://github.com/shayanhabibi/fickl):
