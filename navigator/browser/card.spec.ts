@@ -81,8 +81,12 @@ test("the card stays open while the pointer is on it", async ({ page }) => {
   const card = cardOf(page);
   await statementRef(page, await keyOf(page, "Fixture.Other.other_def")).hover();
   await expect(card).toBeVisible();
+  // The card grows and moves when the data file arrives, so the pointer waits for its final place.
+  await expect(card.locator(".card-meta")).toContainText("mentioned by");
 
-  await card.hover();
+  // `hover` can scroll first, and a scroll takes the reference from under the pointer, which closes the card.
+  const { x, y, width, height } = await box(card);
+  await page.mouse.move(x + width / 2, y + height / 2);
   await page.waitForTimeout(400);
   await expect(card).toBeVisible();
 
