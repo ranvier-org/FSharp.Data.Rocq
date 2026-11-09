@@ -203,9 +203,9 @@ let private hashTarget () =
     | "" -> None
     | id -> document.getElementById id |> Option.ofObj
 
-/// The section in view. The target of a jump holds while its top stays at the landing position. Otherwise the line runs from
-/// the viewport's top at the page's start to its bottom at the page's end: the last section to start at or above the line
-/// or, with none above it, the first to start inside the viewport.
+/// The section in view. The target of a jump holds while its top stays at the landing position or, at the page's end, below it
+/// inside the viewport. Otherwise the line runs from the viewport's top at the page's start to its bottom at the page's end:
+/// the last section to start at or above the line or, with none above it, the first to start inside the viewport.
 let private sectionInView (isSection: Element -> bool) (sections: Element array) : Element option =
     let root = document.documentElement
     let height = float root.clientHeight
@@ -226,9 +226,13 @@ let private sectionInView (isSection: Element -> bool) (sections: Element array)
     let landed =
         hashTarget ()
         |> Option.filter (fun target ->
+            let top = target.getBoundingClientRect().top
+
             isSection target
-            && abs (target.getBoundingClientRect().top - landing)
-               <= landingTolerance)
+            && (abs (top - landing) <= landingTolerance
+                || (pageScrollTop () >= scrollable - 1.0
+                    && top > landing
+                    && top < height)))
 
     match landed with
     | Some _ -> landed

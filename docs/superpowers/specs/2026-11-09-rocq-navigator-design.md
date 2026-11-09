@@ -165,7 +165,8 @@ rejects a stale comment.
 is at the view's top at the page's start, its middle halfway and its bottom at the end. The section in view is the last to
 start at or above the line, else the first to start inside the viewport, else none. A jump lands its target at `landingMargin`
 while the line may be far below, so a `location.hash` target whose top lies within 6 px of the landing position is the section
-in view. Scrolling away releases it, with no flag. Updates run on a passive `scroll` listener, `hashchange`, `resize`, and a
+in view. A target too near the page's end to reach that position also holds, while the page is at its end and the target's top is
+inside the viewport. Scrolling away releases it, with no flag. Updates run on a passive `scroll` listener, `hashchange`, `resize`, and a
 `ResizeObserver` on the article for folds that change the page's height. Measured on `Ranvier.Pure.Check` (197 sections, about
 1,400 cards): 0.3 ms median and 1.1 ms at most per update with layout clean, and 2.1 ms median and 3.2 ms at most for a jump that
 changes the section and pays for the layout.
