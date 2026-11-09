@@ -768,7 +768,6 @@ let private createSearch (_: Setup) () : SearchInstance =
 #if FABLE_COMPILER
     let dialog = ref null
     let opener = ref null
-    let wasOpen = ref false
 
     let load () =
         status.Value <- statusLoading
@@ -800,19 +799,16 @@ let private createSearch (_: Setup) () : SearchInstance =
             then
                 load ()
 
-    Api.createEffect (fun () ->
-        let wanted = isOpen.Value
-
+    Api.createEffectOn (fun () -> isOpen.Value) (fun wanted ->
         if not (isNull dialog.Value) then
-            if wanted && not (dialogIsOpen dialog.Value) then
-                showModal dialog.Value
-                focusInput dialog.Value
-                wasOpen.Value <- true
-            elif not wanted && dialogIsOpen dialog.Value then
-                closeDialog dialog.Value
+            if wanted then
+                if not (dialogIsOpen dialog.Value) then
+                    showModal dialog.Value
+                    focusInput dialog.Value
+            else
+                if dialogIsOpen dialog.Value then
+                    closeDialog dialog.Value
 
-            if not wanted && wasOpen.Value then
-                wasOpen.Value <- false
                 refocus opener.Value)
 
     Api.createEffect (fun () ->
@@ -973,10 +969,6 @@ let search: Component<unit> =
                     }
                 }
             |])
-
-/// An island with no content, standing in until the real islands exist.
-let stub: Component<unit> =
-    Component.define (fun _ () -> ()) (fun t -> t.fragment [||])
 
 /// The islands on a page and their components, in document order.
 let islands =
