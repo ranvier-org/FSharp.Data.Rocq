@@ -75,8 +75,8 @@ module Facts =
                         PrintAssumptions (symbolKey project symbol)
         |]
 
-    /// <summary>The script for <c>rocq repl</c>: a <c>Fail Check __nav_N.</c> separator precedes command N.</summary>
-    let captureScript (project: RocqProject) (config: Config) : string =
+    /// The script running the numbered commands, each preceded by its separator.
+    let private script (project: RocqProject) (config: Config) (numbered: (int * Command)[]) =
         let builder = StringBuilder ()
 
         let line (text: string) =
@@ -88,15 +88,31 @@ module Facts =
         for import in config.CaptureImports do
             line $"Require Import {import}."
 
-        commands project
-        |> Array.iteri (fun index command ->
+        for index, command in numbered do
             line $"Fail Check __nav_{index}."
 
             match command with
             | CheckType name -> line $"Check @{name}."
-            | PrintAssumptions name -> line $"Print Assumptions {name}.")
+            | PrintAssumptions name -> line $"Print Assumptions {name}."
 
         builder.ToString ()
+
+    /// <summary>The script for <c>rocq repl</c>: a <c>Fail Check __nav_N.</c> separator precedes command N.</summary>
+    let captureScript (project: RocqProject) (config: Config) : string =
+        script project config (Array.indexed (commands project))
+
+    /// <summary>
+    /// <c>captureScript</c> split into at most <c>jobs</c> scripts that together run each of its commands once, under the
+    /// same number. Command N goes to script N mod the script count, which spreads the theorems evenly.
+    /// </summary>
+    let captureScripts (project: RocqProject) (config: Config) (jobs: int) : string[] =
+        let numbered = Array.indexed (commands project)
+        let count = max 1 (min jobs numbered.Length)
+
+        Array.init count (fun shard ->
+            numbered
+            |> Array.filter (fun (index, _) -> index % count = shard)
+            |> script project config)
 
     let private separator =
         Regex @"The command has indeed failed with message:\s+The reference __nav_(\d+)\s+was\s+not\s+found\s+in\s+the\s+current\s+environment\."
@@ -221,8 +237,8 @@ module Facts =
                 |> RestsOn
                 |> Some
 
-    /// <summary>Reads the output of <c>captureScript</c> for the same project. Every captured symbol has an entry.</summary>
-    let parseTranscript (project: RocqProject) (transcript: string) : Map<string, SymbolFact> =
+    /// The facts of the project from the output of its commands, by command number.
+    let private factsOf (project: RocqProject) (outputs: (int * string) list) =
         let all = commands project
 
         let empty =
@@ -241,9 +257,9 @@ module Facts =
                     | PrintAssumptions name -> Map.add name empty facts)
                 Map.empty
 
-        segments transcript
+        outputs
         |> List.fold
-            (fun facts (index, output) ->
+            (fun (facts: Map<string, SymbolFact>) (index, output) ->
                 if index >= all.Length then
                     facts
                 else
@@ -269,6 +285,10 @@ module Facts =
                                 Assumptions = parseAssumptions output
                             })
             start
+
+    /// <summary>Reads the output of <c>captureScript</c> for the same project. Every captured symbol has an entry.</summary>
+    let parseTranscript (project: RocqProject) (transcript: string) : Map<string, SymbolFact> =
+        factsOf project (segments transcript)
 
     let private run (rocq: string[]) (workingDirectory: string) (arguments: string list) (input: string) =
         let info = ProcessStartInfo (rocq[0])
@@ -307,28 +327,44 @@ module Facts =
     /// <param name="projectDir">The directory holding <c>_CoqProject</c> and the <c>.vo</c> files.</param>
     /// <param name="project">The project loaded from that directory.</param>
     /// <param name="config">Supplies the modules imported before capture.</param>
+    /// <param name="jobs">The most <c>rocq repl</c> processes to run at once, each with the whole project loaded.</param>
     /// <returns><c>Error</c> when Rocq fails to start or exits abnormally, or when a module fails to load.</returns>
-    let capture (rocq: string[]) (projectDir: string) (project: RocqProject) (config: Config) : Result<Facts, string> =
+    let capture (rocq: string[]) (projectDir: string) (project: RocqProject) (config: Config) (jobs: int) : Result<Facts, string> =
         try
             match run rocq projectDir [ "--print-version" ] "" with
             | code, _, errors when code <> 0 -> Result.Error $"rocq --print-version exited with {code}: {errors}"
             | _, version, _ ->
-                let script = captureScript project config
+                let arguments = "repl" :: loadPath projectDir
 
-                match run rocq projectDir ("repl" :: loadPath projectDir) script with
-                | code, _, errors when code <> 0 -> Result.Error $"rocq repl exited with {code}: {errors}"
-                | _, _, errors when Regex.IsMatch (errors, @"(?m)^> Require ") ->
-                    Result.Error $"rocq repl failed to load a module. Compile the project first.\n{errors}"
-                | _, output, _ ->
-                    Ok
-                        {
-                            RocqVersion = (version.Split ' ').[0].Trim()
-                            Digests =
-                                project.Files
-                                |> Array.map (fun file -> file.Path, file.Digest)
-                                |> Map.ofArray
-                            Symbols = parseTranscript project output
-                        }
+                let results =
+                    captureScripts project config jobs
+                    |> Array.Parallel.map (run rocq projectDir arguments)
+
+                match
+                    results
+                    |> Array.tryFind (fun (code, _, _) -> code <> 0)
+                with
+                | Some (code, _, errors) -> Result.Error $"rocq repl exited with {code}: {errors}"
+                | None ->
+                    match
+                        results
+                        |> Array.tryFind (fun (_, _, errors) -> Regex.IsMatch (errors, @"(?m)^> Require "))
+                    with
+                    | Some (_, _, errors) -> Result.Error $"rocq repl failed to load a module. Compile the project first.\n{errors}"
+                    | None ->
+                        Ok
+                            {
+                                RocqVersion = (version.Split ' ').[0].Trim()
+                                Digests =
+                                    project.Files
+                                    |> Array.map (fun file -> file.Path, file.Digest)
+                                    |> Map.ofArray
+                                Symbols =
+                                    results
+                                    |> List.ofArray
+                                    |> List.collect (fun (_, output, _) -> segments output)
+                                    |> factsOf project
+                            }
         with :? ComponentModel.Win32Exception as failure ->
             Result.Error $"{rocq[0]}: {failure.Message}"
 

@@ -49,13 +49,17 @@ let private captureTests =
                     | Ok config -> config
                     | Result.Error message -> failtest message
 
-                match Facts.capture rocq (FixtureFiles.fixtureDir ()) project config with
-                | Result.Error message -> failtest message
-                | Ok facts ->
-                    Expect.equal facts.Symbols (Facts.parseTranscript project (transcript ())) "capture agrees with transcript.txt"
+                for jobs in [ 1; 3 ] do
+                    match Facts.capture rocq (FixtureFiles.fixtureDir ()) project config jobs with
+                    | Result.Error message -> failtest message
+                    | Ok facts ->
+                        Expect.equal
+                            facts.Symbols
+                            (Facts.parseTranscript project (transcript ()))
+                            $"capture with {jobs} jobs agrees with transcript.txt"
 
-                    Expect.isSome facts.Symbols["Fixture.Guide.sum_refl"].Type "a theorem has a type"
-                    Expect.isNotEmpty facts.RocqVersion "the version is read"
+                        Expect.isSome facts.Symbols["Fixture.Guide.sum_refl"].Type "a theorem has a type"
+                        Expect.isNotEmpty facts.RocqVersion "the version is read"
         ]
 
 let private withJsonFile (text: string) (run: string -> unit) =
@@ -306,5 +310,29 @@ let tests =
                 Expect.stringContains script "Print Assumptions Fixture.Guide.sum_refl." "a theorem has assumptions"
                 Expect.isFalse (script.Contains "Print Assumptions Fixture.Guide.first_use.") "a definition has none"
                 Expect.isFalse (script.Contains "Check @Fixture.Guide.First.\n") "a section name has no Check"
+
+            testCase "the split scripts run each command of the capture script once, under its number"
+            <| fun () ->
+                let project = FixtureFiles.fixtureProject ()
+                let config = Config.none
+                let whole = Facts.captureScript project config
+
+                let commandsOf (script: string) =
+                    script.Split ("Fail Check ", StringSplitOptions.RemoveEmptyEntries)
+                    |> Array.filter (fun part -> part.StartsWith "__nav_")
+
+                let expected = commandsOf whole |> Array.sort
+
+                for jobs in [ 1; 2; 3; expected.Length + 5 ] do
+                    let scripts = Facts.captureScripts project config jobs
+
+                    Expect.equal scripts.Length (min jobs expected.Length) $"{jobs} jobs: the script count"
+
+                    for script in scripts do
+                        Expect.stringContains script "Require Fixture.Other." $"{jobs} jobs: each script requires each file"
+
+                    Expect.equal (scripts |> Array.collect commandsOf |> Array.sort) expected $"{jobs} jobs: the commands"
+
+                Expect.equal (Facts.captureScripts project config 1) [| whole |] "one job is the capture script"
          ]
          @ captureTests)
