@@ -212,11 +212,11 @@ also publishes to nuget.org through trusted publishing, so the repository holds 
 `Version` in `Directory.Build.props`, which every package shares:
 
 ```bash
-git tag v0.1.0-preview.2
+git tag v0.1.0-preview.3
 ```
 
 ```bash
-git push origin v0.1.0-preview.2
+git push origin v0.1.0-preview.3
 ```
 
 ## Design decisions
