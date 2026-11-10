@@ -78,6 +78,8 @@ dotnet run -- rocq-capture --rocq "rocq" --out facts.json
 
 The value of `--rocq` is split into words, so a wrapper works too. The example's facts were captured with Rocq 9.1.0 running in WSL, through `wsl.exe` and `opam exec`.
 
+`Print Assumptions` takes most of the time, since Rocq walks a theorem's whole dependency tree on each call. The command splits its queries across `--jobs` Rocq processes running at once: by default the processor count, at most 8. Each process loads the whole project, so a project built on Iris needs about 1 GB per job.
+
 ## Rocq code blocks
 
 The plugin colours Markdown fences marked `rocq` or `coq` on any page of the site, with the lexer and keywords the library uses to read a source file:

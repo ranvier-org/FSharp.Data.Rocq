@@ -480,23 +480,33 @@ module Rocq =
 Arguments:
   --rocq "<command>"   The command that starts rocq, split on spaces with quotes honoured
   --out <path>         The facts file to write, relative to the project root
+  --jobs <n>           The most rocq processes to run at once (default: the processor count, at most 8).
+                       Each holds the whole project in memory
 
 The project and navigator.json come from the plugin's options. The project must be compiled.
 
   dotnet run -- rocq-capture --rocq "rocq" --out facts.json"""
 
+    let private defaultJobs = min Environment.ProcessorCount 8
+
     let private capture (options: RocqOptions) (context: CommandContext) =
-        let rec parse (arguments: string list) (rocq: string option) (out: string option) =
+        let rec parse (arguments: string list) (rocq: string option) (out: string option) (jobs: int option) =
             match arguments with
-            | "--rocq" :: value :: rest -> parse rest (Some value) out
-            | "--out" :: value :: rest -> parse rest rocq (Some value)
-            | [] -> rocq, out
+            | "--rocq" :: value :: rest -> parse rest (Some value) out jobs
+            | "--out" :: value :: rest -> parse rest rocq (Some value) jobs
+            | "--jobs" :: value :: rest ->
+                match Int32.TryParse value with
+                | true, count when count > 0 -> parse rest rocq out (Some count)
+                | _ ->
+                    eprintfn $"rocq-capture: --jobs takes a positive whole number, not {value}"
+                    None, None, None
+            | [] -> rocq, out, Some (defaultArg jobs defaultJobs)
             | other :: _ ->
                 eprintfn $"rocq-capture: unknown argument {other}"
-                None, None
+                None, None, None
 
-        match parse context.Arguments None None with
-        | Some rocq, Some out ->
+        match parse context.Arguments None None None with
+        | Some rocq, Some out, Some jobs ->
             let projectFile = resolvePath context.ProjectRoot options.Project
 
             let config =
@@ -514,7 +524,7 @@ The project and navigator.json come from the plugin's options. The project must 
                 eprintfn $"rocq-capture: {message}"
                 1
             | Ok project, Ok config ->
-                match Facts.capture (splitCommand rocq) (Path.GetDirectoryName projectFile) project config with
+                match Facts.capture (splitCommand rocq) (Path.GetDirectoryName projectFile) project config jobs with
                 | Result.Error message ->
                     eprintfn $"rocq-capture: {message}"
                     1

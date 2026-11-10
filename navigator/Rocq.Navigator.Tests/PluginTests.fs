@@ -1156,6 +1156,7 @@ let private tests' =
             let help = command.Help |> Option.defaultValue ""
             Expect.stringContains help "--rocq" "the command argument"
             Expect.stringContains help "--out" "the output argument"
+            Expect.stringContains help "--jobs" "the process count argument"
 
         testCase "string edits report a missing host or head, and the doctype goes by match"
         <| fun () ->
