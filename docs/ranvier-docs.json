@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "title": "Rocq proofs & Navigator",
+  "description": "Typed F# access to compiled Rocq theories (.v and .glob) and static interactive proof site generation for Nacara.",
+  "index": "index.md",
+  "proofsUrl": "https://ranvier-org.github.io/FSharp.Data.Rocq/example/",
+  "sections": [
+    {
+      "title": "Rocq & Navigator",
+      "items": [
+        "index.md",
+        "guide/library.md",
+        "guide/navigator.md",
+        "guide/prose-and-guarantees.md",
+        "guide/schema.md"
+      ]
+    }
+  ]
+}
