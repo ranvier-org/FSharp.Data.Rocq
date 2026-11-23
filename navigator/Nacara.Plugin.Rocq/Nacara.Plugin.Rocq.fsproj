@@ -56,7 +56,7 @@
     <ItemGroup>
         <PackageReference Include="Nacara.Core" Version="$(NacaraCoreVersion)" />
         <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
-        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssBuildVersion)" />
     </ItemGroup>
 
 </Project>

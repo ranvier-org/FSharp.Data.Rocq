@@ -28,12 +28,12 @@
 
     <ItemGroup>
         <PackageReference Include="Ranvier.View" Version="$(RanvierViewVersion)" />
-        <PackageReference Include="Ranvier.View.Anime" Version="$(RanvierViewVersion)" />
+        <PackageReference Include="Fable.Ranvier.View.Anime" Version="$(RanvierViewAnimeVersion)" />
         <PackageReference Include="Ranvier.Wire" Version="$(RanvierWireVersion)" />
         <PackageReference Include="Ranvier.Css" Version="$(RanvierCssVersion)" />
-        <PackageReference Include="Ranvier.Css.Bindings" Version="$(RanvierCssVersion)" />
-        <PackageReference Include="Ranvier.Css.View" Version="$(RanvierCssVersion)" />
-        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssVersion)" />
+        <PackageReference Include="Ranvier.Css.Bindings" Version="$(RanvierCssBindingsVersion)" />
+        <PackageReference Include="Ranvier.Css.View" Version="$(RanvierCssViewVersion)" />
+        <PackageReference Include="Ranvier.Css.Build" Version="$(RanvierCssBuildVersion)" />
     </ItemGroup>
 
 </Project>
