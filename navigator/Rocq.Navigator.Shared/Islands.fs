@@ -2,7 +2,7 @@ module Rocq.Navigator.Islands
 
 open global.Ranvier
 open Ranvier.View
-open Ranvier.View.Sugar
+open Ranvier.View.Dsl
 open Rocq.Navigator.Model
 
 #if FABLE_COMPILER
@@ -501,8 +501,7 @@ let private createMarker (_: Setup) () =
     ()
 
 /// Marks the section in view on the page and in the outline, and shows the current declaration's lists in the right pane.
-let sectionMarker: Component<unit> =
-    Component.define createMarker (fun t -> t.fragment [||])
+let sectionMarker: Component<unit> = Component.template createMarker (fragment [||])
 
 /// The id of the card element, which an open reference names in `aria-describedby`.
 [<Literal>]
@@ -955,14 +954,11 @@ let private cardText (read: CardFace -> string) (instance: CardLayerInstance) =
     | Some face -> read face
     | None -> ""
 
-let private shownWhen (condition: CardFace -> bool) : Part<'native, CardLayerInstance> =
-    Attrs.attribute (
-        "hidden",
-        fun (instance: CardLayerInstance) ->
-            match instance.Face.Value with
-            | Some face when condition face -> None
-            | _ -> Some ""
-    )
+let private shownWhen (condition: CardFace -> bool) =
+    HtmlElement.hidden (fun (instance: CardLayerInstance) ->
+        match instance.Face.Value with
+        | Some face -> not (condition face)
+        | None -> true)
 
 let private isBinder (face: CardFace) =
     face.Card.Key.StartsWith "b"
@@ -1009,39 +1005,40 @@ let private metaOf (face: CardFace) =
 /// The hover card, and the dialog a reference chip opens: each one element in the server's HTML, hidden until opened. A card's
 /// name and signature are text, and its doc is HTML the build rendered with raw HTML disabled.
 let cardLayer: Component<unit> =
-    Component.define createCards (fun t ->
-        fragment
+    Component.template
+        createCards
+        (fragment
             [|
                 div (
-                    Attrs.className "card",
-                    Attrs.attribute ("id", cardId),
-                    Attrs.attribute ("role", "tooltip"),
+                    div.className "card",
+                    div.id cardId,
+                    div.role "tooltip",
                     shownWhen (fun _ -> true),
-                    Events.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
-                    Events.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
+                    div.onPointerenter (fun (instance: CardLayerInstance) _ -> instance.Hold ()),
+                    div.onPointerleave (fun (instance: CardLayerInstance) event -> instance.Release (box event))
                 ) {
-                    p (Attrs.className "card-head") {
+                    p (p.className "card-head") {
                         a (
-                            Attrs.className "card-name",
-                            Attrs.attribute ("href", (fun (instance: CardLayerInstance) -> instance.Face.Value |> Option.bind _.Card.Href))
+                            a.className "card-name",
+                            a.attribute ("href", (fun (instance: CardLayerInstance) -> instance.Face.Value |> Option.bind _.Card.Href))
                         ) {
                             cardText nameOf
                         }
 
                         span (
-                            Attrs.attribute ("class", (fun (instance: CardLayerInstance) -> Some (cardText badgeClass instance))),
+                            span.className (fun (instance: CardLayerInstance) -> Some (cardText badgeClass instance)),
                             shownWhen _.Card.Badge.IsSome
                         ) {
                             cardText badgeText
                         }
                     }
 
-                    pre (Attrs.className "card-signature", shownWhen (fun face -> signatureOf face <> "")) { cardText signatureOf }
+                    pre (pre.className "card-signature", shownWhen (fun face -> signatureOf face <> "")) { cardText signatureOf }
 
                     div (
-                        Attrs.className "card-doc",
+                        div.className "card-doc",
                         shownWhen _.Card.DocHtml.IsSome,
-                        t.Unsafe.html (fun (instance: CardLayerInstance) ->
+                        div.unsafeHtml (fun (instance: CardLayerInstance) ->
                             instance.Face.Value
                             |> Option.bind _.Card.DocHtml
                             |> Option.defaultValue ""
@@ -1051,7 +1048,7 @@ let cardLayer: Component<unit> =
                     }
 
                     p (
-                        Attrs.className "card-quiet",
+                        p.className "card-quiet",
                         shownWhen (fun face ->
                             face.FromFile
                             && face.Card.DocHtml.IsNone
@@ -1061,24 +1058,24 @@ let cardLayer: Component<unit> =
                         "No documentation"
                     }
 
-                    p (Attrs.className "card-meta", shownWhen _.FromFile) { cardText metaOf }
+                    p (p.className "card-meta", shownWhen _.FromFile) { cardText metaOf }
                 }
 
                 div (
-                    Attrs.className "chip-dialog",
-                    Attrs.attribute ("id", chipDialogId),
-                    Attrs.attribute ("role", "dialog"),
-                    Attrs.aria ("label", "References"),
-                    Attrs.attribute ("hidden", (fun (instance: CardLayerInstance) -> if instance.ChipOpen () then None else Some ""))
+                    div.className "chip-dialog",
+                    div.id chipDialogId,
+                    div.role "dialog",
+                    div.ariaLabel "References",
+                    div.hidden (fun (instance: CardLayerInstance) -> not (instance.ChipOpen ()))
                 ) {
-                    div (Attrs.className "lists-head") {
+                    div (div.className "lists-head") {
                         small () { "This definition" }
-                        span (Attrs.className "lists-name") { () }
+                        span (span.className "lists-name") { () }
                     }
 
-                    p (Attrs.className "lists-empty") { () }
-                    div (Attrs.className "xref", Attrs.attribute ("data-slot", "uses")) { () }
-                    div (Attrs.className "xref", Attrs.attribute ("data-slot", "used-by")) { () }
+                    p (p.className "lists-empty") { () }
+                    div (div.className "xref", div.data ("slot", "uses")) { () }
+                    div (div.className "xref", div.data ("slot", "used-by")) { () }
                 }
             |])
 #if FABLE_COMPILER
@@ -1331,15 +1328,15 @@ let private createSearch (_: Setup) () : SearchInstance =
 
 let private searchRow: TemplateView<unit -> SearchRow> =
     li (
-        Attrs.role "option",
-        Attrs.id (fun current -> optionId (current ()).Index),
-        Attrs.aria ("selected", (fun current -> Some (if (current ()).Active then "true" else "false")))
+        li.role "option",
+        li.id (fun current -> optionId (current ()).Index),
+        li.aria ("selected", (fun current -> Some (if (current ()).Active then "true" else "false")))
     ) {
-        a (Attrs.className "hit", Attrs.attribute ("href", (fun current -> Some (current ()).Entry.Href))) {
-            span (Attrs.className "hit-name") { fun current -> (current ()).Entry.Name }
-            span (Attrs.className "hit-kind") { fun current -> (current ()).Entry.Kind }
-            span (Attrs.className "hit-module") { fun current -> (current ()).Entry.Module }
-            span (Attrs.className "hit-summary") { fun current -> (current ()).Entry.Summary }
+        a (a.className "hit", a.attribute ("href", (fun current -> Some (current ()).Entry.Href))) {
+            span (span.className "hit-name") { fun current -> (current ()).Entry.Name }
+            span (span.className "hit-kind") { fun current -> (current ()).Entry.Kind }
+            span (span.className "hit-module") { fun current -> (current ()).Entry.Module }
+            span (span.className "hit-summary") { fun current -> (current ()).Entry.Summary }
         }
     }
 
@@ -1350,32 +1347,32 @@ let search: Component<unit> =
         (fragment
             [|
                 button (
-                    Attrs.attribute ("type", "button"),
-                    Attrs.className "search-trigger",
-                    Attrs.aria ("haspopup", "dialog"),
-                    Events.onClick (fun (instance: SearchInstance) _ -> instance.Open ())
+                    button.``type`` "button",
+                    button.className "search-trigger",
+                    button.aria ("haspopup", "dialog"),
+                    button.onClick (fun (instance: SearchInstance) _ -> instance.Open ())
                 ) {
-                    span (Attrs.className "search-label") { "Search" }
-                    kbd (Attrs.className "search-hint") { "Ctrl K" }
+                    span (span.className "search-label") { "Search" }
+                    kbd (kbd.className "search-hint") { "Ctrl K" }
                 }
 
                 dialog (
-                    Attrs.className "search-dialog",
-                    Attrs.aria ("label", "Search declarations"),
-                    Hooks.mounted (fun (instance: SearchInstance) element -> instance.Attach (box element)),
-                    Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
-                    Events.onClose (fun instance _ -> instance.OnClosed ())
+                    dialog.className "search-dialog",
+                    dialog.ariaLabel "Search declarations",
+                    dialog.mounted (fun (instance: SearchInstance) element -> instance.Attach (box element)),
+                    dialog.onClick (fun instance event -> instance.OnDialogClick (box event)),
+                    dialog.onClose (fun instance _ -> instance.OnClosed ())
                 ) {
                     input (
-                        Attrs.attribute ("type", "text"),
-                        Attrs.className "search-input",
-                        Attrs.role "combobox",
-                        Attrs.attribute ("autocomplete", "off"),
-                        Attrs.attribute ("spellcheck", "false"),
-                        Attrs.aria ("label", "Search declarations"),
-                        Attrs.aria ("controls", "search-list"),
-                        Attrs.aria ("autocomplete", "list"),
-                        Attrs.aria (
+                        input.attribute ("type", "text"),
+                        input.className "search-input",
+                        input.role "combobox",
+                        input.attribute ("autocomplete", "off"),
+                        input.attribute ("spellcheck", "false"),
+                        input.ariaLabel "Search declarations",
+                        input.aria ("controls", "search-list"),
+                        input.aria ("autocomplete", "list"),
+                        input.aria (
                             "expanded",
                             (fun (instance: SearchInstance) ->
                                 Some (
@@ -1385,7 +1382,7 @@ let search: Component<unit> =
                                         "false"
                                 ))
                         ),
-                        Attrs.aria (
+                        input.aria (
                             "activedescendant",
                             (fun (instance: SearchInstance) ->
                                 if instance.Results.Value.Length > 0 then
@@ -1393,13 +1390,13 @@ let search: Component<unit> =
                                 else
                                     None)
                         ),
-                        Events.onInput (fun instance event -> instance.OnInput (box event)),
-                        Events.onKeydown (fun instance event -> instance.OnKey (box event))
+                        input.onInput (fun instance event -> instance.OnInput (box event)),
+                        input.onKeydown (fun instance event -> instance.OnKey (box event))
                     )
 
-                    p (Attrs.className "search-message", Attrs.role "status") { searchMessage }
+                    p (p.className "search-message", p.role "status") { searchMessage }
 
-                    ul (Attrs.id "search-list", Attrs.className "search-list", Attrs.role "listbox", Attrs.aria ("label", "Results")) {
+                    ul (ul.id "search-list", ul.className "search-list", ul.role "listbox", ul.ariaLabel "Results") {
                         forEach (fun (row: SearchRow) -> row.Entry.Href) searchRows searchRow
                     }
                 }
@@ -1751,9 +1748,9 @@ let private createSettings (_: Setup) () : SettingsInstance =
 
 let private choice (select: SettingsInstance -> Signal<string>) (key: string) (value: string) (label: string) =
     button (
-        Attrs.attribute ("type", "button"),
-        Attrs.aria ("pressed", (fun (instance: SettingsInstance) -> Some (if (select instance).Value = value then "true" else "false"))),
-        Events.onClick (fun (instance: SettingsInstance) _ ->
+        button.``type`` "button",
+        button.aria ("pressed", (fun (instance: SettingsInstance) -> Some (if (select instance).Value = value then "true" else "false"))),
+        button.onClick (fun (instance: SettingsInstance) _ ->
 #if FABLE_COMPILER
             save key value
 #endif
@@ -1768,115 +1765,108 @@ let settings: Component<unit> =
     Component.template
         createSettings
         (dialog (
-            Attrs.className "settings",
-            Attrs.aria ("label", "Reading settings"),
-            Hooks.mounted (fun (instance: SettingsInstance) element -> instance.Attach (box element)),
-            Events.onClick (fun instance event -> instance.OnDialogClick (box event)),
-            Events.onClose (fun instance _ -> instance.OnClosed ())
+            dialog.className "settings",
+            dialog.ariaLabel "Reading settings",
+            dialog.mounted (fun (instance: SettingsInstance) element -> instance.Attach (box element)),
+            dialog.onClick (fun instance event -> instance.OnDialogClick (box event)),
+            dialog.onClose (fun instance _ -> instance.OnClosed ())
         ) {
-            div (Attrs.className "settings-body") {
-                div (Attrs.className "settings-head") {
+            div (div.className "settings-body") {
+                div (div.className "settings-head") {
                     h2 () { "Reading settings" }
 
                     button (
-                        Attrs.attribute ("type", "button"),
-                        Attrs.className "settings-close",
-                        Attrs.aria ("label", "Close settings"),
-                        Events.onClick (fun (instance: SettingsInstance) _ -> instance.Close ())
+                        button.``type`` "button",
+                        button.className "settings-close",
+                        button.ariaLabel "Close settings",
+                        button.onClick (fun (instance: SettingsInstance) _ -> instance.Close ())
                     ) {
                         "✕"
                     }
                 }
 
-                div (Attrs.className "switch") {
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Look" }
+                div (div.className "switch") {
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Look" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Look")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Look") {
                             choice _.Look lookKey "family" "Family"
                             choice _.Look lookKey "journal" "Journal"
                         }
                     }
 
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Mode" }
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Mode" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Mode")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Mode") {
                             choice _.Mode modeKey "system" "Auto"
                             choice _.Mode modeKey "light" "Light"
                             choice _.Mode modeKey "dark" "Dark"
                         }
                     }
 
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Definitions" }
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Definitions" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Definitions")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Definitions") {
                             choice _.Definitions definitionsKey foldOpen "Open"
                             choice _.Definitions definitionsKey foldClosed "Closed"
                             choice _.Definitions definitionsKey foldLong "Close long ones"
                         }
 
                         input (
-                            Attrs.attribute ("type", "number"),
-                            Attrs.attribute ("min", "1"),
-                            Attrs.className "setting-lines",
-                            Attrs.aria ("label", "Close definitions longer than this many lines"),
-                            Attrs.attribute ("value", (fun (instance: SettingsInstance) -> Some (string instance.DefinitionsOver.Value))),
-                            Attrs.attribute (
-                                "hidden",
-                                (fun (instance: SettingsInstance) ->
-                                    if instance.Definitions.Value = foldLong then
-                                        None
-                                    else
-                                        Some "")
-                            ),
-                            Events.onInput (fun instance event -> instance.OnOver (box event))
+                            input.attribute ("type", "number"),
+                            input.attribute ("min", "1"),
+                            input.className "setting-lines",
+                            input.ariaLabel "Close definitions longer than this many lines",
+                            input.attribute ("value", (fun (instance: SettingsInstance) -> Some (string instance.DefinitionsOver.Value))),
+                            input.hidden (fun (instance: SettingsInstance) -> instance.Definitions.Value <> foldLong),
+                            input.onInput (fun instance event -> instance.OnOver (box event))
                         )
                     }
 
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Proofs" }
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Proofs" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Proofs")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Proofs") {
                             choice _.Proofs proofsKey foldClosed "Closed"
                             choice _.Proofs proofsKey foldOpen "Open"
                         }
                     }
 
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Imports" }
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Imports" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Imports")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Imports") {
                             choice _.Imports importsKey foldClosed "Closed"
                             choice _.Imports importsKey foldOpen "Open"
                         }
                     }
 
-                    div (Attrs.className "setting") {
-                        p (Attrs.className "setting-label") { "Arguments" }
+                    div (div.className "setting") {
+                        p (p.className "setting-label") { "Arguments" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "Arguments")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "Arguments") {
                             choice _.Arguments argumentsKey argumentsNames "Names only"
                             choice _.Arguments argumentsKey argumentsTypes "With types"
                             choice _.Arguments argumentsKey argumentsPanel "In the panel"
                         }
                     }
 
-                    div (Attrs.className "setting setting-references") {
-                        p (Attrs.className "setting-label") { "References" }
+                    div (div.className "setting setting-references") {
+                        p (p.className "setting-label") { "References" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "References")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "References") {
                             choice _.References referencesKey placementPane "Pinned"
                             choice _.References referencesKey placementBadges "Badges"
                             choice _.References referencesKey placementUnder "Under definitions"
                         }
                     }
 
-                    div (Attrs.className "setting setting-references-open") {
-                        p (Attrs.className "setting-label") { "References open" }
+                    div (div.className "setting setting-references-open") {
+                        p (p.className "setting-label") { "References open" }
 
-                        span (Attrs.className "switch-group", Attrs.attribute ("role", "group"), Attrs.aria ("label", "References open")) {
+                        span (span.className "switch-group", span.role "group", span.ariaLabel "References open") {
                             choice _.ReferencesOpen referencesOpenKey foldClosed "Closed"
                             choice _.ReferencesOpen referencesOpenKey foldOpen "Open"
                         }
@@ -1884,14 +1874,14 @@ let settings: Component<unit> =
                 }
 
                 button (
-                    Attrs.attribute ("type", "button"),
-                    Attrs.className "settings-reset",
-                    Events.onClick (fun (instance: SettingsInstance) _ -> instance.Reset ())
+                    button.``type`` "button",
+                    button.className "settings-reset",
+                    button.onClick (fun (instance: SettingsInstance) _ -> instance.Reset ())
                 ) {
                     "Reset to the site's defaults"
                 }
 
-                p (Attrs.className "settings-note") { "Saved in this browser." }
+                p (p.className "settings-note") { "Saved in this browser." }
             }
         })
 
